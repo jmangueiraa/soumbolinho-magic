@@ -146,52 +146,28 @@ export const CartDrawer: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="space-y-2.5 pt-1">
-              {hasMercadoPago ? (
-                <>
-                  {/* Botão 1: Pagar com Pix via Mercado Pago */}
-                  <button
-                    onClick={handleMercadoPagoCheckout}
-                    disabled={isLoadingMP}
-                    className="w-full py-3.5 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-teal-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    {isLoadingMP ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                        <span>Gerando Pagamento Seguro...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-base">💠</span>
-                        <span>Pagar com Pix / Cartão (Aprovação Imediata)</span>
-                      </>
-                    )}
-                  </button>
+              {/* Botão Principal: Ir para a Página de Finalização de Compra */}
+              <a
+                href="#/finalizar-compra"
+                onClick={closeCart}
+                className="w-full py-4 px-4 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer group"
+              >
+                <span>Finalizar Compra</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </a>
 
-                  {/* Botão 2: Finalizar Pedido via WhatsApp */}
-                  <button
-                    onClick={openCheckout}
-                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer group"
-                  >
-                    <MessageCircle className="w-4 h-4 fill-white group-hover:scale-110 transition-transform" />
-                    <span>Finalizar Pedido via WhatsApp</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              ) : (
-                /* Botão Único Destacado quando Mercado Pago não estiver configurado pelo Admin */
-                <button
-                  onClick={openCheckout}
-                  className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer group"
-                >
-                  <MessageCircle className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
-                  <span>Finalizar Pedido via WhatsApp (Pix / Cartão)</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+              {/* Botão Secundário: Finalizar Direto via WhatsApp */}
+              <button
+                onClick={openCheckout}
+                className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                <span>Ou Comprar Rápido no WhatsApp</span>
+              </button>
             </div>
 
             <p className="text-[10px] text-center text-slate-400">
-              🔒 Pagamentos protegidos via Pix ou combinação direta com o ateliê no WhatsApp.
+              🔒 Checkout transparente com Pix instantâneo e Cartão de Crédito.
             </p>
           </div>
         )}

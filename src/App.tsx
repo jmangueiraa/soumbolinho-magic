@@ -17,6 +17,7 @@ import { Toast } from './components/common/Toast';
 import { BannerSlider } from './components/home/BannerSlider';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLogin } from './components/admin/AdminLogin';
+import { CheckoutPage } from './components/checkout/CheckoutPage';
 
 const StoreFront: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -84,10 +85,12 @@ const StoreFront: React.FC = () => {
 
 const NavigationRouter: React.FC = () => {
   const { isAuthenticated } = useStoreData();
-  const [currentRoute, setCurrentRoute] = useState<'store' | 'admin'>(() => {
+  const [currentRoute, setCurrentRoute] = useState<'store' | 'admin' | 'checkout'>(() => {
     const hash = window.location.hash.toLowerCase();
     const path = window.location.pathname.toLowerCase();
-    return hash.includes('/admin') || path.includes('/admin') ? 'admin' : 'store';
+    if (hash.includes('/admin') || path.includes('/admin')) return 'admin';
+    if (hash.includes('/finalizar-compra') || hash.includes('/checkout') || path.includes('/finalizar-compra') || path.includes('/checkout')) return 'checkout';
+    return 'store';
   });
 
   useEffect(() => {
@@ -96,6 +99,8 @@ const NavigationRouter: React.FC = () => {
       const path = window.location.pathname.toLowerCase();
       if (hash.includes('/admin') || path.includes('/admin')) {
         setCurrentRoute('admin');
+      } else if (hash.includes('/finalizar-compra') || hash.includes('/checkout') || path.includes('/finalizar-compra') || path.includes('/checkout')) {
+        setCurrentRoute('checkout');
       } else {
         setCurrentRoute('store');
       }
@@ -119,6 +124,10 @@ const NavigationRouter: React.FC = () => {
       return <AdminLogin onBackToStore={handleBackToStore} />;
     }
     return <AdminLayout onBackToStore={handleBackToStore} />;
+  }
+
+  if (currentRoute === 'checkout') {
+    return <CheckoutPage />;
   }
 
   return <StoreFront />;
