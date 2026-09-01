@@ -29,11 +29,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     unitSuffix: '/Un',
     description: '',
     image: '',
-    imageUrl: '',
-    inStock: true,
-    badge: '' as any,
-    isCustomizable: true,
-    customizationPlaceholder: '',
+    active: true,
   });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -45,53 +41,32 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   useEffect(() => {
     if (product) {
-      const existingImg = (
-        product.image ||
-        product.image_url ||
-        product.imageUrl ||
-        product.photo_url ||
-        ''
-      ).trim();
-
+      const existingImg = product.image || product.image_url || product.imageUrl || '';
       setFormData({
         name: product.name || '',
-        category: product.category || (categories[0]?.id || ''),
+        category: product.category || '',
         subcategory: product.subcategory || '',
         price: product.price ? String(product.price) : '',
         unitSuffix: product.unitSuffix || '/Un',
         description: product.description || '',
         image: existingImg,
-        imageUrl: existingImg,
-        inStock: (product as any).active ?? product.inStock ?? true,
-        badge: product.badge || '',
-        isCustomizable: product.isCustomizable ?? true,
-        customizationPlaceholder: product.customizationPlaceholder || '',
+        active: (product as any).active ?? product.inStock ?? true,
       });
       setImagePreview(existingImg);
     } else {
       setFormData({
         name: '',
-        category: categories[0]?.id || '',
-        subcategory: categories[0]?.subcategories[0] || '',
+        category: '',
+        subcategory: '',
         price: '',
         unitSuffix: '/Un',
         description: '',
         image: '',
-        imageUrl: '',
-        inStock: true,
-        badge: '',
-        isCustomizable: true,
-        customizationPlaceholder: '',
+        active: true,
       });
       setImagePreview('');
     }
-
-    setSelectedFile(null);
-    setUploadError(null);
-    setIsUploading(false);
-    setIsSubmitting(false);
-    setErrors({});
-  }, [product, isOpen, categories]);
+  }, [product, isOpen]);
 
   if (!isOpen) return null;
 
@@ -118,7 +93,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (url) {
       console.log('[ProductFormModal] ✅ Imagem enviada para o Supabase com URL:', url);
       setImagePreview(url);
-      setFormData((prev) => ({ ...prev, image: url, imageUrl: url }));
+      setFormData((prev) => ({ ...prev, image: url }));
     } else {
       console.error('[ProductFormModal] ❌ Erro de upload no Supabase:', error);
       setUploadError(`Erro no Supabase: ${error || 'Não foi possível salvar no bucket.'}`);
@@ -127,7 +102,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setImagePreview(base64String);
-        setFormData((prev) => ({ ...prev, image: base64String, imageUrl: base64String }));
+        setFormData((prev) => ({ ...prev, image: base64String }));
       };
       reader.readAsDataURL(file);
     }
@@ -136,7 +111,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const handleUrlChange = (url: string) => {
     setSelectedFile(null);
     setUploadError(null);
-    setFormData((prev) => ({ ...prev, image: url, imageUrl: url }));
+    setFormData((prev) => ({ ...prev, image: url }));
     setImagePreview(url);
   };
 
@@ -159,7 +134,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!validate()) return;
 
     setIsSubmitting(true);
-    let finalImageUrl = (formData.image || formData.imageUrl || '').trim();
+    let finalImageUrl = (formData.image || '').trim();
 
     // Se houver arquivo selecionado e upload pendente
     if (selectedFile && (!finalImageUrl || finalImageUrl.startsWith('blob:'))) {
@@ -186,10 +161,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       image_url: finalImageUrl,
       photo_url: finalImageUrl,
       description: formData.description.trim() || undefined,
-      inStock: formData.inStock,
-      badge: formData.badge || undefined,
-      isCustomizable: formData.isCustomizable,
-      customizationPlaceholder: formData.customizationPlaceholder.trim() || undefined,
+      inStock: formData.active,
+      isCustomizable: true,
     };
 
     console.log('[ProductFormModal] 💾 Salvando produto:', payload);
@@ -273,12 +246,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 }}
                 className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493] cursor-pointer"
               >
+                <option value="">Selecione uma categoria</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
               </select>
+              {errors.category && <span className="text-[11px] text-rose-500 mt-0.5 block">{errors.category}</span>}
             </div>
 
             <div>
@@ -372,7 +347,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <div className="flex-1 space-y-2">
                 <input
                   type="text"
-                  value={formData.image || formData.imageUrl}
+                  value={formData.image}
                   onChange={(e) => handleUrlChange(e.target.value)}
                   placeholder="Cole o link direto da imagem (URL) ou faça upload..."
                   className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493]"
@@ -427,37 +402,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             />
           </div>
 
-          {/* Opções de Status e Destaque */}
-          <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Etiqueta / Badge de Destaque
-              </label>
-              <select
-                value={formData.badge}
-                onChange={(e) => setFormData({ ...formData, badge: e.target.value as any })}
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              >
-                <option value="">Nenhum</option>
-                <option value="Mais Vendido">Mais Vendido</option>
-                <option value="Lançamento">Lançamento</option>
-                <option value="Personalizado">Personalizado</option>
-                <option value="Destaque">Destaque</option>
-                <option value="Pronta Entrega">Pronta Entrega</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2 pt-4">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 select-none">
-                <input
-                  type="checkbox"
-                  checked={formData.inStock}
-                  onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
-                  className="w-4 h-4 rounded text-[#FF1493] focus:ring-[#FF1493] border-slate-300 accent-[#FF1493]"
-                />
-                <span>Disponível no Catálogo (Ativo)</span>
-              </label>
-            </div>
+          {/* Status Ativo / Em Estoque */}
+          <div className="pt-2 border-t border-slate-100">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 select-none">
+              <input
+                type="checkbox"
+                checked={formData.active}
+                onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                className="w-4 h-4 rounded text-[#FF1493] focus:ring-[#FF1493] border-slate-300 accent-[#FF1493]"
+              />
+              <span>Disponível no Catálogo (Ativo)</span>
+            </label>
           </div>
 
           {/* Submit Actions */}
