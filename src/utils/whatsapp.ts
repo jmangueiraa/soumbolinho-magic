@@ -40,8 +40,7 @@ export function buildWhatsAppOrderMessage(
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 *DADOS DO CLIENTE:*
 • *Nome:* ${customerInfo.name || 'Cliente'}
-• *WhatsApp:* ${customerInfo.phone || 'Não informado'}
-• *Data da Festa/Evento:* ${formatDate(customerInfo.eventDate)}
+• *E-mail:* ${customerInfo.email || 'Não informado'}${customerInfo.eventDate ? `\n• *Data da Festa/Evento:* ${formatDate(customerInfo.eventDate)}` : ''}
 
 📍 *FORMA DE RECEBIMENTO:*
 • ${deliveryText}

@@ -15,6 +15,18 @@ export interface PreferenceResponse {
 }
 
 /**
+ * Verifica se o Mercado Pago está configurado no painel admin ou variáveis de ambiente
+ */
+export function isMercadoPagoConfigured(storeConfig?: Partial<StoreConfig>): boolean {
+  const token = 
+    localStorage.getItem('encantando_festa_mp_access_token') ||
+    storeConfig?.mpAccessToken ||
+    import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
+    '';
+  return Boolean(token && token.trim().length > 10);
+}
+
+/**
  * Cria uma preferência de pagamento no Mercado Pago Checkout Pro
  * e retorna a URL de redirecionamento (init_point)
  */
@@ -94,7 +106,7 @@ export async function createMercadoPagoPreference(
     preferencePayload.payer = {
       name: firstName,
       surname: lastName,
-      email: `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}_cliente@encantandofesta.com`,
+      email: customerInfo.email?.trim() || `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}_cliente@encantandofesta.com`,
       phone: cleanPhone
         ? {
             area_code: cleanPhone.slice(0, 2),

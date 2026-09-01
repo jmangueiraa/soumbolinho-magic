@@ -45,6 +45,7 @@ export const StoreSettingsManager: React.FC = () => {
       city: formData.city.trim(),
       workingHours: formData.workingHours.trim(),
       minOrderValue: numMin,
+      mpAccessToken: formData.mpAccessToken?.trim() || '',
     });
   };
 
