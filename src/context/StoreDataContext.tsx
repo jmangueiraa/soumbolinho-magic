@@ -26,8 +26,8 @@ interface StoreDataContextType {
   login: (password: string) => boolean;
   logout: () => void;
   // Produtos
-  addProduct: (productData: Omit<Product, 'id'>) => Product;
-  updateProduct: (id: string, updates: Partial<Product>) => void;
+  addProduct: (productData: Omit<Product, 'id'>) => Promise<Product>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => void;
   toggleProductStock: (id: string) => void;
   quickUpdatePrice: (id: string, newPrice: number) => void;
@@ -240,83 +240,103 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // Ações de Produtos
-  const addProduct = (productData: Omit<Product, 'id'>): Product => {
-    const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const finalImg = productData.imageUrl || productData.image_url || productData.image || '';
+  const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
+    const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const finalImg = (productData.imageUrl || productData.image_url || productData.image || '').trim();
+    const numericPrice = Number(productData.price) || 0;
 
     const newProduct: Product = {
       ...productData,
       id: newId,
+      price: numericPrice,
       imageUrl: finalImg,
       image: finalImg,
       image_url: finalImg,
       photo_url: finalImg,
     };
 
-    setProducts((prev) => [newProduct, ...prev]);
-    showNotification(`Produto "${newProduct.name}" cadastrado com sucesso!`, 'success');
+    const dbPayload = {
+      id: newId,
+      name: String(newProduct.name || '').trim(),
+      category: String(newProduct.category || '').trim(),
+      subcategory: newProduct.subcategory ? String(newProduct.subcategory).trim() : null,
+      price: numericPrice,
+      unit_suffix: String(newProduct.unitSuffix || '/Un').trim(),
+      image_url: finalImg || null,
+      image: finalImg || null,
+      description: newProduct.description ? String(newProduct.description).trim() : null,
+      in_stock: Boolean(newProduct.inStock ?? true),
+      badge: newProduct.badge || null,
+      is_customizable: Boolean(newProduct.isCustomizable ?? true),
+      customization_placeholder: newProduct.customizationPlaceholder || null,
+    };
 
-    // Persistência no Supabase Database
-    supabase
-      .from('products')
-      .upsert({
-        id: newId,
-        name: newProduct.name,
-        category: newProduct.category,
-        subcategory: newProduct.subcategory,
-        price: newProduct.price,
-        unit_suffix: newProduct.unitSuffix,
-        image_url: finalImg,
-        image: finalImg,
-        description: newProduct.description,
-        in_stock: newProduct.inStock,
-        badge: newProduct.badge,
-        is_customizable: newProduct.isCustomizable,
-        customization_placeholder: newProduct.customizationPlaceholder,
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.log('[StoreDataContext] Nota: produto gravado no LocalStorage. (Supabase DB:', error.message, ')');
-        } else {
-          console.log('[StoreDataContext] ✅ Produto gravado no Supabase DB com sucesso!');
-        }
-      })
-      .catch((e) => console.warn(e));
+    console.log('Tentando salvar payload:', dbPayload);
+
+    // Atualiza estado local imediatamente
+    setProducts((prev) => [newProduct, ...prev]);
+
+    try {
+      const { data, error } = await supabase.from('products').upsert(dbPayload).select();
+
+      if (error) {
+        console.error('Erro ao salvar no Supabase:', error);
+        showNotification(`Aviso: Produto salvo localmente (Erro Supabase: ${error.message})`, 'info');
+      } else {
+        console.log('✅ Produto salvo com sucesso no Supabase:', data);
+        showNotification(`Produto "${newProduct.name}" cadastrado com sucesso!`, 'success');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar no Supabase:', err);
+      showNotification(`Produto "${newProduct.name}" salvo localmente.`, 'info');
+    }
 
     return newProduct;
   };
 
-  const updateProduct = (id: string, updates: Partial<Product>) => {
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
     const finalImg = updates.imageUrl || updates.image_url || updates.image;
+    const numericPrice = updates.price !== undefined ? Number(updates.price) : undefined;
+
     const finalUpdates = {
       ...updates,
+      ...(numericPrice !== undefined ? { price: numericPrice } : {}),
       ...(finalImg ? { imageUrl: finalImg, image: finalImg, image_url: finalImg, photo_url: finalImg } : {})
     };
 
     setProducts((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...finalUpdates } : item))
     );
-    showNotification('Produto atualizado com sucesso!', 'success');
 
-    // Atualizar no Supabase
-    supabase
-      .from('products')
-      .update({
-        name: updates.name,
-        category: updates.category,
-        subcategory: updates.subcategory,
-        price: updates.price,
-        unit_suffix: updates.unitSuffix,
-        ...(finalImg ? { image_url: finalImg, image: finalImg } : {}),
-        description: updates.description,
-        in_stock: updates.inStock,
-        badge: updates.badge,
-      })
-      .eq('id', id)
-      .then(({ error }) => {
-        if (error) console.log('[StoreDataContext] Atualização Supabase DB:', error.message);
-      })
-      .catch((e) => console.warn(e));
+    const dbUpdatePayload: any = {};
+    if (updates.name !== undefined) dbUpdatePayload.name = String(updates.name).trim();
+    if (updates.category !== undefined) dbUpdatePayload.category = String(updates.category).trim();
+    if (updates.subcategory !== undefined) dbUpdatePayload.subcategory = updates.subcategory ? String(updates.subcategory).trim() : null;
+    if (numericPrice !== undefined) dbUpdatePayload.price = numericPrice;
+    if (updates.unitSuffix !== undefined) dbUpdatePayload.unit_suffix = String(updates.unitSuffix).trim();
+    if (finalImg !== undefined) {
+      dbUpdatePayload.image_url = finalImg || null;
+      dbUpdatePayload.image = finalImg || null;
+    }
+    if (updates.description !== undefined) dbUpdatePayload.description = updates.description ? String(updates.description).trim() : null;
+    if (updates.inStock !== undefined) dbUpdatePayload.in_stock = Boolean(updates.inStock);
+    if (updates.badge !== undefined) dbUpdatePayload.badge = updates.badge || null;
+
+    console.log('Tentando atualizar payload no Supabase:', dbUpdatePayload);
+
+    try {
+      const { data, error } = await supabase.from('products').update(dbUpdatePayload).eq('id', id).select();
+
+      if (error) {
+        console.error('Erro ao salvar no Supabase:', error);
+        showNotification(`Produto atualizado localmente (Erro Supabase: ${error.message})`, 'info');
+      } else {
+        console.log('✅ Produto atualizado no Supabase:', data);
+        showNotification('Produto atualizado com sucesso!', 'success');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar no Supabase:', err);
+    }
   };
 
   const deleteProduct = (id: string) => {

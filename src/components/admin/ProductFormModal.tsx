@@ -133,48 +133,58 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
-    setIsSubmitting(true);
-    let finalImageUrl = (formData.image || '').trim();
+    try {
+      setIsSubmitting(true);
+      let finalImageUrl = (formData.image || '').trim();
 
-    // Se houver arquivo selecionado e upload pendente
-    if (selectedFile && (!finalImageUrl || finalImageUrl.startsWith('blob:'))) {
-      console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload antes de salvar...');
-      setIsUploading(true);
-      const { url } = await uploadProductImage(selectedFile);
-      setIsUploading(false);
+      // Se houver arquivo selecionado e upload pendente
+      if (selectedFile && (!finalImageUrl || finalImageUrl.startsWith('blob:'))) {
+        console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload para o Supabase Storage...');
+        setIsUploading(true);
+        const { url, error: uploadErr } = await uploadProductImage(selectedFile);
+        setIsUploading(false);
 
-      if (url) {
-        finalImageUrl = url;
+        if (url) {
+          finalImageUrl = url;
+          console.log('[ProductFormModal] ✅ Foto salva no bucket "products":', url);
+        } else {
+          console.error('[ProductFormModal] Erro ao salvar imagem no bucket:', uploadErr);
+        }
       }
+
+      // Conversão numérica estrita
+      const rawPrice = String(formData.price).replace(',', '.');
+      const numericPrice = Number(parseFloat(rawPrice)) || 0;
+
+      const payload = {
+        name: String(formData.name).trim(),
+        category: String(formData.category).trim(),
+        subcategory: formData.subcategory ? String(formData.subcategory).trim() : undefined,
+        price: numericPrice,
+        unitSuffix: formData.unitSuffix ? String(formData.unitSuffix).trim() : '/Un',
+        imageUrl: finalImageUrl,
+        image: finalImageUrl,
+        image_url: finalImageUrl,
+        photo_url: finalImageUrl,
+        description: formData.description ? String(formData.description).trim() : undefined,
+        inStock: Boolean(formData.active),
+        isCustomizable: true,
+      };
+
+      console.log('Tentando salvar payload:', payload);
+
+      if (product) {
+        await updateProduct(product.id, payload);
+      } else {
+        await addProduct(payload);
+      }
+
+      setIsSubmitting(false);
+      onClose();
+    } catch (error) {
+      console.error('Erro ao salvar no Supabase:', error);
+      setIsSubmitting(false);
     }
-
-    const numericPrice = parseFloat(formData.price.replace(',', '.'));
-
-    const payload = {
-      name: formData.name.trim(),
-      category: formData.category,
-      subcategory: formData.subcategory.trim() || undefined,
-      price: numericPrice,
-      unitSuffix: formData.unitSuffix.trim() || '/Un',
-      imageUrl: finalImageUrl,
-      image: finalImageUrl,
-      image_url: finalImageUrl,
-      photo_url: finalImageUrl,
-      description: formData.description.trim() || undefined,
-      inStock: formData.active,
-      isCustomizable: true,
-    };
-
-    console.log('[ProductFormModal] 💾 Salvando produto:', payload);
-
-    if (product) {
-      updateProduct(product.id, payload);
-    } else {
-      addProduct(payload);
-    }
-
-    setIsSubmitting(false);
-    onClose();
   };
 
   return (

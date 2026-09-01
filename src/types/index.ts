@@ -86,4 +86,5 @@ export interface StoreConfig {
   city: string;
   workingHours: string;
   minOrderValue: number;
+  mpAccessToken?: string;
 }

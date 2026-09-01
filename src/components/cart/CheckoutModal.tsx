@@ -20,6 +20,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency, formatPhone } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { createMercadoPagoPreference } from '../../lib/mercadopago';
+import { MercadoPagoTokenModal } from './MercadoPagoTokenModal';
 
 export const CheckoutModal: React.FC = () => {
   const { storeConfig } = useStoreData();
@@ -49,6 +50,7 @@ export const CheckoutModal: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoadingMP, setIsLoadingMP] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
+  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
   if (!isCheckoutOpen) return null;
 
@@ -91,7 +93,7 @@ export const CheckoutModal: React.FC = () => {
     setIsSuccess(true);
   };
 
-  const handlePayWithMercadoPago = async () => {
+  const startMercadoPagoPayment = async (customToken?: string) => {
     if (!validateForm()) return;
 
     try {
@@ -102,6 +104,7 @@ export const CheckoutModal: React.FC = () => {
         items,
         customerInfo,
         storeConfig,
+        customAccessToken: customToken,
       });
 
       if (preference.init_point) {
@@ -110,10 +113,20 @@ export const CheckoutModal: React.FC = () => {
         throw new Error('Link de pagamento não retornado pelo Mercado Pago.');
       }
     } catch (err: any) {
+      if (err.message === 'NO_TOKEN') {
+        setIsLoadingMP(false);
+        setIsTokenModalOpen(true);
+        return;
+      }
+
       console.error('[CheckoutModal] Erro ao criar preferência do Mercado Pago:', err);
       setMpError(err.message || 'Falha ao conectar com o Mercado Pago. Você pode finalizar pelo WhatsApp.');
       setIsLoadingMP(false);
     }
+  };
+
+  const handlePayWithMercadoPago = () => {
+    startMercadoPagoPayment();
   };
 
   const handleFinishAndReset = () => {
@@ -123,7 +136,8 @@ export const CheckoutModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
@@ -433,5 +447,15 @@ export const CheckoutModal: React.FC = () => {
 
       </div>
     </div>
+
+    {/* Modal de Configuração do Token do Mercado Pago */}
+    <MercadoPagoTokenModal
+      isOpen={isTokenModalOpen}
+      onClose={() => setIsTokenModalOpen(false)}
+      onSuccess={(savedToken) => {
+        startMercadoPagoPayment(savedToken);
+      }}
+    />
+  </>
   );
 };

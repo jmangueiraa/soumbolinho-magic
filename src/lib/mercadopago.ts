@@ -4,6 +4,7 @@ export interface CreatePreferenceOptions {
   items: CartItem[];
   customerInfo?: Partial<OrderCustomerInfo>;
   storeConfig?: Partial<StoreConfig>;
+  customAccessToken?: string;
 }
 
 export interface PreferenceResponse {
@@ -20,19 +21,19 @@ export interface PreferenceResponse {
 export async function createMercadoPagoPreference(
   options: CreatePreferenceOptions
 ): Promise<PreferenceResponse> {
-  const { items, customerInfo, storeConfig } = options;
+  const { items, customerInfo, storeConfig, customAccessToken } = options;
 
-  // 1. Obter Access Token da variável de ambiente ou LocalStorage
+  // 1. Obter Access Token de forma prioritária e segura
   const accessToken = 
-    import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
+    customAccessToken ||
     localStorage.getItem('encantando_festa_mp_access_token') ||
+    storeConfig?.mpAccessToken ||
+    import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
     '';
 
   if (!accessToken) {
-    console.error('[Mercado Pago] ❌ Access Token não configurado em VITE_MERCADO_PAGO_ACCESS_TOKEN.');
-    throw new Error(
-      'Access Token do Mercado Pago não configurado. Por favor, adicione VITE_MERCADO_PAGO_ACCESS_TOKEN no arquivo .env.'
-    );
+    console.warn('[Mercado Pago] ⚠️ Access Token não configurado.');
+    throw new Error('NO_TOKEN');
   }
 
   // 2. Formatar os itens do carrinho para a API do Mercado Pago
