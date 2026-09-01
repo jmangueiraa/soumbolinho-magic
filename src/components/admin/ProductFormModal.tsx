@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Check, Loader2, AlertCircle } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
@@ -7,25 +7,29 @@ import { uploadProductImage } from '../../lib/storage';
 
 interface ProductFormModalProps {
   isOpen: boolean;
-  productToEdit: Product | null;
+  product?: Product | null;
+  productToEdit?: Product | null;
   onClose: () => void;
 }
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
+  product: productProp,
   productToEdit,
   onClose,
 }) => {
   const { categories, addProduct, updateProduct } = useStoreData();
+  const product = productProp || productToEdit || null;
 
   const [formData, setFormData] = useState({
     name: '',
-    category: categories[0]?.id || '',
+    category: '',
     subcategory: '',
     price: '',
     unitSuffix: '/Un',
-    imageUrl: '',
     description: '',
+    image: '',
+    imageUrl: '',
     inStock: true,
     badge: '' as any,
     isCustomizable: true,
@@ -40,20 +44,28 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string }>({});
 
   useEffect(() => {
-    if (productToEdit) {
-      const existingImg = (productToEdit.imageUrl || productToEdit.image_url || productToEdit.image || productToEdit.photo_url || '').trim();
+    if (product) {
+      const existingImg = (
+        product.image ||
+        product.image_url ||
+        product.imageUrl ||
+        product.photo_url ||
+        ''
+      ).trim();
+
       setFormData({
-        name: productToEdit.name,
-        category: productToEdit.category,
-        subcategory: productToEdit.subcategory || '',
-        price: productToEdit.price.toString().replace('.', ','),
-        unitSuffix: productToEdit.unitSuffix || '/Un',
+        name: product.name || '',
+        category: product.category || (categories[0]?.id || ''),
+        subcategory: product.subcategory || '',
+        price: product.price ? String(product.price) : '',
+        unitSuffix: product.unitSuffix || '/Un',
+        description: product.description || '',
+        image: existingImg,
         imageUrl: existingImg,
-        description: productToEdit.description || '',
-        inStock: productToEdit.inStock,
-        badge: productToEdit.badge || '',
-        isCustomizable: productToEdit.isCustomizable ?? true,
-        customizationPlaceholder: productToEdit.customizationPlaceholder || '',
+        inStock: (product as any).active ?? product.inStock ?? true,
+        badge: product.badge || '',
+        isCustomizable: product.isCustomizable ?? true,
+        customizationPlaceholder: product.customizationPlaceholder || '',
       });
       setImagePreview(existingImg);
     } else {
@@ -63,8 +75,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         subcategory: categories[0]?.subcategories[0] || '',
         price: '',
         unitSuffix: '/Un',
-        imageUrl: '',
         description: '',
+        image: '',
+        imageUrl: '',
         inStock: true,
         badge: '',
         isCustomizable: true,
@@ -72,12 +85,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       });
       setImagePreview('');
     }
+
     setSelectedFile(null);
     setUploadError(null);
     setIsUploading(false);
     setIsSubmitting(false);
     setErrors({});
-  }, [productToEdit, categories, isOpen]);
+  }, [product, isOpen, categories]);
 
   if (!isOpen) return null;
 
@@ -88,7 +102,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    console.log('[ProductFormModal] 📁 Arquivo de imagem selecionado:', file.name, `(${file.size} bytes)`);
+    console.log('[ProductFormModal] 📁 Arquivo selecionado:', file.name, `(${file.size} bytes)`);
     setSelectedFile(file);
     setUploadError(null);
 
@@ -96,35 +110,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     const localPreviewUrl = URL.createObjectURL(file);
     setImagePreview(localPreviewUrl);
 
-    // Iniciar upload no Supabase
+    // Upload no Supabase Storage
     setIsUploading(true);
     const { url, error } = await uploadProductImage(file);
     setIsUploading(false);
 
     if (url) {
-      console.log('[ProductFormModal] ✅ Imagem persistida no Supabase com URL:', url);
+      console.log('[ProductFormModal] ✅ Imagem enviada para o Supabase com URL:', url);
       setImagePreview(url);
-      setFormData((prev) => ({ ...prev, imageUrl: url }));
+      setFormData((prev) => ({ ...prev, image: url, imageUrl: url }));
     } else {
-      console.error('[ProductFormModal] ❌ Falha no upload para o Supabase Storage:', error);
-      setUploadError(`Erro no Supabase: ${error || 'Não foi possível salvar a imagem no bucket.'}`);
+      console.error('[ProductFormModal] ❌ Erro de upload no Supabase:', error);
+      setUploadError(`Erro no Supabase: ${error || 'Não foi possível salvar no bucket.'}`);
       
-      // Fallback para Base64 para não perder a foto do usuário
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setImagePreview(base64String);
-        setFormData((prev) => ({ ...prev, imageUrl: base64String }));
+        setFormData((prev) => ({ ...prev, image: base64String, imageUrl: base64String }));
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleUrlChange = (url: string) => {
-    console.log('[ProductFormModal] 🔗 URL manual informada:', url);
     setSelectedFile(null);
     setUploadError(null);
-    setFormData((prev) => ({ ...prev, imageUrl: url }));
+    setFormData((prev) => ({ ...prev, image: url, imageUrl: url }));
     setImagePreview(url);
   };
 
@@ -147,19 +159,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!validate()) return;
 
     setIsSubmitting(true);
-    let finalImageUrl = formData.imageUrl.trim();
+    let finalImageUrl = (formData.image || formData.imageUrl || '').trim();
 
-    // Se houver um arquivo selecionado e ainda não tiver uma URL pública do Supabase, tenta o upload antes de salvar
+    // Se houver arquivo selecionado e upload pendente
     if (selectedFile && (!finalImageUrl || finalImageUrl.startsWith('blob:'))) {
-      console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload para o Supabase antes de salvar...');
+      console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload antes de salvar...');
       setIsUploading(true);
-      const { url, error } = await uploadProductImage(selectedFile);
+      const { url } = await uploadProductImage(selectedFile);
       setIsUploading(false);
 
       if (url) {
         finalImageUrl = url;
-      } else {
-        console.warn('[ProductFormModal] ⚠️ Upload falhou no envio final, mantendo preview atual:', error);
       }
     }
 
@@ -182,10 +192,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       customizationPlaceholder: formData.customizationPlaceholder.trim() || undefined,
     };
 
-    console.log('[ProductFormModal] 💾 Salvando produto com payload:', payload);
+    console.log('[ProductFormModal] 💾 Salvando produto:', payload);
 
-    if (productToEdit) {
-      updateProduct(productToEdit.id, payload);
+    if (product) {
+      updateProduct(product.id, payload);
     } else {
       addProduct(payload);
     }
@@ -209,7 +219,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         <div className="px-6 py-4 bg-gradient-to-r from-pastel-pink-light via-pastel-lilac-light to-pastel-pink-light border-b border-[#FFA6DF]/40 flex items-center justify-between">
           <div>
             <h3 className="font-festive font-bold text-slate-900 text-lg">
-              {productToEdit ? 'Editar Produto' : 'Cadastrar Novo Produto'}
+              {product ? 'Editar Produto' : 'Cadastrar Novo Produto'}
             </h3>
             <p className="text-xs text-slate-500">
               Preencha os dados e fotos do item para o catálogo
@@ -362,7 +372,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <div className="flex-1 space-y-2">
                 <input
                   type="text"
-                  value={formData.imageUrl}
+                  value={formData.image || formData.imageUrl}
                   onChange={(e) => handleUrlChange(e.target.value)}
                   placeholder="Cole o link direto da imagem (URL) ou faça upload..."
                   className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493]"
@@ -474,7 +484,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               ) : (
                 <>
                   <Save className="w-4 h-4 text-[#FFD1EC]" />
-                  <span>{productToEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+                  <span>{product ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
                 </>
               )}
             </button>
