@@ -25,6 +25,7 @@ export const StoreSettingsManager: React.FC = () => {
     city: storeConfig.city,
     workingHours: storeConfig.workingHours,
     minOrderValue: storeConfig.minOrderValue.toString().replace('.', ','),
+    mpAccessToken: localStorage.getItem('encantando_festa_mp_access_token') || import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '',
   });
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -207,6 +208,34 @@ export const StoreSettingsManager: React.FC = () => {
                 className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
               />
             </div>
+          </div>
+        </div>
+
+        {/* 4. Integração Mercado Pago Checkout Pro */}
+        <div className="p-4 sm:p-5 bg-sky-50/70 rounded-3xl border border-sky-200 space-y-4">
+          <div className="flex items-center gap-2 text-sky-800 font-bold text-sm">
+            <span className="w-6 h-6 rounded-full bg-[#009EE3] text-white flex items-center justify-center text-[10px] font-black">MP</span>
+            <span>Mercado Pago Checkout Pro (Pagamentos Online)</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1">
+              Access Token do Mercado Pago (Bearer Token)
+            </label>
+            <input
+              type="password"
+              value={formData.mpAccessToken || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData({ ...formData, mpAccessToken: val });
+                localStorage.setItem('encantando_festa_mp_access_token', val);
+              }}
+              placeholder="APP_USR-xxxxxxxxxxxx-xxxxxx-xxxxxxxxxxxxxxxx..."
+              className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#009EE3] font-mono"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              Obtenha suas credenciais de produção ou teste no painel de desenvolvedores: <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-[#009EE3] underline font-semibold">mercadopago.com.br/developers</a>
+            </p>
           </div>
         </div>
 

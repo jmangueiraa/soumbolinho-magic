@@ -3,22 +3,23 @@ import {
   X, 
   MessageCircle, 
   User, 
-  Phone, 
   Calendar, 
-  MapPin, 
   CreditCard, 
   FileText, 
   CheckCircle, 
   ArrowLeft,
   Eye,
   Store,
-  Truck
+  Truck,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { OrderCustomerInfo } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency, formatPhone } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
+import { createMercadoPagoPreference } from '../../lib/mercadopago';
 
 export const CheckoutModal: React.FC = () => {
   const { storeConfig } = useStoreData();
@@ -46,6 +47,8 @@ export const CheckoutModal: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string; address?: string }>({});
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoadingMP, setIsLoadingMP] = useState(false);
+  const [mpError, setMpError] = useState<string | null>(null);
 
   if (!isCheckoutOpen) return null;
 
@@ -84,11 +87,33 @@ export const CheckoutModal: React.FC = () => {
     if (!validateForm()) return;
 
     const whatsappUrl = createWhatsAppUrl(storeConfig.whatsappNumber, formattedMessage);
-    
-    // Abrir o WhatsApp
     window.open(whatsappUrl, '_blank');
-
     setIsSuccess(true);
+  };
+
+  const handlePayWithMercadoPago = async () => {
+    if (!validateForm()) return;
+
+    try {
+      setIsLoadingMP(true);
+      setMpError(null);
+
+      const preference = await createMercadoPagoPreference({
+        items,
+        customerInfo,
+        storeConfig,
+      });
+
+      if (preference.init_point) {
+        window.location.href = preference.init_point;
+      } else {
+        throw new Error('Link de pagamento não retornado pelo Mercado Pago.');
+      }
+    } catch (err: any) {
+      console.error('[CheckoutModal] Erro ao criar preferência do Mercado Pago:', err);
+      setMpError(err.message || 'Falha ao conectar com o Mercado Pago. Você pode finalizar pelo WhatsApp.');
+      setIsLoadingMP(false);
+    }
   };
 
   const handleFinishAndReset = () => {
@@ -108,7 +133,7 @@ export const CheckoutModal: React.FC = () => {
       {/* Modal Box */}
       <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
         
-        {/* Header with Pink/Lilac gradient */}
+        {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-pastel-pink-light via-pastel-lilac-light to-pastel-pink-light border-b border-[#D8B4F8]/40 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -123,10 +148,10 @@ export const CheckoutModal: React.FC = () => {
             </button>
             <div>
               <h3 className="font-festive font-bold text-slate-900 text-lg">
-                Finalizar Pedido no WhatsApp
+                Finalizar Pedido
               </h3>
               <p className="text-xs text-slate-500">
-                Encantando Festa • Atendimento pelo WhatsApp (21) 97497-5884
+                {storeConfig.storeName} • Pagamento Online ou via WhatsApp
               </p>
             </div>
           </div>
@@ -156,7 +181,7 @@ export const CheckoutModal: React.FC = () => {
               <div className="pt-4">
                 <button
                   onClick={handleFinishAndReset}
-                  className="px-6 py-3 bg-black hover:bg-slate-800 text-white text-sm font-bold rounded-2xl shadow-md transition-all"
+                  className="px-6 py-3 bg-black hover:bg-slate-800 text-white text-sm font-bold rounded-2xl shadow-md transition-all cursor-pointer"
                 >
                   Concluir e Voltar ao Catálogo
                 </button>
@@ -243,7 +268,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'retirada' })}
-                    className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all ${
+                    className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       customerInfo.deliveryType === 'retirada'
                         ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
                         : 'border-slate-200 bg-white hover:bg-slate-50'
@@ -259,7 +284,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'entrega' })}
-                    className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all ${
+                    className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       customerInfo.deliveryType === 'entrega'
                         ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
                         : 'border-slate-200 bg-white hover:bg-slate-50'
@@ -321,37 +346,7 @@ export const CheckoutModal: React.FC = () => {
                 )}
               </div>
 
-              {/* 3. Forma de Pagamento */}
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5 text-[#B886E8]" />
-                  Forma de Pagamento Preferida
-                </h4>
-
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  {[
-                    { id: 'pix', label: '💠 Pix', desc: 'Chave / QR Code' },
-                    { id: 'cartao', label: '💳 Cartão', desc: 'Crédito / Débito' },
-                    { id: 'dinheiro', label: '💵 Dinheiro', desc: 'Na retirada' }
-                  ].map((method) => (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.id as any })}
-                      className={`p-2.5 rounded-2xl border transition-all ${
-                        customerInfo.paymentMethod === method.id
-                          ? 'border-black bg-pastel-pink-light/50 text-slate-900 font-bold shadow-xs'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{method.label}</div>
-                      <div className="text-[10px] text-slate-400 font-normal">{method.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 4. Observações gerais */}
+              {/* 3. Observações gerais */}
               <div className="pt-2 border-t border-slate-100">
                 <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-[#B886E8]" />
@@ -371,7 +366,7 @@ export const CheckoutModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPreview(!showPreview)}
-                  className="text-xs text-[#B886E8] hover:text-black font-bold flex items-center gap-1"
+                  className="text-xs text-[#B886E8] hover:text-black font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   {showPreview ? 'Ocultar prévia da mensagem' : 'Ver prévia da mensagem gerada para o WhatsApp'}
@@ -384,23 +379,51 @@ export const CheckoutModal: React.FC = () => {
                 )}
               </div>
 
-              {/* Submit CTA */}
+              {mpError && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                  <span>{mpError}</span>
+                </div>
+              )}
+
+              {/* Submit CTAs */}
               <div className="pt-4 border-t border-slate-100 space-y-3">
                 <div className="flex items-center justify-between font-bold text-slate-900">
                   <span className="text-xs uppercase tracking-wider text-slate-500">Total do Pedido:</span>
                   <span className="text-2xl font-black text-slate-900">{formatCurrency(totalPrice)}</span>
                 </div>
 
+                {/* Opção 1: Mercado Pago Checkout Pro */}
                 <button
-                  type="submit"
-                  className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-3 active:scale-98 transition-all group"
+                  type="button"
+                  onClick={handlePayWithMercadoPago}
+                  disabled={isLoadingMP}
+                  className="w-full py-4 px-6 bg-[#009EE3] hover:bg-[#0082BD] text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl shadow-[#009EE3]/25 flex items-center justify-center gap-3 active:scale-98 transition-all cursor-pointer disabled:opacity-60"
                 >
-                  <MessageCircle className="w-6 h-6 fill-white group-hover:scale-110 transition-transform" />
-                  <span>Enviar Pedido para WhatsApp (21) 97497-5884</span>
+                  {isLoadingMP ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-white" />
+                      <span>Gerando Checkout Mercado Pago...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-5 h-5" />
+                      <span>Pagar com Mercado Pago (Pix / Cartão em até 12x)</span>
+                    </>
+                  )}
                 </button>
 
-                <p className="text-[11px] text-center text-slate-400">
-                  Ao clicar, o WhatsApp será aberto com todos os itens, quantidades e valores calculados.
+                {/* Opção 2: WhatsApp */}
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center justify-center gap-2.5 active:scale-98 transition-all cursor-pointer group"
+                >
+                  <MessageCircle className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
+                  <span>Ou Enviar Pedido para WhatsApp ({storeConfig.whatsappDisplay || '(21) 97497-5884'})</span>
+                </button>
+
+                <p className="text-[10px] text-center text-slate-400">
+                  🔒 Checkout seguro com garantia Mercado Pago ou combinação direta pelo WhatsApp.
                 </p>
               </div>
 

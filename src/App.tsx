@@ -12,6 +12,7 @@ import { ProductGrid } from './components/products/ProductGrid';
 import { ProductDetailModal } from './components/products/ProductDetailModal';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CheckoutModal } from './components/cart/CheckoutModal';
+import { PaymentFeedbackModal } from './components/cart/PaymentFeedbackModal';
 import { Toast } from './components/common/Toast';
 import { BannerSlider } from './components/home/BannerSlider';
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -71,6 +72,7 @@ const StoreFront: React.FC = () => {
       />
       <CartDrawer />
       <CheckoutModal />
+      <PaymentFeedbackModal />
       <Toast />
       <FloatingWhatsApp />
 

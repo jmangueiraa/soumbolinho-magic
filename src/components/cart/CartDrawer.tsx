@@ -1,9 +1,10 @@
-import React from 'react';
-import { X, ShoppingBag, ArrowRight, Trash2, MessageCircle, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, ShoppingBag, ArrowRight, Trash2, MessageCircle, CreditCard, Loader2, AlertCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency } from '../../utils/formatters';
 import { CartItemRow } from './CartItemRow';
 import { STORE_CONFIG } from '../../data/storeConfig';
+import { createMercadoPagoPreference } from '../../lib/mercadopago';
 
 export const CartDrawer: React.FC = () => {
   const { 
@@ -16,7 +17,33 @@ export const CartDrawer: React.FC = () => {
     openCheckout 
   } = useCart();
 
+  const [isLoadingMP, setIsLoadingMP] = useState(false);
+  const [mpError, setMpError] = useState<string | null>(null);
+
   if (!isCartOpen) return null;
+
+  const handleMercadoPagoCheckout = async () => {
+    try {
+      setIsLoadingMP(true);
+      setMpError(null);
+
+      const preference = await createMercadoPagoPreference({
+        items,
+        storeConfig: STORE_CONFIG,
+      });
+
+      if (preference.init_point) {
+        // Redireciona diretamente para o Checkout Pro do Mercado Pago
+        window.location.href = preference.init_point;
+      } else {
+        throw new Error('Link de pagamento não retornado pelo Mercado Pago.');
+      }
+    } catch (err: any) {
+      console.error('[CartDrawer] Erro ao iniciar Mercado Pago:', err);
+      setMpError(err.message || 'Não foi possível gerar o link de pagamento. Tente finalizar pelo WhatsApp.');
+      setIsLoadingMP(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -92,7 +119,7 @@ export const CartDrawer: React.FC = () => {
 
         {/* Footer Summary & Checkout Action */}
         {items.length > 0 && (
-          <div className="bg-white p-5 border-t border-[#D8B4F8]/30 shadow-lg space-y-4">
+          <div className="bg-white p-5 border-t border-[#D8B4F8]/30 shadow-lg space-y-3.5">
             
             {/* Subtotal & Total */}
             <div className="space-y-1.5">
@@ -110,18 +137,47 @@ export const CartDrawer: React.FC = () => {
               </div>
             </div>
 
-            {/* Highlighted 'Finalizar Pedido via WhatsApp' Button */}
-            <button
-              onClick={openCheckout}
-              className="w-full py-4 px-5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold text-sm rounded-2xl shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2.5 active:scale-98 transition-all group"
-            >
-              <MessageCircle className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
-              <span>Finalizar Pedido via WhatsApp</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {mpError && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                <span className="leading-tight">{mpError}</span>
+              </div>
+            )}
 
-            <p className="text-[11px] text-center text-slate-400">
-              💬 Enviaremos a comanda detalhada para o WhatsApp da {STORE_CONFIG.storeName}.
+            {/* Action Buttons */}
+            <div className="space-y-2.5 pt-1">
+              {/* 1. Botão Principal: Pagar com Mercado Pago (Pix / Cartão) */}
+              <button
+                onClick={handleMercadoPagoCheckout}
+                disabled={isLoadingMP}
+                className="w-full py-3.5 px-4 bg-[#009EE3] hover:bg-[#0082BD] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#009EE3]/25 flex items-center justify-center gap-2 active:scale-98 transition-all disabled:opacity-60 cursor-pointer"
+              >
+                {isLoadingMP ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Gerando Pagamento Seguro...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    <span>Pagar com Mercado Pago (Pix / Cartão)</span>
+                  </>
+                )}
+              </button>
+
+              {/* 2. Botão Secundário: Finalizar Pedido via WhatsApp */}
+              <button
+                onClick={openCheckout}
+                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm flex items-center justify-center gap-2 active:scale-98 transition-all group"
+              >
+                <MessageCircle className="w-4 h-4 fill-white group-hover:scale-110 transition-transform" />
+                <span>Finalizar Pedido via WhatsApp</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <p className="text-[10px] text-center text-slate-400">
+              🔒 Pagamentos protegidos pelo Mercado Pago com Pix ou Cartão em até 12x.
             </p>
           </div>
         )}
