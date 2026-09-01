@@ -164,6 +164,23 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     loadFromSupabase();
+
+    // Inscrever no canal Realtime do Supabase para refletir alterações instantaneamente
+    const channel = supabase
+      .channel('realtime_products_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          console.log('[StoreDataContext] ⚡ Alteração recebida via Supabase Realtime:', payload);
+          loadFromSupabase();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Sincronizar produtos no LocalStorage
