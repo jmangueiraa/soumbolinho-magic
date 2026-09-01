@@ -10,13 +10,17 @@ import {
   Loader2,
   MessageCircle,
   QrCode,
-  ShieldCheck
+  ShieldCheck,
+  Download,
+  ExternalLink,
+  Mail
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
+import { createOrderInSupabase } from '../../services/orderService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -62,7 +66,7 @@ export const CheckoutPage: React.FC = () => {
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!customerInfo.email.trim()) {
-      errors.email = 'Informe o seu e-mail.';
+      errors.email = 'Informe o seu e-mail para recebimento do link.';
     } else if (!emailRegex.test(customerInfo.email.trim())) {
       errors.email = 'Informe um e-mail válido.';
     }
@@ -84,7 +88,7 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handleFinalizeOrder = () => {
+  const handleFinalizeOrder = async () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -107,7 +111,18 @@ export const CheckoutPage: React.FC = () => {
       qrCodeUrl: qrUrl,
     };
 
-    // Disparar envio do e-mail de confirmação
+    // 1. Salvar pedido na tabela 'orders' do Supabase
+    await createOrderInSupabase({
+      orderId: generatedOrderId,
+      customerName: customerInfo.name,
+      customerEmail: customerInfo.email,
+      items: [...items],
+      totalAmount: finalTotal,
+      paymentId: generatedOrderId,
+      status: 'pending',
+    });
+
+    // 2. Disparar envio do e-mail de confirmação com os links de download
     sendOrderConfirmationEmail({
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
@@ -118,7 +133,7 @@ export const CheckoutPage: React.FC = () => {
       storeConfig,
     });
 
-    // Manter na mesma página com o layout de pagamento recebido
+    // 3. Manter na mesma página com o layout de pagamento recebido
     setOrderReceived(orderData);
     clearCart();
     setIsLoading(false);
@@ -375,6 +390,47 @@ export const CheckoutPage: React.FC = () => {
 
             </div>
 
+            {/* Card de Downloads / Acesso ao Produto Digital */}
+            <div className="bg-emerald-50/80 p-5 sm:p-6 rounded-3xl border border-emerald-200 space-y-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-emerald-950">
+                    Seu Produto Digital / Arquivos para Download
+                  </h3>
+                  <p className="text-[11px] text-emerald-800">
+                    O link de acesso também foi enviado para <strong>{orderReceived.customerEmail}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {orderReceived.items.map((item) => {
+                  const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
+                  return (
+                    <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-white rounded-2xl border border-emerald-100 shadow-xs gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">{item.product.name}</span>
+                        <span className="text-[10px] text-slate-400">Acesso vitalício • Entrega Imediata</span>
+                      </div>
+
+                      <a
+                        href={downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Acessar seu Produto / Fazer Download</span>
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Link para voltar ao início */}
             <div className="text-center pt-4">
               <a
@@ -433,10 +489,10 @@ export const CheckoutPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* E-mail * */}
+                  {/* E-mail para recebimento do link * */}
                   <div>
                     <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                      E-mail <span className="text-rose-600">*</span>
+                      E-mail para recebimento do link <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="email"

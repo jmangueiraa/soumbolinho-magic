@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Loader2, AlertCircle, Link2 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
@@ -28,6 +28,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     price: '',
     unitSuffix: '/Un',
     description: '',
+    delivery_url: '',
     image: '',
     active: true,
   });
@@ -49,6 +50,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: product.price ? String(product.price) : '',
         unitSuffix: product.unitSuffix || '/Un',
         description: product.description || '',
+        delivery_url: product.delivery_url || product.deliveryUrl || '',
         image: existingImg,
         active: (product as any).active ?? product.inStock ?? true,
       });
@@ -61,6 +63,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: '',
         unitSuffix: '/Un',
         description: '',
+        delivery_url: '',
         image: '',
         active: true,
       });
@@ -166,6 +169,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: finalImageUrl,
         image_url: finalImageUrl,
         photo_url: finalImageUrl,
+        delivery_url: (formData.delivery_url || '').trim() || undefined,
+        deliveryUrl: (formData.delivery_url || '').trim() || undefined,
         description: formData.description ? String(formData.description).trim() : undefined,
         inStock: Boolean(formData.active),
         isCustomizable: true,
@@ -396,6 +401,27 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <span>{uploadError}</span>
               </div>
             )}
+          </div>
+
+          {/* Link de Entrega Digital / Download (Google Drive, Canva, etc.) */}
+          <div className="pt-2 border-t border-slate-100">
+            <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-emerald-600" />
+                Link de Entrega Digital / Download (Google Drive, Canva, etc.)
+              </span>
+              <span className="text-[10px] font-normal text-slate-400">Opcional</span>
+            </label>
+            <input
+              type="url"
+              value={formData.delivery_url}
+              onChange={(e) => setFormData({ ...formData, delivery_url: e.target.value })}
+              placeholder="https://drive.google.com/... ou https://canva.com/..."
+              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-400"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Este link será enviado por e-mail e disponibilizado para download ao cliente após a confirmação do pagamento.
+            </p>
           </div>
 
           {/* Descrição */}

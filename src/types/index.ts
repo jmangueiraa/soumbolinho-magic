@@ -10,6 +10,8 @@ export interface Product {
   image?: string;
   image_url?: string;
   photo_url?: string;
+  delivery_url?: string;
+  deliveryUrl?: string;
   galleryImages?: string[];
   description?: string;
   inStock: boolean;

@@ -33,6 +33,7 @@ export const SidebarFilters: React.FC = () => {
     } else {
       setSelectedCategory(categoryId);
     }
+    if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
   };
 
   const handleSubcategoryClick = (categoryId: string, subcat: string, e: React.MouseEvent) => {
@@ -43,6 +44,7 @@ export const SidebarFilters: React.FC = () => {
     } else {
       setSelectedSubcategory(subcat);
     }
+    if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
   };
 
   const content = (
@@ -215,17 +217,17 @@ export const SidebarFilters: React.FC = () => {
         </div>
       </aside>
 
-      {/* Mobile Drawer (Retrátil / Offcanvas) */}
+      {/* Mobile Drawer (Retrátil pelo Lado Esquerdo) */}
       {isMobileFiltersOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
           {/* Backdrop com blur suave */}
           <div 
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs animate-in fade-in"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
             onClick={() => setIsMobileFiltersOpen(false)}
           />
 
-          {/* Drawer Panel com fundo rosa suave */}
-          <div className="relative ml-auto w-full max-w-xs bg-[#FFD1EC] h-full shadow-2xl p-6 overflow-y-auto flex flex-col justify-between animate-in slide-in-from-right duration-300 border-l border-[#FFA6DF]">
+          {/* Drawer Panel com fundo rosa suave vindo da Esquerda */}
+          <div className="relative mr-auto w-4/5 max-w-xs bg-[#FFD1EC] h-full shadow-2xl p-5 overflow-y-auto flex flex-col justify-between animate-in slide-in-from-left duration-200 border-r border-[#FFA6DF] z-10">
             <div>
               <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#FFA6DF]/40">
                 <span className="font-festive font-extrabold text-[#FF1493] text-lg">
@@ -233,7 +235,7 @@ export const SidebarFilters: React.FC = () => {
                 </span>
                 <button
                   onClick={() => setIsMobileFiltersOpen(false)}
-                  className="p-1.5 rounded-full hover:bg-white/60 text-[#2B3A8C] transition-colors"
+                  className="p-1.5 rounded-full hover:bg-white/60 text-[#2B3A8C] transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -246,7 +248,7 @@ export const SidebarFilters: React.FC = () => {
             <div className="pt-4 mt-4 border-t border-[#FFA6DF]/40">
               <button
                 onClick={() => setIsMobileFiltersOpen(false)}
-                className="w-full py-3 bg-black text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 active:scale-98"
+                className="w-full py-3 bg-black text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
               >
                 <Check className="w-4 h-4 text-[#FFD1EC]" />
                 Ver {totalResults} {totalResults === 1 ? 'produto' : 'produtos'}

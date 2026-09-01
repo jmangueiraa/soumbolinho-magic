@@ -28,6 +28,8 @@ export function mapSupabaseProduct(item: any): Product {
     image_url: rawImg,
     photo_url: rawImg,
     description: item.description || undefined,
+    delivery_url: item.delivery_url || item.deliveryUrl || undefined,
+    deliveryUrl: item.delivery_url || item.deliveryUrl || undefined,
     inStock: item.inStock !== false && item.in_stock !== false && item.active !== false,
     isCustomizable: item.isCustomizable ?? item.is_customizable ?? true,
     customizationPlaceholder: item.customizationPlaceholder || item.customization_placeholder || undefined,
@@ -79,6 +81,7 @@ export async function createProductInSupabase(
   const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const finalImg = (productData.imageUrl || productData.image_url || productData.image || '').trim();
   const numericPrice = Number(productData.price) || 0;
+  const finalDeliveryUrl = (productData.delivery_url || productData.deliveryUrl || '').trim();
 
   const dbPayload = {
     id: newId,
@@ -89,6 +92,7 @@ export async function createProductInSupabase(
     unit_suffix: String(productData.unitSuffix || '/Un').trim(),
     image_url: finalImg || null,
     image: finalImg || null,
+    delivery_url: finalDeliveryUrl || null,
     description: productData.description ? String(productData.description).trim() : null,
     in_stock: Boolean(productData.inStock ?? true),
     badge: productData.badge || null,
@@ -124,6 +128,7 @@ export async function updateProductInSupabase(
 ): Promise<{ success: boolean; error: string | null }> {
   const finalImg = updates.imageUrl || updates.image_url || updates.image;
   const numericPrice = updates.price !== undefined ? Number(updates.price) : undefined;
+  const finalDeliveryUrl = updates.delivery_url !== undefined ? updates.delivery_url : updates.deliveryUrl;
 
   const dbUpdatePayload: any = {
     updated_at: new Date().toISOString()
@@ -137,6 +142,9 @@ export async function updateProductInSupabase(
   if (finalImg !== undefined) {
     dbUpdatePayload.image_url = finalImg || null;
     dbUpdatePayload.image = finalImg || null;
+  }
+  if (finalDeliveryUrl !== undefined) {
+    dbUpdatePayload.delivery_url = finalDeliveryUrl ? String(finalDeliveryUrl).trim() : null;
   }
   if (updates.description !== undefined) dbUpdatePayload.description = updates.description ? String(updates.description).trim() : null;
   if (updates.inStock !== undefined) dbUpdatePayload.in_stock = Boolean(updates.inStock);

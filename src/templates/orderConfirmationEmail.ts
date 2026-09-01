@@ -21,7 +21,7 @@ export function generateOrderConfirmationEmailHtml(data: OrderEmailData): string
   const storeName = storeConfig?.storeName || 'Encantando Festa';
 
   const downloadRows = items.map((item) => {
-    const downloadUrl = item.product.imageUrl || item.product.image || '#';
+    const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || item.product.image || '#';
     return `
       <tr style="border-bottom: 1px solid #f1f5f9;">
         <td style="padding: 12px 8px; font-size: 14px; color: #16a34a; font-weight: 600;">
