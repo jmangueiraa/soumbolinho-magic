@@ -5,6 +5,7 @@ import { CATEGORIES as INITIAL_CATEGORIES } from '../data/categories';
 import { STORE_CONFIG as INITIAL_STORE_CONFIG } from '../data/storeConfig';
 import { INITIAL_BANNERS } from '../data/banners';
 import { supabase } from '../lib/supabase';
+import { fetchAllProducts } from '../services/productService';
 
 const LS_PRODUCTS_KEY = 'encantando_festa_products_v2';
 const LS_CATEGORIES_KEY = 'encantando_festa_categories_v2';
@@ -110,53 +111,20 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 3500);
   };
 
-  // Sincronizar produtos com o Supabase na inicialização (select *)
+  // Sincronizar produtos com o Supabase na inicialização (select * sem filtro de usuário)
   useEffect(() => {
     async function loadFromSupabase() {
       try {
-        console.log('[StoreDataContext] 🔄 Buscando produtos do Supabase com select("*")...');
-        const { data, error } = await supabase.from('products').select('*');
+        const { data: supabaseProducts, error } = await fetchAllProducts();
 
         if (error) {
-          console.log('[StoreDataContext] Tabela Supabase não configurada ou erro (usando LocalStorage):', error.message);
+          console.warn('[StoreDataContext] Aviso ao buscar do Supabase:', error);
           return;
         }
 
-        if (data && data.length > 0) {
-          console.log('[StoreDataContext] ✅ Produtos encontrados no Supabase:', data.length);
-          const mappedProducts: Product[] = data.map((item: any) => {
-            const rawImg = 
-              item.image || 
-              item.image_url || 
-              item.imageUrl || 
-              item.photo_url || 
-              (Array.isArray(item.images) && item.images[0]) || 
-              '';
-
-            const cleanImg = typeof rawImg === 'string' ? rawImg.trim() : '';
-
-            return {
-              id: String(item.id),
-              name: item.name,
-              category: item.category,
-              subcategory: item.subcategory || item.sub_category || undefined,
-              price: Number(item.price) || 0,
-              unitSuffix: item.unitSuffix || item.unit_suffix || '/Un',
-              originalPrice: item.originalPrice ? Number(item.originalPrice) : undefined,
-              imageUrl: cleanImg,
-              image: cleanImg,
-              image_url: cleanImg,
-              photo_url: cleanImg,
-              description: item.description || undefined,
-              inStock: item.inStock !== false && item.in_stock !== false,
-              isCustomizable: item.isCustomizable ?? item.is_customizable ?? true,
-              customizationPlaceholder: item.customizationPlaceholder || item.customization_placeholder || undefined,
-              badge: item.badge || undefined,
-              tags: item.tags || undefined,
-            };
-          });
-
-          setProducts(mappedProducts);
+        if (supabaseProducts && supabaseProducts.length > 0) {
+          console.log(`[StoreDataContext] 🚀 Atualizando catálogo com ${supabaseProducts.length} produtos do Supabase.`);
+          setProducts(supabaseProducts);
         }
       } catch (err) {
         console.error('[StoreDataContext] Erro ao sincronizar com Supabase:', err);
@@ -165,14 +133,14 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     loadFromSupabase();
 
-    // Inscrever no canal Realtime do Supabase para refletir alterações instantaneamente
+    // Inscrever no canal Realtime do Supabase para refletir alterações de todos os usuários instantaneamente
     const channel = supabase
-      .channel('realtime_products_sync')
+      .channel('realtime_products_sync_all')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         (payload) => {
-          console.log('[StoreDataContext] ⚡ Alteração recebida via Supabase Realtime:', payload);
+          console.log('[StoreDataContext] ⚡ Alteração global recebida via Supabase Realtime:', payload);
           loadFromSupabase();
         }
       )
