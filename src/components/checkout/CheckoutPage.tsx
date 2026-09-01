@@ -4,21 +4,19 @@ import {
   ShoppingBag, 
   CreditCard, 
   Tag, 
-  ShieldCheck, 
-  CheckCircle, 
   Star,
   Copy,
   Check,
   Loader2,
-  ExternalLink,
   MessageCircle,
-  QrCode
+  QrCode,
+  ShieldCheck
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
-import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
+import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -41,19 +39,21 @@ export const CheckoutPage: React.FC = () => {
 
   const [formErrors, setFormErrors] = useState<{ name?: string; email?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [pixModalData, setPixModalData] = useState<{
-    isOpen: boolean;
-    pixCode: string;
-    qrCodeUrl: string;
-  }>({
-    isOpen: false,
-    pixCode: '',
-    qrCodeUrl: '',
-  });
-
   const [copied, setCopied] = useState(false);
 
-  const hasMercadoPago = isMercadoPagoConfigured(storeConfig);
+  // Estado da tela de Pedido Recebido na Mesma Página (Order Received)
+  const [orderReceived, setOrderReceived] = useState<{
+    orderId: string;
+    orderDate: string;
+    totalAmount: number;
+    paymentMethod: string;
+    customerName: string;
+    customerEmail: string;
+    items: typeof items;
+    pixCode: string;
+    qrCodeUrl: string;
+  } | null>(null);
+
   const finalTotal = Math.max(0, totalPrice - discount);
 
   const validateForm = () => {
@@ -84,97 +84,57 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handleFinalizeOrder = async () => {
+  const handleFinalizeOrder = () => {
     if (!validateForm()) return;
 
-    // 1. Se for Pix
-    if (customerInfo.paymentMethod === 'pix') {
-      const pixKey = storeConfig.whatsappNumber || '21974975884';
-      const simulatedPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5925ENCANTANDO FESTA ATELIE6009RIO DE JANEIRO62070503***6304`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(simulatedPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
+    setIsLoading(true);
 
-      if (hasMercadoPago) {
-        try {
-          setIsLoading(true);
-          const preference = await createMercadoPagoPreference({
-            items,
-            customerInfo: {
-              name: customerInfo.name,
-              email: customerInfo.email,
-              paymentMethod: 'pix',
-            },
-            storeConfig,
-          });
+    const generatedOrderId = String(Math.floor(700 + Math.random() * 200));
+    const currentDate = new Date().toLocaleDateString('pt-BR');
+    const pixKey = storeConfig.whatsappNumber || '21974975884';
+    const simulatedPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5925ENCANTANDO FESTA ATELIE6009RIO DE JANEIRO62070503***6304`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(simulatedPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
 
-          if (preference.init_point) {
-            window.location.href = preference.init_point;
-            return;
-          }
-        } catch (e) {
-          console.warn('Fallback para Pix direto:', e);
-        } finally {
-          setIsLoading(false);
-        }
-      }
+    const orderData = {
+      orderId: generatedOrderId,
+      orderDate: currentDate,
+      totalAmount: finalTotal,
+      paymentMethod: customerInfo.paymentMethod === 'pix' ? 'Pix' : 'Cartão de crédito',
+      customerName: customerInfo.name,
+      customerEmail: customerInfo.email,
+      items: [...items],
+      pixCode: simulatedPixCode,
+      qrCodeUrl: qrUrl,
+    };
 
-      // Exibir modal do Pix Copia e Cola / QR Code
-      setPixModalData({
-        isOpen: true,
-        pixCode: simulatedPixCode,
-        qrCodeUrl: qrUrl,
-      });
+    // Disparar envio do e-mail de confirmação
+    sendOrderConfirmationEmail({
+      customerName: customerInfo.name,
+      customerEmail: customerInfo.email,
+      orderId: generatedOrderId,
+      orderDate: currentDate,
+      items: [...items],
+      totalAmount: finalTotal,
+      storeConfig,
+    });
 
-      return;
-    }
+    // Manter na mesma página com o layout de pagamento recebido
+    setOrderReceived(orderData);
+    clearCart();
+    setIsLoading(false);
 
-    // 2. Se for Cartão
-    if (hasMercadoPago) {
-      try {
-        setIsLoading(true);
-        const preference = await createMercadoPagoPreference({
-          items,
-          customerInfo: {
-            name: customerInfo.name,
-            email: customerInfo.email,
-            paymentMethod: 'cartao',
-          },
-          storeConfig,
-        });
-
-        if (preference.init_point) {
-          window.location.href = preference.init_point;
-          return;
-        }
-      } catch (e) {
-        console.warn('Erro ao redirecionar para Mercado Pago:', e);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    // 3. Fallback WhatsApp
-    const orderMessage = buildWhatsAppOrderMessage(
-      items,
-      {
-        name: customerInfo.name,
-        email: customerInfo.email,
-        paymentMethod: customerInfo.paymentMethod,
-        deliveryType: 'retirada',
-      },
-      finalTotal,
-      storeConfig
-    );
-
-    const whatsappUrl = createWhatsAppUrl(storeConfig.whatsappNumber, orderMessage);
-    window.open(whatsappUrl, '_blank');
+    // Scroll para o topo suavemente
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCopyPix = () => {
+    if (!orderReceived) return;
+
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(pixModalData.pixCode);
+      navigator.clipboard.writeText(orderReceived.pixCode);
     } else {
       const textarea = document.createElement('textarea');
-      textarea.value = pixModalData.pixCode;
+      textarea.value = orderReceived.pixCode;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand('copy');
@@ -186,22 +146,22 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handleNotifyWhatsApp = () => {
+    if (!orderReceived) return;
+
     const orderMessage = buildWhatsAppOrderMessage(
-      items,
+      orderReceived.items,
       {
-        name: customerInfo.name,
-        email: customerInfo.email,
+        name: orderReceived.customerName,
+        email: orderReceived.customerEmail,
         paymentMethod: 'pix',
         deliveryType: 'retirada',
       },
-      finalTotal,
+      orderReceived.totalAmount,
       storeConfig
     );
 
     const whatsappUrl = createWhatsAppUrl(storeConfig.whatsappNumber, orderMessage);
     window.open(whatsappUrl, '_blank');
-    clearCart();
-    setPixModalData({ isOpen: false, pixCode: '', qrCodeUrl: '' });
   };
 
   return (
@@ -213,17 +173,6 @@ export const CheckoutPage: React.FC = () => {
       {/* 2. Conteúdo da Página de Finalização de Compra */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
         
-        {/* Link Voltar */}
-        <div>
-          <a
-            href="#/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Continuar comprando</span>
-          </a>
-        </div>
-
         {/* Título Principal com Linha Pontilhada */}
         <div className="space-y-4">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
@@ -238,7 +187,206 @@ export const CheckoutPage: React.FC = () => {
           </div>
         </div>
 
-        {items.length === 0 ? (
+        {/* TELA 1: PEDIDO RECEBIDO NA MESMA PÁGINA (PAGAMENTO COM PIX) */}
+        {orderReceived ? (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            
+            {/* Mensagem e Barra de Dados do Pedido */}
+            <div className="space-y-4">
+              <p className="text-xs sm:text-sm text-slate-700 font-medium">
+                Obrigado. Seu pedido foi recebido.
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 sm:p-5 bg-slate-50/90 rounded-2xl border border-slate-200 text-xs">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    NÚMERO DO PEDIDO:
+                  </span>
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {orderReceived.orderId}
+                  </span>
+                </div>
+
+                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    DATA:
+                  </span>
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {orderReceived.orderDate}
+                  </span>
+                </div>
+
+                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    TOTAL:
+                  </span>
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {formatCurrency(orderReceived.totalAmount)}
+                  </span>
+                </div>
+
+                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    MÉTODO DE PAGAMENTO:
+                  </span>
+                  <span className="font-extrabold text-emerald-600 text-sm flex items-center gap-1">
+                    {orderReceived.paymentMethod}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Título de Pagamento Pix */}
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Agora é só pagar com o Pix para finalizar sua compra
+            </h2>
+
+            {/* Card Principal do Pix em 2 Colunas */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              {/* Coluna Esquerda: Instruções Pix */}
+              <div className="lg:col-span-6 space-y-6">
+                
+                {/* Logo Pix Banco Central */}
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-10 h-10 text-[#32BCAD]" viewBox="0 0 512 512" fill="currentColor">
+                    <path d="M112.5 131.3L234.7 9.1c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5L277.2 296c-11.7 11.7-30.8 11.7-42.5 0L112.5 173.8c-11.7-11.7-11.7-30.8 0-42.5zM399.5 380.7L277.3 502.9c-11.7 11.7-30.8 11.7-42.5 0L112.5 380.7c-11.7-11.7-11.7-30.8 0-42.5L234.8 216c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5z"/>
+                  </svg>
+                  <div>
+                    <span className="text-2xl font-black tracking-tight text-slate-800 leading-none block">pix</span>
+                    <span className="text-[10px] text-slate-400 font-medium">powered by Banco Central</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Como pagar com Pix:
+                  </h3>
+
+                  <ol className="space-y-3 text-xs text-slate-600">
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                        1
+                      </span>
+                      <span className="pt-0.5">Acesse o app ou site do seu banco</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                        2
+                      </span>
+                      <span className="pt-0.5">Busque a opção de pagar com Pix</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                        3
+                      </span>
+                      <span className="pt-0.5">Leia o QR code ou código Pix</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                        4
+                      </span>
+                      <span className="pt-0.5">Pronto! Você verá a confirmação do pagamento</span>
+                    </li>
+                  </ol>
+                </div>
+
+              </div>
+
+              {/* Coluna Direita: QR Code e Código Copia e Cola */}
+              <div className="lg:col-span-6 space-y-4 text-center lg:text-left">
+                
+                <div>
+                  <span className="text-xs text-slate-500">Valor a pagar:</span>
+                  <span className="text-lg font-black text-slate-900 ml-1">
+                    {formatCurrency(orderReceived.totalAmount)}
+                  </span>
+                </div>
+
+                <div className="text-xs font-bold text-slate-800">
+                  Escaneie o QR code:
+                </div>
+
+                {/* QR Code */}
+                <div className="flex flex-col items-center lg:items-start justify-center">
+                  <div className="p-2.5 bg-white rounded-2xl border border-slate-200 shadow-xs inline-block">
+                    <img
+                      src={orderReceived.qrCodeUrl}
+                      alt="QR Code Pix"
+                      className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
+                    />
+                  </div>
+                  <span className="text-[11px] text-slate-400 mt-2">
+                    Código válido por 30 minutos
+                  </span>
+                </div>
+
+                {/* Código Copia e Cola */}
+                <div className="space-y-2 pt-2 text-left">
+                  <p className="text-[11px] text-slate-500">
+                    Se preferir, você pode pagar copiando e colando o seguinte código:
+                  </p>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={orderReceived.pixCode}
+                      className="flex-1 text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none select-all truncate"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleCopyPix}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 ${
+                        copied
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                      }`}
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Copiar código Pix</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botão Enviar Pedido no WhatsApp */}
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={handleNotifyWhatsApp}
+                    className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4 fill-white" />
+                    <span>Confirmar e Enviar Pedido no WhatsApp</span>
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Link para voltar ao início */}
+            <div className="text-center pt-4">
+              <a
+                href="#/"
+                className="text-xs font-semibold text-slate-500 hover:text-slate-900 underline"
+              >
+                Voltar à página inicial do catálogo
+              </a>
+            </div>
+
+          </div>
+        ) : items.length === 0 ? (
           /* Carrinho Vazio */
           <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-200 space-y-4 max-w-md mx-auto">
             <div className="w-16 h-16 rounded-full bg-pastel-pink-light text-pastel-pink-dark flex items-center justify-center mx-auto">
@@ -256,7 +404,7 @@ export const CheckoutPage: React.FC = () => {
             </a>
           </div>
         ) : (
-          /* Grid de Checkout em 2 Colunas */
+          /* TELA 2: FORMULÁRIO DE CHECKOUT EM 2 COLUNAS */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Coluna Esquerda: Dados do Contato */}
@@ -478,80 +626,6 @@ export const CheckoutPage: React.FC = () => {
         )}
 
       </main>
-
-      {/* Modal de Pagamento Pix Instantâneo */}
-      {pixModalData.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
-            onClick={() => setPixModalData({ isOpen: false, pixCode: '', qrCodeUrl: '' })}
-          />
-
-          <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 sm:p-7 z-10 space-y-5 animate-in zoom-in-95">
-            
-            <div className="text-center space-y-1">
-              <span className="w-12 h-12 bg-teal-50 text-teal-600 rounded-2xl inline-flex items-center justify-center font-bold text-xl shadow-xs">
-                ❖
-              </span>
-              <h3 className="text-lg font-bold text-slate-900 font-sans">
-                Pague com Pix Instantâneo
-              </h3>
-              <p className="text-xs text-slate-500">
-                Valor Total: <strong className="text-slate-900 font-extrabold">{formatCurrency(finalTotal)}</strong>
-              </p>
-            </div>
-
-            {/* QR Code */}
-            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
-              <img
-                src={pixModalData.qrCodeUrl}
-                alt="QR Code Pix"
-                className="w-44 h-44 rounded-xl object-contain shadow-xs bg-white p-2"
-              />
-              <span className="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1">
-                <QrCode className="w-3.5 h-3.5 text-teal-600" />
-                Aponte a câmera no app do seu banco
-              </span>
-            </div>
-
-            {/* Código Copia e Cola */}
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-slate-700">
-                Código Pix Copia e Cola:
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={pixModalData.pixCode}
-                  className="flex-1 text-xs font-mono px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 outline-none truncate"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyPix}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
-                    copied ? 'bg-emerald-600 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white'
-                  }`}
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  <span>{copied ? 'Copiado!' : 'Copiar'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Botão Notificar WhatsApp */}
-            <button
-              type="button"
-              onClick={handleNotifyWhatsApp}
-              className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all cursor-pointer"
-            >
-              <MessageCircle className="w-4 h-4 fill-white" />
-              <span>Confirmar e Enviar Pedido no WhatsApp</span>
-            </button>
-
-          </div>
-        </div>
-      )}
 
       {/* 3. Toast, WhatsApp & Footer */}
       <Toast />
