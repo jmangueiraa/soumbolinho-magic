@@ -1,4 +1,4 @@
-import { OrderEmailData, generateOrderConfirmationEmailHtml } from '../templates/orderConfirmationEmail';
+import { OrderEmailData, generateOrderConfirmationEmailHtml, DEFAULT_EMAIL_SUBJECT } from '../templates/orderConfirmationEmail';
 
 /**
  * Serviço de envio de e-mails transacionais de pedidos
@@ -8,15 +8,19 @@ export async function sendOrderConfirmationEmail(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const htmlContent = generateOrderConfirmationEmailHtml(data);
-    console.log('[emailService] 📧 Preparando envio do e-mail de confirmação para:', data.customerEmail);
+    const emailSubject = DEFAULT_EMAIL_SUBJECT;
 
-    // 1. Salvar histórico de e-mail localmente para consulta
+    console.log('[emailService] 📧 Preparando envio do e-mail de entrega para:', data.customerEmail);
+    console.log('[emailService] 📝 Assunto:', emailSubject);
+
+    // 1. Salvar histórico de e-mail localmente para consulta no navegador
     try {
       const sentEmails = JSON.parse(localStorage.getItem('encantando_festa_sent_emails') || '[]');
       sentEmails.unshift({
         id: `email-${Date.now()}`,
         to: data.customerEmail,
         orderId: data.orderId,
+        subject: emailSubject,
         date: new Date().toISOString(),
         customerName: data.customerName,
         total: data.totalAmount,
@@ -27,7 +31,7 @@ export async function sendOrderConfirmationEmail(
       console.warn('Falha ao salvar cache de e-mails:', e);
     }
 
-    // 2. Se houver endpoint configurado (ex: Resend / Supabase Edge Functions / EmailJS)
+    // 2. Disparo via Endpoint de E-mail configurado (Resend / Supabase Edge Functions / EmailJS)
     const customEmailEndpoint = (import.meta as any).env?.VITE_EMAIL_API_URL;
     if (customEmailEndpoint) {
       const response = await fetch(customEmailEndpoint, {
@@ -35,7 +39,7 @@ export async function sendOrderConfirmationEmail(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: data.customerEmail,
-          subject: `Boas coisas estão a caminho! - Pedido #${data.orderId}`,
+          subject: emailSubject,
           html: htmlContent,
         }),
       });
@@ -45,7 +49,7 @@ export async function sendOrderConfirmationEmail(
       }
     }
 
-    console.log('[emailService] ✅ E-mail transacional gerado e processado com sucesso para:', data.customerEmail);
+    console.log('[emailService] ✅ E-mail de entrega disparado com sucesso para:', data.customerEmail);
     return { success: true };
   } catch (err: any) {
     console.error('[emailService] ❌ Erro ao enviar e-mail:', err);
