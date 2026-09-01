@@ -40,6 +40,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string }>({});
 
   useEffect(() => {
+    if (productToEdit) {
       const existingImg = (productToEdit.imageUrl || productToEdit.image_url || productToEdit.image || productToEdit.photo_url || '').trim();
       setFormData({
         name: productToEdit.name,
