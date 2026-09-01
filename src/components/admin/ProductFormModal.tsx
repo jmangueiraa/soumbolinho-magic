@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Check } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Check, Loader2, AlertCircle } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
+import { uploadProductImage } from '../../lib/storage';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -31,7 +32,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     customizationPlaceholder: '',
   });
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string }>({});
 
   useEffect(() => {
@@ -66,6 +71,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       });
       setImagePreview('');
     }
+    setSelectedFile(null);
+    setUploadError(null);
+    setIsUploading(false);
+    setIsSubmitting(false);
     setErrors({});
   }, [productToEdit, categories, isOpen]);
 
@@ -73,10 +82,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const currentCategory = categories.find((c) => c.id === formData.category);
 
-  // Manipular upload de arquivo local para Base64
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Manipular seleção e upload imediato no Supabase Storage
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    console.log('[ProductFormModal] 📁 Arquivo de imagem selecionado:', file.name, `(${file.size} bytes)`);
+    setSelectedFile(file);
+    setUploadError(null);
+
+    // Preview local imediato
+    const localPreviewUrl = URL.createObjectURL(file);
+    setImagePreview(localPreviewUrl);
+
+    // Iniciar upload no Supabase
+    setIsUploading(true);
+    const { url, error } = await uploadProductImage(file);
+    setIsUploading(false);
+
+    if (url) {
+      console.log('[ProductFormModal] ✅ Imagem persistida no Supabase com URL:', url);
+      setImagePreview(url);
+      setFormData((prev) => ({ ...prev, imageUrl: url }));
+    } else {
+      console.error('[ProductFormModal] ❌ Falha no upload para o Supabase Storage:', error);
+      setUploadError(`Erro no Supabase: ${error || 'Não foi possível salvar a imagem no bucket.'}`);
+      
+      // Fallback para Base64 para não perder a foto do usuário
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
@@ -88,6 +120,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   };
 
   const handleUrlChange = (url: string) => {
+    console.log('[ProductFormModal] 🔗 URL manual informada:', url);
+    setSelectedFile(null);
+    setUploadError(null);
     setFormData((prev) => ({ ...prev, imageUrl: url }));
     setImagePreview(url);
   };
@@ -106,9 +141,26 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
+    setIsSubmitting(true);
+    let finalImageUrl = formData.imageUrl.trim();
+
+    // Se houver um arquivo selecionado e ainda não tiver uma URL pública do Supabase, tenta o upload antes de salvar
+    if (selectedFile && (!finalImageUrl || finalImageUrl.startsWith('blob:'))) {
+      console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload para o Supabase antes de salvar...');
+      setIsUploading(true);
+      const { url, error } = await uploadProductImage(selectedFile);
+      setIsUploading(false);
+
+      if (url) {
+        finalImageUrl = url;
+      } else {
+        console.warn('[ProductFormModal] ⚠️ Upload falhou no envio final, mantendo preview atual:', error);
+      }
+    }
 
     const numericPrice = parseFloat(formData.price.replace(',', '.'));
 
@@ -118,7 +170,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       subcategory: formData.subcategory.trim() || undefined,
       price: numericPrice,
       unitSuffix: formData.unitSuffix.trim() || '/Un',
-      imageUrl: formData.imageUrl.trim() || '',
+      imageUrl: finalImageUrl,
       description: formData.description.trim() || undefined,
       inStock: formData.inStock,
       badge: formData.badge || undefined,
@@ -126,12 +178,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       customizationPlaceholder: formData.customizationPlaceholder.trim() || undefined,
     };
 
+    console.log('[ProductFormModal] 💾 Salvando produto com payload:', payload);
+
     if (productToEdit) {
       updateProduct(productToEdit.id, payload);
     } else {
       addProduct(payload);
     }
 
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -277,20 +332,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
-          {/* Imagem do Produto */}
+          {/* Imagem do Produto com Upload do Supabase */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <ImageIcon className="w-3.5 h-3.5 text-[#FF1493]" />
-              Foto / Imagem do Produto
+              Foto / Imagem do Produto (Supabase Storage)
             </label>
 
             <div className="flex gap-4 items-start">
               {/* Preview Thumbnail */}
-              <div className="w-20 h-20 rounded-2xl overflow-hidden border border-[#FFA6DF] bg-[#FFEBF6] shrink-0 flex items-center justify-center relative">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden border border-[#FFA6DF] bg-[#FFEBF6] shrink-0 flex items-center justify-center relative shadow-xs">
                 {imagePreview ? (
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
                   <ProductImagePlaceholder showText={false} iconClassName="w-6 h-6" />
+                )}
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center text-white">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </div>
                 )}
               </div>
 
@@ -300,22 +360,43 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   type="text"
                   value={formData.imageUrl}
                   onChange={(e) => handleUrlChange(e.target.value)}
-                  placeholder="Cole o link direto da imagem (URL) ou..."
+                  placeholder="Cole o link direto da imagem (URL) ou faça upload..."
                   className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493]"
                 />
 
-                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer transition-colors">
-                  <Upload className="w-3.5 h-3.5 text-[#FF1493]" />
-                  <span>Fazer upload de foto local</span>
+                <label className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all shadow-xs ${
+                  isUploading 
+                    ? 'bg-[#FFEBF6] text-[#FF1493] cursor-wait border border-[#FF1493]/30' 
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                }`}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#FF1493]" />
+                      <span>Enviando para o bucket 'products'...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 text-[#FF1493]" />
+                      <span>Fazer upload de foto (Supabase)</span>
+                    </>
+                  )}
                   <input
                     type="file"
-                    accept="image/*"
+                    disabled={isUploading}
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
                 </label>
               </div>
             </div>
+
+            {uploadError && (
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-200">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{uploadError}</span>
+              </div>
+            )}
           </div>
 
           {/* Descrição */}
@@ -370,17 +451,28 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors"
+              disabled={isUploading || isSubmitting}
+              className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>
 
             <button
               type="submit"
-              className="px-6 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center gap-2 transition-all active:scale-98"
+              disabled={isUploading || isSubmitting}
+              className="px-6 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center gap-2 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
             >
-              <Save className="w-4 h-4 text-[#FFD1EC]" />
-              <span>{productToEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+              {isSubmitting || isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#FFD1EC]" />
+                  <span>Enviando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 text-[#FFD1EC]" />
+                  <span>{productToEdit ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+                </>
+              )}
             </button>
           </div>
 

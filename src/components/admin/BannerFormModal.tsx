@@ -3,6 +3,8 @@ import { X, Save, Upload, Sparkles, Image as ImageIcon, FileText, Check } from '
 import { BannerSlide } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 
+import { uploadProductImage } from '../../lib/storage';
+
 interface BannerFormModalProps {
   isOpen: boolean;
   bannerToEdit: BannerSlide | null;
@@ -31,6 +33,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
   });
 
   const [imagePreview, setImagePreview] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -70,9 +73,22 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    const localUrl = URL.createObjectURL(file);
+    setImagePreview(localUrl);
+    setIsUploading(true);
+
+    const { url, error: uploadErr } = await uploadProductImage(file);
+    setIsUploading(false);
+
+    if (url) {
+      setImagePreview(url);
+      setFormData((prev) => ({ ...prev, imageUrl: url }));
+    } else {
+      console.warn('Fallback base64 para banner:', uploadErr);
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = reader.result as string;
