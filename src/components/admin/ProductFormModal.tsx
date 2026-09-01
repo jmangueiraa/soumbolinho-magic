@@ -40,21 +40,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string }>({});
 
   useEffect(() => {
-    if (productToEdit) {
+      const existingImg = (productToEdit.imageUrl || productToEdit.image_url || productToEdit.image || productToEdit.photo_url || '').trim();
       setFormData({
         name: productToEdit.name,
         category: productToEdit.category,
         subcategory: productToEdit.subcategory || '',
         price: productToEdit.price.toString().replace('.', ','),
         unitSuffix: productToEdit.unitSuffix || '/Un',
-        imageUrl: productToEdit.imageUrl || '',
+        imageUrl: existingImg,
         description: productToEdit.description || '',
         inStock: productToEdit.inStock,
         badge: productToEdit.badge || '',
         isCustomizable: productToEdit.isCustomizable ?? true,
         customizationPlaceholder: productToEdit.customizationPlaceholder || '',
       });
-      setImagePreview(productToEdit.imageUrl || '');
+      setImagePreview(existingImg);
     } else {
       setFormData({
         name: '',
@@ -171,6 +171,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       price: numericPrice,
       unitSuffix: formData.unitSuffix.trim() || '/Un',
       imageUrl: finalImageUrl,
+      image: finalImageUrl,
+      image_url: finalImageUrl,
+      photo_url: finalImageUrl,
       description: formData.description.trim() || undefined,
       inStock: formData.inStock,
       badge: formData.badge || undefined,

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Trash2, Edit3, Check, Sparkles } from 'lucide-react';
+import { Plus, Minus, Trash2, Edit3, Check, X, Sparkles } from 'lucide-react';
 import { CartItem } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
-
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 
 interface CartItemRowProps {
@@ -14,6 +13,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
   const { updateQuantity, updateObservations, removeFromCart } = useCart();
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(item.observations || '');
+  const [imageError, setImageError] = useState(false);
 
   const handleSaveNote = () => {
     updateObservations(item.id, noteText);
@@ -23,16 +23,29 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
   const itemTotal = item.product.price * item.quantity;
   const unitSuffix = item.product.unitSuffix || '/Un';
 
+  const imageSrc = !imageError 
+    ? (item.product.image || item.product.image_url || item.product.imageUrl || item.product.photo_url || '').trim() 
+    : '';
+
   return (
     <div className="p-4 bg-white rounded-3xl border border-[#D8B4F8]/40 shadow-xs space-y-3">
       <div className="flex gap-3 items-start">
-        {/* Product Thumbnail Placeholder */}
+        {/* Product Thumbnail or Placeholder */}
         <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#FFEBF6] shrink-0 border border-[#FFA6DF]/40 flex items-center justify-center">
-          <ProductImagePlaceholder 
-            iconClassName="w-5 h-5" 
-            showText={false} 
-            className="p-1"
-          />
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={item.product.name}
+              onError={() => setImageError(true)}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <ProductImagePlaceholder 
+              iconClassName="w-5 h-5" 
+              showText={false} 
+              className="p-1"
+            />
+          )}
         </div>
 
         {/* Info */}
@@ -66,68 +79,69 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
               </button>
             </div>
 
-            {/* Total Price */}
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs sm:text-sm font-black text-slate-900">
-                {formatCurrency(itemTotal)}
-              </span>
-              <button
-                onClick={() => removeFromCart(item.id)}
-                className="text-slate-400 hover:text-rose-500 p-1 rounded-lg transition-colors"
-                title="Remover"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            {/* Total price for this row */}
+            <span className="font-extrabold text-xs text-slate-900">
+              {formatCurrency(itemTotal)}
+            </span>
           </div>
         </div>
+
+        {/* Remove Button */}
+        <button
+          onClick={() => removeFromCart(item.id)}
+          className="p-1 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+          title="Remover item"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Observation / Personalization Area */}
+      {/* Observations / Customization note section */}
       <div className="pt-2 border-t border-slate-100">
-        {!isEditingNote ? (
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-start gap-1.5 text-slate-600 truncate">
-              <Sparkles className="w-3.5 h-3.5 text-[#F8A4D8] shrink-0 mt-0.5" />
-              <span className="truncate italic text-[11px]">
-                {item.observations ? `Obs: ${item.observations}` : 'Sem observação de personalização'}
-              </span>
-            </div>
-            <button
-              onClick={() => setIsEditingNote(true)}
-              className="text-[11px] font-bold text-[#B886E8] hover:text-slate-900 shrink-0 flex items-center gap-1"
-            >
-              <Edit3 className="w-3 h-3" />
-              {item.observations ? 'Alterar' : 'Personalizar'}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2 animate-in fade-in">
-            <input
-              type="text"
+        {isEditingNote ? (
+          <div className="space-y-2">
+            <textarea
+              rows={2}
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Ex: Nome da criança, idade ou tema"
-              className="w-full text-xs px-2.5 py-1.5 bg-slate-50 border border-[#F8A4D8] rounded-xl outline-none focus:ring-1 focus:ring-[#F8A4D8]"
+              placeholder="Nome, idade ou tema para personalização..."
+              className="w-full text-xs p-2.5 bg-slate-50 border border-[#FFA6DF] rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493] resize-none"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-1.5">
               <button
-                onClick={() => {
-                  setNoteText(item.observations || '');
-                  setIsEditingNote(false);
-                }}
-                className="text-[11px] px-2 py-1 text-slate-500 hover:text-slate-700"
+                onClick={() => setIsEditingNote(false)}
+                className="px-2.5 py-1 text-[11px] text-slate-500 hover:text-slate-800"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveNote}
-                className="text-[11px] px-2.5 py-1 bg-black text-white font-bold rounded-xl flex items-center gap-1 hover:bg-slate-800"
+                className="px-3 py-1 bg-black text-white text-[11px] font-bold rounded-lg flex items-center gap-1 shadow-2xs"
               >
-                <Check className="w-3 h-3 text-[#F8A4D8]" />
-                Salvar
+                <Check className="w-3 h-3" />
+                <span>Salvar</span>
               </button>
             </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-[11px] text-slate-600 bg-slate-50 px-3 py-2 rounded-xl">
+            <div className="flex items-center gap-1.5 truncate pr-2">
+              <Sparkles className="w-3 h-3 text-[#FF1493] shrink-0" />
+              <span className="truncate">
+                {item.observations ? (
+                  <span className="font-medium text-slate-800">{item.observations}</span>
+                ) : (
+                  <span className="text-slate-400 italic">Adicionar nome/tema do aniversariante</span>
+                )}
+              </span>
+            </div>
+            <button
+              onClick={() => setIsEditingNote(true)}
+              className="text-[#FF1493] hover:underline font-bold text-[10px] shrink-0 flex items-center gap-0.5"
+            >
+              <Edit3 className="w-3 h-3" />
+              <span>{item.observations ? 'Editar' : 'Adicionar'}</span>
+            </button>
           </div>
         )}
       </div>

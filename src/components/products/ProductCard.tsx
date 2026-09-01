@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Product } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
@@ -11,6 +11,7 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProduct }) => {
   const { addToCart } = useCart();
+  const [imageError, setImageError] = useState(false);
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -22,6 +23,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
   };
 
   const unitSuffix = product.unitSuffix || '/Un';
+  
+  // Fallback seguro de leitura de imagem
+  const imageSrc = !imageError 
+    ? (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim() 
+    : '';
 
   return (
     <div
@@ -29,12 +35,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
       className="group flex flex-col justify-between cursor-pointer transition-transform duration-200 hover:-translate-y-1"
     >
       <div>
-        {/* Compact Rounded Container with Shopping Cart 'Sem imagem' placeholder */}
-        <div className="relative w-full aspect-square bg-white rounded-2xl overflow-hidden shadow-xs border border-[#FFA6DF]/40">
-          <ProductImagePlaceholder 
-            iconClassName="w-7 h-7 sm:w-8 sm:h-8" 
-            showText={true} 
-          />
+        {/* Compact Rounded Container with Image or 'Sem imagem' placeholder */}
+        <div className="relative w-full aspect-square bg-white rounded-2xl overflow-hidden shadow-xs border border-[#FFA6DF]/40 flex items-center justify-center">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={product.name}
+              onError={() => setImageError(true)}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          ) : (
+            <ProductImagePlaceholder 
+              iconClassName="w-7 h-7 sm:w-8 sm:h-8" 
+              showText={true} 
+            />
+          )}
+
+          {/* Badge de Destaque se houver */}
+          {product.badge && (
+            <span className="absolute top-2 left-2 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#FF1493] text-white shadow-xs">
+              {product.badge}
+            </span>
+          )}
         </div>
 
         {/* Product Title in #2B3A8C */}
@@ -56,7 +79,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
       {/* Solid Black 'Adicionar ao carrinho' Button */}
       <button
         onClick={handleAdd}
-        className="w-full mt-2.5 py-2 px-3 bg-black hover:bg-slate-800 text-white rounded-full text-xs font-bold text-center transition-all shadow-xs active:scale-95 border border-black flex items-center justify-center"
+        className="w-full mt-2.5 py-2 px-3 bg-black hover:bg-slate-800 text-white rounded-full text-xs font-bold text-center transition-all shadow-xs active:scale-95 border border-black flex items-center justify-center cursor-pointer"
       >
         Adicionar ao carrinho
       </button>

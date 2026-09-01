@@ -165,11 +165,14 @@ export const ProductsManager: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-50 border border-[#FFA6DF]/40 shrink-0 flex items-center justify-center">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <ProductImagePlaceholder showText={false} iconClassName="w-5 h-5" />
-                          )}
+                          {(() => {
+                            const img = (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim();
+                            return img ? (
+                              <img src={img} alt={product.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <ProductImagePlaceholder showText={false} iconClassName="w-5 h-5" />
+                            );
+                          })()}
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-slate-900 line-clamp-1">{product.name}</div>

@@ -6,7 +6,10 @@ export interface Product {
   price: number;
   unitSuffix?: string; // ex: '/Un', '/Kit 10un', '/Pacote'
   originalPrice?: number;
-  imageUrl: string;
+  imageUrl?: string;
+  image?: string;
+  image_url?: string;
+  photo_url?: string;
   galleryImages?: string[];
   description?: string;
   inStock: boolean;

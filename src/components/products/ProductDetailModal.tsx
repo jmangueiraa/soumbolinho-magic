@@ -14,6 +14,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [observations, setObservations] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   if (!product) return null;
 
@@ -31,6 +32,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
   }[product.badge || ''] || 'bg-slate-800 text-white';
 
   const unitSuffix = product.unitSuffix || '/Un';
+
+  // Fallback seguro de leitura de imagem
+  const imageSrc = !imageError 
+    ? (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim() 
+    : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -51,13 +57,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
           <X className="w-5 h-5" />
         </button>
 
-        {/* Left: Product Placeholder */}
+        {/* Left: Product Image or Placeholder */}
         <div className="md:w-1/2 bg-[#FFEBF6]/60 relative flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#FFA6DF]/30">
-          <div className="relative aspect-square w-full max-w-[260px] rounded-3xl overflow-hidden shadow-xs border border-[#FFA6DF]/40 bg-white">
-            <ProductImagePlaceholder 
-              iconClassName="w-12 h-12 sm:w-14 sm:h-14" 
-              showText={true} 
-            />
+          <div className="relative aspect-square w-full max-w-[280px] rounded-3xl overflow-hidden shadow-xs border border-[#FFA6DF]/40 bg-white flex items-center justify-center">
+            {imageSrc ? (
+              <img
+                src={imageSrc}
+                alt={product.name}
+                onError={() => setImageError(true)}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <ProductImagePlaceholder 
+                iconClassName="w-12 h-12 sm:w-14 sm:h-14" 
+                showText={true} 
+              />
+            )}
+
             {product.badge && (
               <span className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md border border-white/60 ${badgeColor}`}>
                 {product.badge}
@@ -150,7 +166,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             {/* Black Add to Cart Button */}
             <button
               onClick={handleAdd}
-              className="flex-1 py-3.5 px-4 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 active:scale-98 transition-all border border-black"
+              className="flex-1 py-3.5 px-4 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 active:scale-98 transition-all border border-black cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4 text-[#FF1493]" />
               <span>Adicionar ao carrinho</span>
