@@ -24,10 +24,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
 
   const unitSuffix = product.unitSuffix || '/Un';
   
-  // Fallback seguro de leitura de imagem
-  const imageSrc = !imageError 
-    ? (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim() 
-    : '';
+  // Leitura com fallback seguro de todos os possíveis formatos de imagem
+  const rawImg = 
+    product.image || 
+    product.image_url || 
+    product.imageUrl || 
+    product.photo_url || 
+    (Array.isArray((product as any).images) && (product as any).images[0]) || 
+    (Array.isArray(product.galleryImages) && product.galleryImages[0]) || 
+    '';
+
+  const imgUrl = typeof rawImg === 'string' ? rawImg.trim() : '';
+  const shouldShowImage = Boolean(imgUrl && !imageError);
 
   return (
     <div
@@ -35,13 +43,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
       className="group flex flex-col justify-between cursor-pointer transition-transform duration-200 hover:-translate-y-1"
     >
       <div>
-        {/* Compact Rounded Container with Image or 'Sem imagem' placeholder */}
+        {/* Container com Imagem ou Fallback "SEM IMAGEM" */}
         <div className="relative w-full aspect-square bg-white rounded-2xl overflow-hidden shadow-xs border border-[#FFA6DF]/40 flex items-center justify-center">
-          {imageSrc ? (
+          {shouldShowImage ? (
             <img
-              src={imageSrc}
+              src={imgUrl}
               alt={product.name}
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                console.error('[ProductCard] Falha ao carregar imagem:', imgUrl, e);
+                setImageError(true);
+              }}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
             />

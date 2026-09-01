@@ -33,10 +33,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
 
   const unitSuffix = product.unitSuffix || '/Un';
 
-  // Fallback seguro de leitura de imagem
-  const imageSrc = !imageError 
-    ? (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim() 
-    : '';
+  // Fallback seguro de leitura de imagem com suporte a todos os campos
+  const rawImg = 
+    product.image || 
+    product.image_url || 
+    product.imageUrl || 
+    product.photo_url || 
+    (Array.isArray((product as any).images) && (product as any).images[0]) || 
+    (Array.isArray(product.galleryImages) && product.galleryImages[0]) || 
+    '';
+
+  const imgUrl = typeof rawImg === 'string' ? rawImg.trim() : '';
+  const shouldShowImage = Boolean(imgUrl && !imageError);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -60,11 +68,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         {/* Left: Product Image or Placeholder */}
         <div className="md:w-1/2 bg-[#FFEBF6]/60 relative flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#FFA6DF]/30">
           <div className="relative aspect-square w-full max-w-[280px] rounded-3xl overflow-hidden shadow-xs border border-[#FFA6DF]/40 bg-white flex items-center justify-center">
-            {imageSrc ? (
+            {shouldShowImage ? (
               <img
-                src={imageSrc}
+                src={imgUrl}
                 alt={product.name}
-                onError={() => setImageError(true)}
+                onError={(e) => {
+                  console.error('[ProductDetailModal] Falha ao carregar imagem:', imgUrl, e);
+                  setImageError(true);
+                }}
                 className="w-full h-full object-cover"
               />
             ) : (
