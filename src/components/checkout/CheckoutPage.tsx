@@ -111,6 +111,15 @@ export const CheckoutPage: React.FC = () => {
       qrCodeUrl: qrUrl,
     };
 
+    try {
+      sessionStorage.setItem('last_checkout_customer', JSON.stringify({
+        name: customerInfo.name,
+        email: customerInfo.email
+      }));
+    } catch (e) {
+      console.warn(e);
+    }
+
     // 1. Salvar pedido na tabela 'orders' do Supabase
     await createOrderInSupabase({
       orderId: generatedOrderId,

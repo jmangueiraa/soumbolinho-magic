@@ -28,10 +28,24 @@ export const PaymentFeedbackModal: React.FC = () => {
           setPurchasedItems(items);
           setOrderTotal(totalPrice);
 
-          // Disparar envio do e-mail de confirmação
+          let customerName = 'Cliente';
+          let customerEmail = 'cliente@revistinhaslucrativas.com.br';
+
+          try {
+            const saved = sessionStorage.getItem('last_checkout_customer');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (parsed.name) customerName = parsed.name;
+              if (parsed.email) customerEmail = parsed.email;
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+
+          // Disparar envio do e-mail de confirmação via Resend (/api/send-delivery-email)
           sendOrderConfirmationEmail({
-            customerName: 'Cliente',
-            customerEmail: 'cliente@encantandofesta.com',
+            customerName,
+            customerEmail,
             orderId: payment_id || String(Math.floor(100 + Math.random() * 900)),
             items: items,
             totalAmount: totalPrice,
@@ -130,39 +144,42 @@ Poderiam confirmar o recebimento e me enviar as orientações de download/produ�
 
               <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 text-xs">
                 <div className="grid grid-cols-12 bg-slate-50 px-3.5 py-2 font-bold text-slate-500">
-                  <span className="col-span-6">Produto</span>
-                  <span className="col-span-3">Expira em</span>
-                  <span className="col-span-3 text-right">Download</span>
+                  <span className="col-span-5">Produto</span>
+                  <span className="col-span-2">Expira em</span>
+                  <span className="col-span-5 text-right">Download</span>
                 </div>
 
                 {purchasedItems.length > 0 ? (
-                  purchasedItems.map((item) => (
-                    <div key={item.id} className="grid grid-cols-12 px-3.5 py-3 items-center text-slate-700">
-                      <span className="col-span-6 font-semibold text-emerald-700 truncate pr-2">
-                        {item.product.name}
-                      </span>
-                      <span className="col-span-3 text-slate-400">Nunca</span>
-                      <div className="col-span-3 text-right">
-                        <a
-                          href={item.product.imageUrl || item.product.image || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-600 font-bold hover:underline inline-flex items-center gap-1"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Baixar</span>
-                        </a>
+                  purchasedItems.map((item) => {
+                    const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
+                    return (
+                      <div key={item.id} className="grid grid-cols-12 px-3.5 py-3 items-center text-slate-700 gap-1">
+                        <span className="col-span-5 font-semibold text-slate-900 truncate pr-1">
+                          {item.product.name}
+                        </span>
+                        <span className="col-span-2 text-slate-400">Nunca</span>
+                        <div className="col-span-5 text-right">
+                          <a
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-600 hover:text-emerald-700 font-bold hover:underline inline-flex items-center gap-1 text-[11px]"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Acessar seu Produto / Fazer Download</span>
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="grid grid-cols-12 px-3.5 py-3 items-center text-slate-700">
-                    <span className="col-span-6 font-semibold text-emerald-700">Pack Digital Completo</span>
-                    <span className="col-span-3 text-slate-400">Nunca</span>
-                    <div className="col-span-3 text-right">
-                      <button className="text-emerald-600 font-bold hover:underline inline-flex items-center gap-1">
+                    <span className="col-span-5 font-semibold text-slate-900">Produto Digital</span>
+                    <span className="col-span-2 text-slate-400">Nunca</span>
+                    <div className="col-span-5 text-right">
+                      <button className="text-emerald-600 font-bold hover:underline inline-flex items-center gap-1 text-[11px]">
                         <Download className="w-3.5 h-3.5" />
-                        <span>Baixar</span>
+                        <span>Acessar seu Produto / Fazer Download</span>
                       </button>
                     </div>
                   </div>

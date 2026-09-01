@@ -83,3 +83,27 @@ export async function updateOrderStatusInSupabase(
     return { success: false, error: err.message };
   }
 }
+
+/**
+ * Marca o pedido com email_sent = true no Supabase
+ */
+export async function markOrderEmailSentInSupabase(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .update({ email_sent: true, updated_at: new Date().toISOString() })
+      .eq('id', orderId);
+
+    if (error) {
+      console.warn('[orderService] Falha ao marcar email_sent:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[orderService] ✅ Pedido marcado com email_sent = true no Supabase:', orderId);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}

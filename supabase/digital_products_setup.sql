@@ -19,9 +19,13 @@ CREATE TABLE IF NOT EXISTS public.orders (
     amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     payment_id TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
+    email_sent BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.orders 
+ADD COLUMN IF NOT EXISTS email_sent BOOLEAN DEFAULT false;
 
 -- 3. Habilita RLS na tabela orders e concede permissões
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
