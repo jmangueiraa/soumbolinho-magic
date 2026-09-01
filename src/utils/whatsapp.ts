@@ -17,9 +17,9 @@ export function buildWhatsAppOrderMessage(
       }${customerInfo.city ? ` (${customerInfo.city})` : ''}`;
 
   const paymentText = {
-    pix: '💠 Pix',
+    pix: '💠 Pix (Aprovação Imediata • Chave / QR Code)',
     cartao: '💳 Cartão de Crédito / Débito',
-    dinheiro: '💵 Dinheiro'
+    dinheiro: '💵 Dinheiro na Retirada'
   }[customerInfo.paymentMethod] || customerInfo.paymentMethod;
 
   const itemsListText = items.map((item, index) => {

@@ -79,6 +79,7 @@ export async function createMercadoPagoPreference(
     external_reference: `PEDIDO_${Date.now()}`,
     payment_methods: {
       excluded_payment_types: [],
+      default_payment_method_id: 'pix',
       installments: 12,
     },
   };

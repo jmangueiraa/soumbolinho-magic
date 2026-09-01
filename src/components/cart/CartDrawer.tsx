@@ -160,21 +160,21 @@ export const CartDrawer: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="space-y-2.5 pt-1">
-                {/* 1. Botão Principal: Pagar com Mercado Pago (Pix / Cartão) */}
+                {/* 1. Botão Principal: Pagar com Pix (Recomendado) / Cartão */}
                 <button
                   onClick={handleMercadoPagoCheckout}
                   disabled={isLoadingMP}
-                  className="w-full py-3.5 px-4 bg-[#009EE3] hover:bg-[#0082BD] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#009EE3]/25 flex items-center justify-center gap-2 active:scale-98 transition-all disabled:opacity-60 cursor-pointer"
+                  className="w-full py-3.5 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-teal-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {isLoadingMP ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      <span>Gerando Pagamento Seguro...</span>
+                      <span>Gerando Pagamento Pix Seguro...</span>
                     </>
                   ) : (
                     <>
-                      <CreditCard className="w-4 h-4" />
-                      <span>Pagar com Mercado Pago (Pix / Cartão)</span>
+                      <span className="text-base">💠</span>
+                      <span>Pagar via Pix (Aprovação Imediata)</span>
                     </>
                   )}
                 </button>

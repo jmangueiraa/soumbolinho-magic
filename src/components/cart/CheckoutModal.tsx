@@ -12,7 +12,9 @@ import {
   Store,
   Truck,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Banknote
 } from 'lucide-react';
 import { OrderCustomerInfo } from '../../types';
 import { useCart } from '../../context/CartContext';
@@ -21,6 +23,7 @@ import { formatCurrency, formatPhone } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { createMercadoPagoPreference } from '../../lib/mercadopago';
 import { MercadoPagoTokenModal } from './MercadoPagoTokenModal';
+import { PixPaymentBox } from './PixPaymentBox';
 
 export const CheckoutModal: React.FC = () => {
   const { storeConfig } = useStoreData();
@@ -29,7 +32,7 @@ export const CheckoutModal: React.FC = () => {
     closeCheckout, 
     items, 
     totalPrice, 
-    clearCart,
+    clearCart, 
     openCart 
   } = useCart();
 
@@ -41,7 +44,7 @@ export const CheckoutModal: React.FC = () => {
     address: '',
     neighborhood: '',
     city: 'Rio de Janeiro',
-    paymentMethod: 'pix',
+    paymentMethod: 'pix', // Pix como padrão
     generalNotes: ''
   });
 
@@ -56,25 +59,14 @@ export const CheckoutModal: React.FC = () => {
 
   const validateForm = () => {
     const errors: { name?: string; phone?: string; address?: string } = {};
-    if (!customerInfo.name.trim()) {
-      errors.name = 'Por favor, informe seu nome.';
-    }
-    if (!customerInfo.phone.trim() || customerInfo.phone.replace(/\D/g, '').length < 10) {
-      errors.phone = 'Informe um telefone/WhatsApp com DDD.';
-    }
+    if (!customerInfo.name.trim()) errors.name = 'Por favor, informe seu nome completo.';
+    if (!customerInfo.phone.trim()) errors.phone = 'Informe seu número de WhatsApp.';
     if (customerInfo.deliveryType === 'entrega' && !customerInfo.address?.trim()) {
-      errors.address = 'Informe o endereço completo para a entrega.';
+      errors.address = 'Informe o endereço para entrega.';
     }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-
-  const handlePhoneChange = (value: string) => {
-    setCustomerInfo((prev) => ({
-      ...prev,
-      phone: formatPhone(value)
-    }));
   };
 
   const formattedMessage = buildWhatsAppOrderMessage(
@@ -84,8 +76,8 @@ export const CheckoutModal: React.FC = () => {
     storeConfig
   );
 
-  const handleSendToWhatsApp = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendToWhatsApp = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!validateForm()) return;
 
     const whatsappUrl = createWhatsAppUrl(storeConfig.whatsappNumber, formattedMessage);
@@ -138,324 +130,415 @@ export const CheckoutModal: React.FC = () => {
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-        onClick={closeCheckout}
-      />
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+          onClick={closeCheckout}
+        />
 
-      {/* Modal Box */}
-      <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-pastel-pink-light via-pastel-lilac-light to-pastel-pink-light border-b border-[#D8B4F8]/40 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                closeCheckout();
-                openCart();
-              }}
-              className="p-1.5 rounded-full hover:bg-white text-slate-700 transition-colors"
-              title="Voltar ao carrinho"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h3 className="font-festive font-bold text-slate-900 text-lg">
-                Finalizar Pedido
-              </h3>
-              <p className="text-xs text-slate-500">
-                {storeConfig.storeName} • Pagamento Online ou via WhatsApp
-              </p>
+        {/* Modal Container */}
+        <div className="relative bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+          
+          {/* Header */}
+          <div className="px-6 py-4 bg-gradient-to-r from-teal-50 via-[#FFEBF6] to-sky-50 border-b border-[#FFA6DF]/40 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  closeCheckout();
+                  openCart();
+                }}
+                className="p-1.5 rounded-full hover:bg-white text-slate-600 transition-colors"
+                title="Voltar ao carrinho"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h3 className="font-festive font-bold text-slate-900 text-lg">
+                  {isSuccess ? 'Pedido Enviado!' : 'Finalizar Pedido'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {isSuccess ? 'Obrigado por escolher a Encantando Festa' : 'Escolha a forma de pagamento e entrega'}
+                </p>
+              </div>
             </div>
+
+            <button
+              onClick={closeCheckout}
+              className="p-1.5 rounded-full hover:bg-white text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          <button
-            onClick={closeCheckout}
-            className="p-1.5 rounded-full hover:bg-white text-slate-400 hover:text-slate-700 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {isSuccess ? (
-            /* Success Screen */
-            <div className="text-center py-8 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto animate-bounce">
-                <CheckCircle className="w-10 h-10" />
-              </div>
-              <h3 className="font-festive text-2xl font-bold text-slate-900">
-                Pedido Enviado com Sucesso!
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                Sua mensagem formatada foi encaminhada para nosso WhatsApp. Em breve nossa equipe enviará as prévias das artes para sua aprovação!
-              </p>
-              <div className="pt-4">
-                <button
-                  onClick={handleFinishAndReset}
-                  className="px-6 py-3 bg-black hover:bg-slate-800 text-white text-sm font-bold rounded-2xl shadow-md transition-all cursor-pointer"
-                >
-                  Concluir e Voltar ao Catálogo
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Main Form */
-            <form onSubmit={handleSendToWhatsApp} className="space-y-6">
-              
-              {/* 1. Dados Pessoais */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-[#B886E8]" />
-                  Dados do Cliente
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-800 mb-1">
-                      Seu Nome Completo *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={customerInfo.name}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                      placeholder="Ex: Maria Clara Silva"
-                      className={`w-full text-xs px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8] transition-all ${
-                        formErrors.name ? 'border-rose-500' : 'border-slate-200'
-                      }`}
-                    />
-                    {formErrors.name && (
-                      <span className="text-[11px] text-rose-500 mt-0.5 block">{formErrors.name}</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-800 mb-1">
-                      WhatsApp com DDD *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      maxLength={15}
-                      value={customerInfo.phone}
-                      onChange={(e) => handlePhoneChange(e.target.value)}
-                      placeholder="(21) 99999-9999"
-                      className={`w-full text-xs px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8] transition-all ${
-                        formErrors.phone ? 'border-rose-500' : 'border-slate-200'
-                      }`}
-                    />
-                    {formErrors.phone && (
-                      <span className="text-[11px] text-rose-500 mt-0.5 block">{formErrors.phone}</span>
-                    )}
-                  </div>
+          {/* Modal Body */}
+          <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5">
+            {isSuccess ? (
+              /* Success Screen */
+              <div className="text-center py-8 space-y-4">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto animate-bounce">
+                  <CheckCircle className="w-10 h-10" />
                 </div>
-
-                {/* Event Date */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-[#B886E8]" />
-                    Data da Comemoração / Festa
-                  </label>
-                  <input
-                    type="date"
-                    value={customerInfo.eventDate}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, eventDate: e.target.value })}
-                    className="w-full sm:w-1/2 text-xs px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8]"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Garante o agendamento prévio na nossa linha de produção artesanal.
-                  </p>
-                </div>
-              </div>
-
-              {/* 2. Forma de Recebimento */}
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-[#B886E8]" />
-                  Forma de Recebimento
+                <h4 className="font-festive font-extrabold text-2xl text-slate-900">
+                  Pedido Pronto para Confirmação!
                 </h4>
+                <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+                  Sua comanda foi formatada com sucesso! Caso a janela do WhatsApp não tenha aberto automaticamente, clique no botão abaixo para conversar conosco.
+                </p>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                   <button
-                    type="button"
-                    onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'retirada' })}
-                    className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
-                      customerInfo.deliveryType === 'retirada'
-                        ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    onClick={handleSendToWhatsApp}
+                    className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2"
                   >
-                    <Store className={`w-4 h-4 mt-0.5 shrink-0 ${customerInfo.deliveryType === 'retirada' ? 'text-black' : 'text-slate-400'}`} />
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">Retirada no Ateliê</div>
-                      <div className="text-[11px] text-slate-500">Rio de Janeiro / RJ</div>
-                    </div>
+                    <MessageCircle className="w-4 h-4 fill-white" />
+                    <span>Reenviar no WhatsApp</span>
                   </button>
-
                   <button
-                    type="button"
-                    onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'entrega' })}
-                    className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
-                      customerInfo.deliveryType === 'entrega'
-                        ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    onClick={handleFinishAndReset}
+                    className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm rounded-2xl"
                   >
-                    <Truck className={`w-4 h-4 mt-0.5 shrink-0 ${customerInfo.deliveryType === 'entrega' ? 'text-black' : 'text-slate-400'}`} />
-                    <div>
-                      <div className="text-xs font-bold text-slate-900">Entrega em Domicílio</div>
-                      <div className="text-[11px] text-slate-500">Frete calculado à parte</div>
-                    </div>
+                    Novo Pedido / Limpar Carrinho
                   </button>
                 </div>
+              </div>
+            ) : (
+              /* Form */
+              <form onSubmit={handleSendToWhatsApp} className="space-y-5">
+                
+                {/* 1. Dados Pessoais */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-[#B886E8]" />
+                    Seus Dados de Contato
+                  </h4>
 
-                {/* Delivery Address fields */}
-                {customerInfo.deliveryType === 'entrega' && (
-                  <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 animate-in fade-in">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Endereço Completo com Número e Complemento *
+                        Seu Nome Completo *
                       </label>
                       <input
                         type="text"
-                        value={customerInfo.address}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
-                        placeholder="Rua / Avenida, Número, Apto/Bloco"
-                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#F8A4D8]"
+                        required
+                        value={customerInfo.name}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                        placeholder="Ex: Mariana Silva"
+                        className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8]"
                       />
-                      {formErrors.address && (
-                        <span className="text-[11px] text-rose-500 mt-0.5 block">{formErrors.address}</span>
+                      {formErrors.name && (
+                        <span className="text-[11px] text-rose-500 mt-0.5 block">{formErrors.name}</span>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-800 mb-1">
-                          Bairro
-                        </label>
-                        <input
-                          type="text"
-                          value={customerInfo.neighborhood}
-                          onChange={(e) => setCustomerInfo({ ...customerInfo, neighborhood: e.target.value })}
-                          placeholder="Ex: Copacabana / Barra"
-                          className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#F8A4D8]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-800 mb-1">
-                          Cidade / UF
-                        </label>
-                        <input
-                          type="text"
-                          value={customerInfo.city}
-                          onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })}
-                          placeholder="Rio de Janeiro - RJ"
-                          className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#F8A4D8]"
-                        />
-                      </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 mb-1">
+                        WhatsApp para Contato *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={customerInfo.phone}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, phone: formatPhone(e.target.value) })}
+                        placeholder="(21) 99999-9999"
+                        className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8]"
+                      />
+                      {formErrors.phone && (
+                        <span className="text-[11px] text-rose-500 mt-0.5 block">{formErrors.phone}</span>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* 3. Observações gerais */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-[#B886E8]" />
-                  Observações Gerais do Pedido:
-                </label>
-                <textarea
-                  rows={2}
-                  value={customerInfo.generalNotes}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, generalNotes: e.target.value })}
-                  placeholder="Ex: Nome do aniversariante, idade ou tema se não especificado nos itens."
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8] resize-none"
-                />
-              </div>
-
-              {/* Message Live Preview Toggle */}
-              <div className="pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="text-xs text-[#B886E8] hover:text-black font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  {showPreview ? 'Ocultar prévia da mensagem' : 'Ver prévia da mensagem gerada para o WhatsApp'}
-                </button>
-
-                {showPreview && (
-                  <pre className="mt-2 p-3.5 bg-slate-900 text-emerald-400 text-[11px] font-mono rounded-2xl overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-inner border border-slate-800 animate-in fade-in">
-                    {formattedMessage}
-                  </pre>
-                )}
-              </div>
-
-              {mpError && (
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-                  <span>{mpError}</span>
-                </div>
-              )}
-
-              {/* Submit CTAs */}
-              <div className="pt-4 border-t border-slate-100 space-y-3">
-                <div className="flex items-center justify-between font-bold text-slate-900">
-                  <span className="text-xs uppercase tracking-wider text-slate-500">Total do Pedido:</span>
-                  <span className="text-2xl font-black text-slate-900">{formatCurrency(totalPrice)}</span>
+                  {/* Event Date */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#B886E8]" />
+                      Data da Comemoração / Festa
+                    </label>
+                    <input
+                      type="date"
+                      value={customerInfo.eventDate}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, eventDate: e.target.value })}
+                      className="w-full sm:w-1/2 text-xs px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8]"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Garante o agendamento prévio na nossa linha de produção artesanal.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Opção 1: Mercado Pago Checkout Pro */}
-                <button
-                  type="button"
-                  onClick={handlePayWithMercadoPago}
-                  disabled={isLoadingMP}
-                  className="w-full py-4 px-6 bg-[#009EE3] hover:bg-[#0082BD] text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl shadow-[#009EE3]/25 flex items-center justify-center gap-3 active:scale-98 transition-all cursor-pointer disabled:opacity-60"
-                >
-                  {isLoadingMP ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin text-white" />
-                      <span>Gerando Checkout Mercado Pago...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-5 h-5" />
-                      <span>Pagar com Mercado Pago (Pix / Cartão em até 12x)</span>
-                    </>
+                {/* 2. Forma de Recebimento */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-[#B886E8]" />
+                    Forma de Recebimento
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'retirada' })}
+                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                        customerInfo.deliveryType === 'retirada'
+                          ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <Store className={`w-4 h-4 mt-0.5 shrink-0 ${customerInfo.deliveryType === 'retirada' ? 'text-black' : 'text-slate-400'}`} />
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">Retirada no Ateliê</div>
+                        <div className="text-[11px] text-slate-500">Rio de Janeiro / RJ</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'entrega' })}
+                      className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                        customerInfo.deliveryType === 'entrega'
+                          ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <Truck className={`w-4 h-4 mt-0.5 shrink-0 ${customerInfo.deliveryType === 'entrega' ? 'text-black' : 'text-slate-400'}`} />
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">Entrega em Domicílio</div>
+                        <div className="text-[11px] text-slate-500">Frete calculado à parte</div>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Delivery Address fields */}
+                  {customerInfo.deliveryType === 'entrega' && (
+                    <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 animate-in fade-in">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-800 mb-1">
+                          Endereço Completo com Número e Complemento *
+                        </label>
+                        <input
+                          type="text"
+                          value={customerInfo.address}
+                          onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+                          placeholder="Rua / Avenida, Número, Apto/Bloco"
+                          className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#F8A4D8]"
+                        />
+                        {formErrors.address && (
+                          <span className="text-[11px] text-rose-500 mt-0.5 block">{formErrors.address}</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-800 mb-1">
+                            Bairro
+                          </label>
+                          <input
+                            type="text"
+                            value={customerInfo.neighborhood}
+                            onChange={(e) => setCustomerInfo({ ...customerInfo, neighborhood: e.target.value })}
+                            placeholder="Ex: Copacabana / Barra"
+                            className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#F8A4D8]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-800 mb-1">
+                            Cidade / UF
+                          </label>
+                          <input
+                            type="text"
+                            value={customerInfo.city}
+                            onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })}
+                            placeholder="Rio de Janeiro - RJ"
+                            className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#F8A4D8]"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </button>
+                </div>
 
-                {/* Opção 2: WhatsApp */}
-                <button
-                  type="submit"
-                  className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center justify-center gap-2.5 active:scale-98 transition-all cursor-pointer group"
-                >
-                  <MessageCircle className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
-                  <span>Ou Enviar Pedido para WhatsApp ({storeConfig.whatsappDisplay || '(21) 97497-5884'})</span>
-                </button>
+                {/* 3. Forma de Pagamento (PRIORIDADE PIX) */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-[#B886E8]" />
+                      Forma de Pagamento
+                    </h4>
+                    <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200 flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-teal-600 fill-current" />
+                      Pix Recomendado
+                    </span>
+                  </div>
 
-                <p className="text-[10px] text-center text-slate-400">
-                  🔒 Checkout seguro com garantia Mercado Pago ou combinação direta pelo WhatsApp.
-                </p>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Botão Pix (Destaque Principal) */}
+                    <button
+                      type="button"
+                      onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: 'pix' })}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+                        customerInfo.paymentMethod === 'pix'
+                          ? 'border-teal-500 bg-teal-50/70 ring-2 ring-teal-500/20 shadow-xs'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-base font-black text-teal-600">💠 Pix</span>
+                        <span className="bg-teal-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase">
+                          Imediato
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-teal-900 font-semibold">Chave / QR Code</div>
+                    </button>
 
-            </form>
-          )}
+                    {/* Botão Cartão */}
+                    <button
+                      type="button"
+                      onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: 'cartao' })}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        customerInfo.paymentMethod === 'cartao'
+                          ? 'border-sky-500 bg-sky-50/70 ring-2 ring-sky-500/20 shadow-xs'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-bold text-slate-800">💳 Cartão</span>
+                        <span className="text-[9px] text-slate-500 font-semibold">Até 12x</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">Crédito ou Débito</div>
+                    </button>
+
+                    {/* Botão Dinheiro */}
+                    <button
+                      type="button"
+                      onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: 'dinheiro' })}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        customerInfo.paymentMethod === 'dinheiro'
+                          ? 'border-slate-800 bg-slate-100 ring-2 ring-slate-800/20 shadow-xs'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-bold text-slate-800">💵 Dinheiro</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">Na retirada</div>
+                    </button>
+                  </div>
+
+                  {/* Visualizador Pix Copia e Cola & QR Code Quando Pix Selecionado */}
+                  {customerInfo.paymentMethod === 'pix' && (
+                    <div className="pt-2 animate-in fade-in duration-200">
+                      <PixPaymentBox totalAmount={totalPrice} pixKey={storeConfig.whatsappNumber} />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Observações gerais */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-[#B886E8]" />
+                    Observações Gerais do Pedido:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={customerInfo.generalNotes}
+                    onChange={(e) => setCustomerInfo({ ...customerInfo, generalNotes: e.target.value })}
+                    placeholder="Ex: Nome do aniversariante, idade ou tema se não especificado nos itens."
+                    className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8] resize-none"
+                  />
+                </div>
+
+                {/* Message Live Preview Toggle */}
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="text-xs text-[#B886E8] hover:text-black font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    {showPreview ? 'Ocultar prévia da mensagem' : 'Ver prévia da mensagem gerada para o WhatsApp'}
+                  </button>
+
+                  {showPreview && (
+                    <pre className="mt-2 p-3.5 bg-slate-900 text-emerald-400 text-[11px] font-mono rounded-2xl overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-inner border border-slate-800 animate-in fade-in">
+                      {formattedMessage}
+                    </pre>
+                  )}
+                </div>
+
+                {mpError && (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                    <span>{mpError}</span>
+                  </div>
+                )}
+
+                {/* Submit CTAs */}
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between font-bold text-slate-900">
+                    <span className="text-xs uppercase tracking-wider text-slate-500">Total do Pedido:</span>
+                    <span className="text-2xl font-black text-slate-900">{formatCurrency(totalPrice)}</span>
+                  </div>
+
+                  {/* Opção 1: Mercado Pago Checkout Pro com Foco em Pix */}
+                  <button
+                    type="button"
+                    onClick={handlePayWithMercadoPago}
+                    disabled={isLoadingMP}
+                    className={`w-full py-4 px-6 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl flex items-center justify-center gap-3 active:scale-98 transition-all cursor-pointer disabled:opacity-60 ${
+                      customerInfo.paymentMethod === 'pix'
+                        ? 'bg-teal-600 hover:bg-teal-700 shadow-teal-600/25'
+                        : 'bg-[#009EE3] hover:bg-[#0082BD] shadow-[#009EE3]/25'
+                    }`}
+                  >
+                    {isLoadingMP ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        <span>Gerando Checkout Seguro...</span>
+                      </>
+                    ) : customerInfo.paymentMethod === 'pix' ? (
+                      <>
+                        <span className="text-lg">💠</span>
+                        <span>Pagar com Pix via Mercado Pago (Aprovação Imediata)</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        <span>Pagar com Cartão (em até 12x via Mercado Pago)</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Opção 2: WhatsApp */}
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center justify-center gap-2.5 active:scale-98 transition-all cursor-pointer group"
+                  >
+                    <MessageCircle className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" />
+                    <span>
+                      {customerInfo.paymentMethod === 'pix' 
+                        ? 'Enviar Pedido para WhatsApp (Pagamento via Pix)' 
+                        : `Enviar Pedido para WhatsApp (${storeConfig.whatsappDisplay || '(21) 97497-5884'})`}
+                    </span>
+                  </button>
+
+                  <p className="text-[10px] text-center text-slate-400">
+                    🔒 Pagamento protegido via Pix com confirmação instantânea no WhatsApp.
+                  </p>
+                </div>
+
+              </form>
+            )}
+          </div>
+
         </div>
-
       </div>
-    </div>
 
-    {/* Modal de Configuração do Token do Mercado Pago */}
-    <MercadoPagoTokenModal
-      isOpen={isTokenModalOpen}
-      onClose={() => setIsTokenModalOpen(false)}
-      onSuccess={(savedToken) => {
-        startMercadoPagoPayment(savedToken);
-      }}
-    />
-  </>
+      {/* Modal de Configuração do Token do Mercado Pago */}
+      <MercadoPagoTokenModal
+        isOpen={isTokenModalOpen}
+        onClose={() => setIsTokenModalOpen(false)}
+        onSuccess={(savedToken) => {
+          startMercadoPagoPayment(savedToken);
+        }}
+      />
+    </>
   );
 };
