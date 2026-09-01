@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   Download,
   ExternalLink,
-  Mail
+  Mail,
+  AlertCircle
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -21,6 +22,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { createOrderInSupabase } from '../../services/orderService';
+import { createMercadoPagoPixPayment, isMercadoPagoConfigured } from '../../lib/mercadopago';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -42,6 +44,7 @@ export const CheckoutPage: React.FC = () => {
   const [discount, setDiscount] = useState(0);
 
   const [formErrors, setFormErrors] = useState<{ name?: string; email?: string }>({});
+  const [mpError, setMpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -58,6 +61,7 @@ export const CheckoutPage: React.FC = () => {
     qrCodeUrl: string;
   } | null>(null);
 
+  const hasMercadoPago = isMercadoPagoConfigured(storeConfig);
   const finalTotal = Math.max(0, totalPrice - discount);
 
   const validateForm = () => {
@@ -92,23 +96,51 @@ export const CheckoutPage: React.FC = () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setMpError(null);
 
     const generatedOrderId = String(Math.floor(700 + Math.random() * 200));
     const currentDate = new Date().toLocaleDateString('pt-BR');
     const pixKey = storeConfig.whatsappNumber || '21974975884';
-    const simulatedPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5925ENCANTANDO FESTA ATELIE6009RIO DE JANEIRO62070503***6304`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(simulatedPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
+    let finalPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5925REVISTINHAS LUCRATIVAS6009RIO DE JANEIRO62070503***6304`;
+    let finalQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(finalPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
+    let finalPaymentId = generatedOrderId;
+
+    // 1. Tentar gerar o Pix oficial via API do Mercado Pago (v1/payments)
+    if (customerInfo.paymentMethod === 'pix' && hasMercadoPago) {
+      try {
+        const pixResponse = await createMercadoPagoPixPayment({
+          amount: finalTotal,
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          description: 'Pedido Revistinhas Lucrativas',
+          storeConfig,
+        });
+
+        if (pixResponse.success && pixResponse.qrCode) {
+          finalPixCode = pixResponse.qrCode;
+          finalQrUrl = pixResponse.qrCodeBase64
+            ? `data:image/png;base64,${pixResponse.qrCodeBase64}`
+            : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`;
+          if (pixResponse.paymentId) finalPaymentId = pixResponse.paymentId;
+        }
+      } catch (mpErr: any) {
+        console.error('[CheckoutPage] ❌ Erro detalhado do Mercado Pago Pix:', mpErr);
+        setMpError(mpErr.message || 'Erro ao comunicar com o Mercado Pago.');
+        setIsLoading(false);
+        return;
+      }
+    }
 
     const orderData = {
-      orderId: generatedOrderId,
+      orderId: finalPaymentId,
       orderDate: currentDate,
       totalAmount: finalTotal,
       paymentMethod: customerInfo.paymentMethod === 'pix' ? 'Pix' : 'Cartão de crédito',
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
       items: [...items],
-      pixCode: simulatedPixCode,
-      qrCodeUrl: qrUrl,
+      pixCode: finalPixCode,
+      qrCodeUrl: finalQrUrl,
     };
 
     try {
@@ -120,29 +152,29 @@ export const CheckoutPage: React.FC = () => {
       console.warn(e);
     }
 
-    // 1. Salvar pedido na tabela 'orders' do Supabase
+    // 2. Salvar pedido na tabela 'orders' do Supabase
     await createOrderInSupabase({
-      orderId: generatedOrderId,
+      orderId: finalPaymentId,
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
       items: [...items],
       totalAmount: finalTotal,
-      paymentId: generatedOrderId,
+      paymentId: finalPaymentId,
       status: 'pending',
     });
 
-    // 2. Disparar envio do e-mail de confirmação com os links de download
+    // 3. Disparar envio do e-mail de confirmação com os links de download
     sendOrderConfirmationEmail({
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
-      orderId: generatedOrderId,
+      orderId: finalPaymentId,
       orderDate: currentDate,
       items: [...items],
       totalAmount: finalTotal,
       storeConfig,
     });
 
-    // 3. Manter na mesma página com o layout de pagamento recebido
+    // 4. Manter na mesma página com o layout de pagamento recebido
     setOrderReceived(orderData);
     clearCart();
     setIsLoading(false);
@@ -666,6 +698,17 @@ export const CheckoutPage: React.FC = () => {
                   Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-emerald-600 font-semibold cursor-pointer hover:underline">política de privacidade</span>.
                 </p>
 
+                {/* Alerta de Erro do Mercado Pago */}
+                {mpError && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block">Erro retornado pelo Mercado Pago:</span>
+                      <span className="text-[11px] leading-tight block mt-0.5">{mpError}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Botão Finalizar Pedido */}
                 <button
                   type="button"
@@ -676,7 +719,7 @@ export const CheckoutPage: React.FC = () => {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin text-white" />
-                      <span>Processando Pedido...</span>
+                      <span>Processando Pedido Pix...</span>
                     </>
                   ) : (
                     <span>Finalizar pedido</span>

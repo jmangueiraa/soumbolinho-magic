@@ -14,67 +14,184 @@ export interface PreferenceResponse {
   error?: string;
 }
 
-/**
- * Verifica se o Mercado Pago está configurado no painel admin ou variáveis de ambiente
- */
-export function isMercadoPagoConfigured(storeConfig?: Partial<StoreConfig>): boolean {
-  const token = 
-    localStorage.getItem('encantando_festa_mp_access_token') ||
-    storeConfig?.mpAccessToken ||
-    import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
-    '';
-  return Boolean(token && token.trim().length > 10);
+export interface PixPaymentOptions {
+  amount: number;
+  customerName: string;
+  customerEmail: string;
+  description?: string;
+  storeConfig?: Partial<StoreConfig>;
+  customAccessToken?: string;
+}
+
+export interface PixPaymentResponse {
+  success: boolean;
+  paymentId?: string;
+  qrCode: string;
+  qrCodeBase64: string;
+  ticketUrl?: string;
+  error?: string;
 }
 
 /**
- * Cria uma preferência de pagamento no Mercado Pago Checkout Pro
- * e retorna a URL de redirecionamento (init_point)
+ * Obtém o Access Token do Mercado Pago de forma centralizada
+ */
+export function getMercadoPagoAccessToken(storeConfig?: Partial<StoreConfig>): string {
+  return (
+    localStorage.getItem('encantando_festa_mp_access_token') ||
+    storeConfig?.mpAccessToken ||
+    (import.meta as any).env?.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
+    ''
+  ).trim();
+}
+
+/**
+ * Verifica se o Mercado Pago está configurado
+ */
+export function isMercadoPagoConfigured(storeConfig?: Partial<StoreConfig>): boolean {
+  const token = getMercadoPagoAccessToken(storeConfig);
+  return Boolean(token && token.length > 10);
+}
+
+/**
+ * 1. Cria um Pagamento Pix Direto via Mercado Pago API (v1/payments)
+ */
+export async function createMercadoPagoPixPayment(
+  options: PixPaymentOptions
+): Promise<PixPaymentResponse> {
+  const { amount, customerName, customerEmail, description, storeConfig, customAccessToken } = options;
+
+  const accessToken = (customAccessToken || getMercadoPagoAccessToken(storeConfig)).trim();
+  const numericAmount = Number(parseFloat(String(amount)).toFixed(2));
+  const emailCliente = String(customerEmail || '').trim().toLowerCase();
+  const nameParts = String(customerName || 'Cliente').trim().split(' ');
+  const firstName = nameParts[0] || 'Cliente';
+  const lastName = nameParts.slice(1).join(' ') || 'Cliente';
+  const desc = description || 'Pedido Revistinhas Lucrativas';
+
+  // 1. Tentar primeiro via Endpoint da Vercel (evita bloqueios de CORS do navegador)
+  try {
+    const serverlessRes = await fetch('/api/create-pix-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transaction_amount: numericAmount,
+        description: desc,
+        customer_name: customerName,
+        customer_email: emailCliente,
+        access_token: accessToken || undefined,
+      }),
+    });
+
+    if (serverlessRes.ok) {
+      const data = await serverlessRes.json();
+      if (data.success && (data.qr_code || data.qr_code_base64)) {
+        console.log('[Mercado Pago Pix] ✅ Pix gerado via Serverless Function:', data);
+        return {
+          success: true,
+          paymentId: String(data.id || ''),
+          qrCode: data.qr_code,
+          qrCodeBase64: data.qr_code_base64,
+          ticketUrl: data.ticket_url,
+        };
+      }
+    } else {
+      const errData = await serverlessRes.json().catch(() => ({}));
+      console.warn('[Mercado Pago Pix] ⚠️ Erro na Serverless Function:', errData);
+      if (errData.error || errData.message) {
+        throw new Error(errData.error || errData.message);
+      }
+    }
+  } catch (serverlessErr: any) {
+    if (serverlessErr.message && !serverlessErr.message.includes('Failed to fetch')) {
+      throw serverlessErr;
+    }
+    console.warn('[Mercado Pago Pix] Tentando chamada direta de fallback para api.mercadopago.com...');
+  }
+
+  // 2. Chamada direta de fallback para https://api.mercadopago.com/v1/payments
+  if (!accessToken) {
+    throw new Error('Access Token do Mercado Pago não configurado. Adicione o token no painel admin ou nas variáveis de ambiente da Vercel.');
+  }
+
+  const pixPayload = {
+    transaction_amount: numericAmount,
+    description: desc,
+    payment_method_id: 'pix',
+    payer: {
+      email: emailCliente,
+      first_name: firstName,
+      last_name: lastName,
+    },
+  };
+
+  const idempotencyKey = `pix-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+  console.log('[Mercado Pago Pix] 🚀 Enviando para https://api.mercadopago.com/v1/payments:', pixPayload);
+
+  const response = await fetch('https://api.mercadopago.com/v1/payments', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'X-Idempotency-Key': idempotencyKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(pixPayload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('[Mercado Pago Pix] ❌ Erro retornado pela API do Mercado Pago:', data);
+
+    let detailedCause = '';
+    if (Array.isArray(data.cause) && data.cause.length > 0) {
+      detailedCause = data.cause.map((c: any) => `${c.code || ''}: ${c.description || JSON.stringify(c)}`).join('; ');
+    } else if (data.cause) {
+      detailedCause = typeof data.cause === 'object' ? JSON.stringify(data.cause) : String(data.cause);
+    }
+
+    const errorMsg = data.message || 'Erro ao gerar pagamento Pix no Mercado Pago.';
+    const fullErrorMessage = detailedCause ? `${errorMsg} (Causa: ${detailedCause})` : errorMsg;
+
+    throw new Error(fullErrorMessage);
+  }
+
+  const transactionData = data.point_of_interaction?.transaction_data;
+  const qrCode = transactionData?.qr_code || '';
+  const qrCodeBase64 = transactionData?.qr_code_base64 || '';
+
+  return {
+    success: true,
+    paymentId: String(data.id || ''),
+    qrCode,
+    qrCodeBase64,
+    ticketUrl: transactionData?.ticket_url,
+  };
+}
+
+/**
+ * 2. Cria uma preferência de pagamento no Mercado Pago Checkout Pro (se necessário)
  */
 export async function createMercadoPagoPreference(
   options: CreatePreferenceOptions
 ): Promise<PreferenceResponse> {
   const { items, customerInfo, storeConfig, customAccessToken } = options;
 
-  // 1. Obter Access Token de forma prioritária e segura
-  const accessToken = 
-    customAccessToken ||
-    localStorage.getItem('encantando_festa_mp_access_token') ||
-    storeConfig?.mpAccessToken ||
-    import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
-    '';
+  const accessToken = customAccessToken || getMercadoPagoAccessToken(storeConfig);
 
   if (!accessToken) {
-    console.warn('[Mercado Pago] ⚠️ Access Token não configurado.');
-    throw new Error('NO_TOKEN');
+    throw new Error('Access Token do Mercado Pago não configurado.');
   }
 
-  // 2. Formatar os itens do carrinho para a API do Mercado Pago
-  const preferenceItems = items.map((item) => {
-    const rawImg = (
-      item.product.imageUrl ||
-      item.product.image ||
-      item.product.image_url ||
-      item.product.photo_url ||
-      ''
-    ).trim();
+  const preferenceItems = items.map((item) => ({
+    id: item.product.id,
+    title: item.product.name.slice(0, 120),
+    description: (item.product.description || item.product.name).slice(0, 200),
+    quantity: item.quantity,
+    currency_id: 'BRL',
+    unit_price: Number(item.product.price),
+  }));
 
-    const titleWithNotes = item.observations
-      ? `${item.product.name} (Obs: ${item.observations.slice(0, 50)})`
-      : item.product.name;
-
-    return {
-      id: item.product.id,
-      title: titleWithNotes.slice(0, 120),
-      description: (item.product.description || item.product.name).slice(0, 200),
-      picture_url: rawImg.startsWith('http') ? rawImg : undefined,
-      category_id: 'art_crafts',
-      quantity: item.quantity,
-      currency_id: 'BRL',
-      unit_price: Number(item.product.price),
-    };
-  });
-
-  // 3. URLs de retorno pós-pagamento
   const currentOrigin = window.location.origin + window.location.pathname;
   const backUrls = {
     success: `${currentOrigin}?payment_status=success`,
@@ -82,49 +199,27 @@ export async function createMercadoPagoPreference(
     failure: `${currentOrigin}?payment_status=failure`,
   };
 
-  // 4. Montar o payload da preferência
   const preferencePayload: any = {
     items: preferenceItems,
     back_urls: backUrls,
     auto_return: 'approved',
-    statement_descriptor: (storeConfig?.storeName || 'ENCANTANDOFESTA').slice(0, 16),
+    statement_descriptor: 'REVISTINHAS',
     external_reference: `PEDIDO_${Date.now()}`,
     payment_methods: {
-      excluded_payment_types: [],
       default_payment_method_id: 'pix',
       installments: 12,
     },
   };
 
-  // Se houver dados do cliente, adiciona o payer
   if (customerInfo && customerInfo.name) {
     const nameParts = customerInfo.name.trim().split(' ');
-    const firstName = nameParts[0] || 'Cliente';
-    const lastName = nameParts.slice(1).join(' ') || 'Festa';
-    const cleanPhone = customerInfo.phone ? customerInfo.phone.replace(/\D/g, '') : '';
-
     preferencePayload.payer = {
-      name: firstName,
-      surname: lastName,
-      email: customerInfo.email?.trim() || `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}_cliente@encantandofesta.com`,
-      phone: cleanPhone
-        ? {
-            area_code: cleanPhone.slice(0, 2),
-            number: cleanPhone.slice(2),
-          }
-        : undefined,
-      address: customerInfo.address
-        ? {
-            street_name: customerInfo.address,
-            zip_code: '20000000',
-          }
-        : undefined,
+      name: nameParts[0] || 'Cliente',
+      surname: nameParts.slice(1).join(' ') || 'Cliente',
+      email: customerInfo.email?.trim().toLowerCase() || 'cliente@revistinhaslucrativas.com.br',
     };
   }
 
-  console.log('[Mercado Pago] 🚀 Enviando preferência para a API:', preferencePayload);
-
-  // 5. Enviar requisição para a API do Mercado Pago
   const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
     method: 'POST',
     headers: {
@@ -137,15 +232,8 @@ export async function createMercadoPagoPreference(
   const data = await response.json();
 
   if (!response.ok) {
-    console.error('[Mercado Pago] ❌ Erro retornado pela API do Mercado Pago:', data);
-    throw new Error(data.message || 'Falha ao gerar link de pagamento no Mercado Pago.');
+    throw new Error(data.message || 'Falha ao gerar preferência no Mercado Pago.');
   }
-
-  console.log('[Mercado Pago] ✅ Preferência criada com sucesso:', {
-    id: data.id,
-    init_point: data.init_point,
-    sandbox_init_point: data.sandbox_init_point,
-  });
 
   return {
     id: data.id,
