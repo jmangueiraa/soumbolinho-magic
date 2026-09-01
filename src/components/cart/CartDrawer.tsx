@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
-import { X, ShoppingBag, ArrowRight, Trash2, MessageCircle, CreditCard, Loader2 } from 'lucide-react';
+import React from 'react';
+import { X, ShoppingBag, ArrowRight, Trash2, MessageCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
-import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 import { CartItemRow } from './CartItemRow';
-import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
 
 export const CartDrawer: React.FC = () => {
-  const { storeConfig } = useStoreData();
   const { 
     isCartOpen, 
     closeCart, 
@@ -18,38 +15,12 @@ export const CartDrawer: React.FC = () => {
     openCheckout 
   } = useCart();
 
-  const [isLoadingMP, setIsLoadingMP] = useState(false);
-
   if (!isCartOpen) return null;
 
-  const hasMercadoPago = isMercadoPagoConfigured(storeConfig);
-
-  const handleMercadoPagoCheckout = async () => {
-    if (!hasMercadoPago) {
-      // Se não houver Mercado Pago configurado pelo admin, abre o checkout padrão via WhatsApp
-      openCheckout();
-      return;
-    }
-
-    try {
-      setIsLoadingMP(true);
-
-      const preference = await createMercadoPagoPreference({
-        items,
-        storeConfig,
-      });
-
-      if (preference.init_point) {
-        window.location.href = preference.init_point;
-      } else {
-        openCheckout();
-      }
-    } catch (err: any) {
-      console.warn('[CartDrawer] Redirecionando para WhatsApp:', err);
-      openCheckout();
-    } finally {
-      setIsLoadingMP(false);
-    }
+  const handleGoToCheckout = () => {
+    closeCart();
+    window.location.hash = '#/finalizar-compra';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -134,10 +105,6 @@ export const CartDrawer: React.FC = () => {
                 <span>Subtotal dos produtos</span>
                 <span className="font-semibold text-slate-700">{formatCurrency(totalPrice)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Taxa de Entrega / Frete</span>
-                <span className="text-[#B886E8] font-bold text-[11px]">A combinar no WhatsApp</span>
-              </div>
               <div className="flex items-center justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-100">
                 <span>Total dos Itens</span>
                 <span className="text-xl font-black text-slate-900">{formatCurrency(totalPrice)}</span>
@@ -146,28 +113,32 @@ export const CartDrawer: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="space-y-2.5 pt-1">
-              {/* Botão Principal: Ir para a Página de Finalização de Compra */}
-              <a
-                href="#/finalizar-compra"
-                onClick={closeCart}
+              {/* Botão Principal: Ir para a Página de Finalização de Compra na Mesma Aba */}
+              <button
+                type="button"
+                onClick={handleGoToCheckout}
                 className="w-full py-4 px-4 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer group"
               >
                 <span>Finalizar Compra</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </a>
+              </button>
 
-              {/* Botão Secundário: Finalizar Direto via WhatsApp */}
+              {/* Botão Secundário: WhatsApp */}
               <button
-                onClick={openCheckout}
+                type="button"
+                onClick={() => {
+                  closeCart();
+                  openCheckout();
+                }}
                 className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4 fill-emerald-600 text-emerald-600" />
-                <span>Ou Comprar Rápido no WhatsApp</span>
+                <span>Ou Pedir Rápido no WhatsApp</span>
               </button>
             </div>
 
             <p className="text-[10px] text-center text-slate-400">
-              🔒 Checkout transparente com Pix instantâneo e Cartão de Crédito.
+              🔒 Pagamento instantâneo via Pix na mesma tela.
             </p>
           </div>
         )}

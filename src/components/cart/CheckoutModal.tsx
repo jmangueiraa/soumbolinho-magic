@@ -90,34 +90,11 @@ export const CheckoutModal: React.FC = () => {
     setIsSuccess(true);
   };
 
-  const handlePayWithMercadoPago = async () => {
+  const handlePayWithMercadoPago = () => {
     if (!validateForm()) return;
-
-    if (!hasMercadoPago) {
-      handleSendToWhatsApp();
-      return;
-    }
-
-    try {
-      setIsLoadingMP(true);
-
-      const preference = await createMercadoPagoPreference({
-        items,
-        customerInfo,
-        storeConfig,
-      });
-
-      if (preference.init_point) {
-        window.location.href = preference.init_point;
-      } else {
-        handleSendToWhatsApp();
-      }
-    } catch (err: any) {
-      console.warn('[CheckoutModal] Redirecionando para WhatsApp:', err);
-      handleSendToWhatsApp();
-    } finally {
-      setIsLoadingMP(false);
-    }
+    closeCheckout();
+    window.location.hash = '#/finalizar-compra';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFinishAndReset = () => {
