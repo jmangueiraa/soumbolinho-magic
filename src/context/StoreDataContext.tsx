@@ -1,13 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Category, StoreConfig, BannerSlide } from '../types';
-import { PRODUCTS as INITIAL_PRODUCTS } from '../data/products';
 import { CATEGORIES as INITIAL_CATEGORIES } from '../data/categories';
 import { STORE_CONFIG as INITIAL_STORE_CONFIG } from '../data/storeConfig';
 import { INITIAL_BANNERS } from '../data/banners';
 import { supabase } from '../lib/supabase';
-import { fetchAllProducts } from '../services/productService';
+import { 
+  fetchAllProducts, 
+  createProductInSupabase, 
+  updateProductInSupabase, 
+  deleteProductFromSupabase,
+  toggleProductStockInSupabase,
+  updateProductPriceInSupabase
+} from '../services/productService';
 
-const LS_PRODUCTS_KEY = 'encantando_festa_products_v2';
 const LS_CATEGORIES_KEY = 'encantando_festa_categories_v2';
 const LS_CONFIG_KEY = 'encantando_festa_config_v2';
 const LS_BANNERS_KEY = 'encantando_festa_banners_v2';
@@ -26,12 +31,12 @@ interface StoreDataContextType {
   // Auth
   login: (password: string) => boolean;
   logout: () => void;
-  // Produtos
+  // Produtos 100% Supabase
   addProduct: (productData: Omit<Product, 'id'>) => Promise<Product>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
-  deleteProduct: (id: string) => void;
-  toggleProductStock: (id: string) => void;
-  quickUpdatePrice: (id: string, newPrice: number) => void;
+  deleteProduct: (id: string) => Promise<void>;
+  toggleProductStock: (id: string) => Promise<void>;
+  quickUpdatePrice: (id: string, newPrice: number) => Promise<void>;
   // Categorias
   addCategory: (name: string, icon?: string) => Category;
   updateCategory: (id: string, updates: Partial<Category>) => void;
@@ -53,15 +58,8 @@ interface StoreDataContextType {
 const StoreDataContext = createContext<StoreDataContextType | undefined>(undefined);
 
 export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Produtos
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem(LS_PRODUCTS_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-    } catch {
-      return INITIAL_PRODUCTS;
-    }
-  });
+  // 1. Produtos 100% Supabase (sem fallback de LocalStorage)
+  const [products, setProducts] = useState<Product[]>([]);
 
   // 2. Categorias
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -111,21 +109,19 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 3500);
   };
 
-  // Sincronizar produtos com o Supabase na inicialização (select * sem filtro de usuário)
+  // Sincronizar produtos diretamente com o Supabase (select * order by created_at desc)
   useEffect(() => {
     async function loadFromSupabase() {
       try {
         const { data: supabaseProducts, error } = await fetchAllProducts();
 
         if (error) {
-          console.warn('[StoreDataContext] Aviso ao buscar do Supabase:', error);
+          console.warn('[StoreDataContext] Aviso ao buscar produtos do Supabase:', error);
           return;
         }
 
-        if (supabaseProducts && supabaseProducts.length > 0) {
-          console.log(`[StoreDataContext] 🚀 Atualizando catálogo com ${supabaseProducts.length} produtos do Supabase.`);
-          setProducts(supabaseProducts);
-        }
+        console.log(`[StoreDataContext] 🚀 Atualizando lista com ${supabaseProducts.length} produtos do Supabase.`);
+        setProducts(supabaseProducts);
       } catch (err) {
         console.error('[StoreDataContext] Erro ao sincronizar com Supabase:', err);
       }
@@ -150,15 +146,6 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       supabase.removeChannel(channel);
     };
   }, []);
-
-  // Sincronizar produtos no LocalStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_PRODUCTS_KEY, JSON.stringify(products));
-    } catch (e) {
-      console.error('Falha ao salvar produtos no LocalStorage', e);
-    }
-  }, [products]);
 
   // Sincronizar categorias
   useEffect(() => {
@@ -207,141 +194,88 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showNotification('Sessão administrativa encerrada.', 'info');
   };
 
-  // Ações de Produtos
+  // -------------------------------------------------------------
+  // Ações de Produtos 100% Diretas no Supabase
+  // -------------------------------------------------------------
+
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
-    const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const finalImg = (productData.imageUrl || productData.image_url || productData.image || '').trim();
-    const numericPrice = Number(productData.price) || 0;
+    const { product: createdProduct, error } = await createProductInSupabase(productData);
 
-    const newProduct: Product = {
-      ...productData,
-      id: newId,
-      price: numericPrice,
-      imageUrl: finalImg,
-      image: finalImg,
-      image_url: finalImg,
-      photo_url: finalImg,
-    };
-
-    const dbPayload = {
-      id: newId,
-      name: String(newProduct.name || '').trim(),
-      category: String(newProduct.category || '').trim(),
-      subcategory: newProduct.subcategory ? String(newProduct.subcategory).trim() : null,
-      price: numericPrice,
-      unit_suffix: String(newProduct.unitSuffix || '/Un').trim(),
-      image_url: finalImg || null,
-      image: finalImg || null,
-      description: newProduct.description ? String(newProduct.description).trim() : null,
-      in_stock: Boolean(newProduct.inStock ?? true),
-      badge: newProduct.badge || null,
-      is_customizable: Boolean(newProduct.isCustomizable ?? true),
-      customization_placeholder: newProduct.customizationPlaceholder || null,
-    };
-
-    console.log('Tentando salvar payload:', dbPayload);
-
-    // Atualiza estado local imediatamente
-    setProducts((prev) => [newProduct, ...prev]);
-
-    try {
-      const { data, error } = await supabase.from('products').upsert(dbPayload).select();
-
-      if (error) {
-        console.error('Erro ao salvar no Supabase:', error);
-        showNotification(`Aviso: Produto salvo localmente (Erro Supabase: ${error.message})`, 'info');
-      } else {
-        console.log('✅ Produto salvo com sucesso no Supabase:', data);
-        showNotification(`Produto "${newProduct.name}" cadastrado com sucesso!`, 'success');
-      }
-    } catch (err) {
-      console.error('Erro ao salvar no Supabase:', err);
-      showNotification(`Produto "${newProduct.name}" salvo localmente.`, 'info');
+    if (error || !createdProduct) {
+      showNotification(`Erro ao cadastrar no banco: ${error || 'Falha desconhecida'}`, 'error');
+      throw new Error(error || 'Falha ao salvar produto no Supabase.');
     }
 
-    return newProduct;
+    setProducts((prev) => [createdProduct, ...prev.filter((p) => p.id !== createdProduct.id)]);
+    showNotification(`Produto "${createdProduct.name}" cadastrado no Supabase!`, 'success');
+    return createdProduct;
   };
 
-  const updateProduct = async (id: string, updates: Partial<Product>) => {
-    const finalImg = updates.imageUrl || updates.image_url || updates.image;
-    const numericPrice = updates.price !== undefined ? Number(updates.price) : undefined;
+  const updateProduct = async (id: string, updates: Partial<Product>): Promise<void> => {
+    const { success, error } = await updateProductInSupabase(id, updates);
 
-    const finalUpdates = {
-      ...updates,
-      ...(numericPrice !== undefined ? { price: numericPrice } : {}),
-      ...(finalImg ? { imageUrl: finalImg, image: finalImg, image_url: finalImg, photo_url: finalImg } : {})
-    };
+    if (!success) {
+      showNotification(`Erro ao atualizar no Supabase: ${error}`, 'error');
+      return;
+    }
 
     setProducts((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...finalUpdates } : item))
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
     );
-
-    const dbUpdatePayload: any = {};
-    if (updates.name !== undefined) dbUpdatePayload.name = String(updates.name).trim();
-    if (updates.category !== undefined) dbUpdatePayload.category = String(updates.category).trim();
-    if (updates.subcategory !== undefined) dbUpdatePayload.subcategory = updates.subcategory ? String(updates.subcategory).trim() : null;
-    if (numericPrice !== undefined) dbUpdatePayload.price = numericPrice;
-    if (updates.unitSuffix !== undefined) dbUpdatePayload.unit_suffix = String(updates.unitSuffix).trim();
-    if (finalImg !== undefined) {
-      dbUpdatePayload.image_url = finalImg || null;
-      dbUpdatePayload.image = finalImg || null;
-    }
-    if (updates.description !== undefined) dbUpdatePayload.description = updates.description ? String(updates.description).trim() : null;
-    if (updates.inStock !== undefined) dbUpdatePayload.in_stock = Boolean(updates.inStock);
-    if (updates.badge !== undefined) dbUpdatePayload.badge = updates.badge || null;
-
-    console.log('Tentando atualizar payload no Supabase:', dbUpdatePayload);
-
-    try {
-      const { data, error } = await supabase.from('products').update(dbUpdatePayload).eq('id', id).select();
-
-      if (error) {
-        console.error('Erro ao salvar no Supabase:', error);
-        showNotification(`Produto atualizado localmente (Erro Supabase: ${error.message})`, 'info');
-      } else {
-        console.log('✅ Produto atualizado no Supabase:', data);
-        showNotification('Produto atualizado com sucesso!', 'success');
-      }
-    } catch (err) {
-      console.error('Erro ao salvar no Supabase:', err);
-    }
+    showNotification('Produto atualizado com sucesso no Supabase!', 'success');
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string): Promise<void> => {
     const prod = products.find((p) => p.id === id);
+    const { success, error } = await deleteProductFromSupabase(id);
+
+    if (!success) {
+      showNotification(`Erro ao excluir no Supabase: ${error}`, 'error');
+      return;
+    }
+
     setProducts((prev) => prev.filter((item) => item.id !== id));
-    showNotification(`Produto "${prod?.name || ''}" removido!`, 'info');
-
-    // Remover do Supabase
-    supabase.from('products').delete().eq('id', id).then().catch();
+    showNotification(`Produto "${prod?.name || ''}" excluído do Supabase!`, 'info');
   };
 
-  const toggleProductStock = (id: string) => {
+  const toggleProductStock = async (id: string): Promise<void> => {
+    const item = products.find((p) => p.id === id);
+    if (!item) return;
+
+    const nextStock = !item.inStock;
+    const { success, error } = await toggleProductStockInSupabase(id, nextStock);
+
+    if (!success) {
+      showNotification(`Erro ao alterar status: ${error}`, 'error');
+      return;
+    }
+
     setProducts((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nextStock = !item.inStock;
-          showNotification(`Status alterado para: ${nextStock ? 'Disponível' : 'Indisponível'}`, 'info');
-          
-          supabase.from('products').update({ in_stock: nextStock }).eq('id', id).then().catch();
-          return { ...item, inStock: nextStock };
-        }
-        return item;
-      })
+      prev.map((p) => (p.id === id ? { ...p, inStock: nextStock } : p))
     );
+    showNotification(`Status alterado para: ${nextStock ? 'Disponível' : 'Indisponível'}`, 'info');
   };
 
-  const quickUpdatePrice = (id: string, newPrice: number) => {
+  const quickUpdatePrice = async (id: string, newPrice: number): Promise<void> => {
     if (newPrice <= 0) return;
-    setProducts((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, price: newPrice } : item))
-    );
-    showNotification('Preço atualizado com sucesso!', 'success');
 
-    supabase.from('products').update({ price: newPrice }).eq('id', id).then().catch();
+    const { success, error } = await updateProductPriceInSupabase(id, newPrice);
+
+    if (!success) {
+      showNotification(`Erro ao atualizar preço: ${error}`, 'error');
+      return;
+    }
+
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, price: newPrice } : p))
+    );
+    showNotification('Preço atualizado no Supabase!', 'success');
   };
 
+  // -------------------------------------------------------------
   // Ações de Categorias
+  // -------------------------------------------------------------
+
   const addCategory = (name: string, icon = 'Gift'): Category => {
     const slug = name
       .toLowerCase()
@@ -409,7 +343,10 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showNotification(`Subcategoria "${subcategoryName}" removida!`, 'info');
   };
 
+  // -------------------------------------------------------------
   // Ações de Banners / Carrossel
+  // -------------------------------------------------------------
+
   const addBanner = (bannerData: Omit<BannerSlide, 'id'>): BannerSlide => {
     const newId = `banner-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const newBanner: BannerSlide = {
@@ -455,15 +392,13 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Restaurar dados padrão de fábrica
   const resetToDefaults = () => {
-    setProducts(INITIAL_PRODUCTS);
     setCategories(INITIAL_CATEGORIES);
     setStoreConfig(INITIAL_STORE_CONFIG);
     setBanners(INITIAL_BANNERS);
-    localStorage.removeItem(LS_PRODUCTS_KEY);
     localStorage.removeItem(LS_CATEGORIES_KEY);
     localStorage.removeItem(LS_CONFIG_KEY);
     localStorage.removeItem(LS_BANNERS_KEY);
-    showNotification('Dados restaurados para o padrão!', 'info');
+    showNotification('Configurações restauradas para o padrão!', 'info');
   };
 
   return (
