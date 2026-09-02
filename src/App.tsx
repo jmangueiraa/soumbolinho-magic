@@ -19,6 +19,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { CheckoutPage } from './components/checkout/CheckoutPage';
 import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckoutPage';
+import { StoreHighlights } from './components/home/StoreHighlights';
 
 const StoreFront: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -28,36 +29,14 @@ const StoreFront: React.FC = () => {
       {/* 1. Header */}
       <Header />
 
-      {/* 2. Banner Slider Rotativo no Topo */}
+      {/* 2. Banner Imagem Única no Topo */}
       <BannerSlider />
 
-      {/* 2. Hero Banner Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-pastel-pink-light/80 via-pastel-lilac-light/40 to-transparent py-8 sm:py-12 border-b border-[#D8B4F8]/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-2xl space-y-3 text-center sm:text-left">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 border border-[#D8B4F8] shadow-xs text-xs font-bold text-slate-900">
-              <span className="w-2 h-2 rounded-full bg-[#F8A4D8] animate-pulse"></span>
-              Encantando Festa • Catálogo Oficial
-            </div>
-            <h1 className="font-festive text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-              Papelaria Personalizada <br className="hidden sm:inline" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pastel-pink-dark via-[#B886E8] to-slate-900">
-                para Festas Inesquecíveis.
-              </span>
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xl">
-              Kits personalizados, centros de mesa, caixinhas milk, apliques e topos de bolo exclusivos. Selecione os itens, informe seu tema e envie o pedido formatado direto para o WhatsApp!
-            </p>
-          </div>
-        </div>
+      {/* 3. Destaques da Loja (3 Ícones Circulares + Barra Link Imediato + Produtos em Destaque) */}
+      <StoreHighlights />
 
-        {/* Soft decorative background circles */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-[#F8A4D8]/20 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-[#D8B4F8]/25 blur-3xl pointer-events-none" />
-      </section>
-
-      {/* 3. Main Catalog Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* 4. Catálogo Principal */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         <div className="flex flex-col md:flex-row gap-8 items-start">
           {/* Left Sidebar Filter */}
           <SidebarFilters />
