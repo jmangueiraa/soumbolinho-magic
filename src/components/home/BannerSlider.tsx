@@ -27,7 +27,7 @@ export const BannerSlider: React.FC = () => {
     <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 select-none">
       <div 
         onClick={handleBannerClick}
-        className={`relative overflow-hidden rounded-3xl shadow-sm border border-[#FFA6DF]/40 transition-all ${
+        className={`relative overflow-hidden rounded-3xl shadow-sm border border-slate-200 transition-all ${
           activeBanner.linkUrl ? 'cursor-pointer hover:opacity-95' : ''
         }`}
       >

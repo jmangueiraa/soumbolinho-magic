@@ -25,7 +25,7 @@ const StoreFront: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-[#FFEBF6] text-slate-900">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-white text-slate-900">
       {/* 1. Header */}
       <Header />
 

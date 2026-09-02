@@ -12,48 +12,48 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-slate-950 text-slate-300 mt-20 border-t border-slate-800">
+    <footer className="bg-black text-zinc-300 mt-20 border-t border-zinc-800">
       {/* Benefit Highlights */}
-      <div className="border-b border-slate-800/80 bg-slate-900/40">
+      <div className="border-b border-zinc-800/80 bg-zinc-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-800/30 border border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-pastel-pink/20 text-[#F8A4D8] flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0">
                 <Heart className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Papelaria Afetiva</h4>
-                <p className="text-xs text-slate-400">Feito à mão com muito carinho</p>
+                <h4 className="text-sm font-bold text-white">Arquivos Digitais</h4>
+                <p className="text-xs text-zinc-400">Modelos prontos para impressão</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-800/30 border border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-[#D8B4F8] flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Arte Personalizada</h4>
-                <p className="text-xs text-slate-400">Prévia enviada para aprovação</p>
+                <h4 className="text-sm font-bold text-white">Compra Segura</h4>
+                <p className="text-xs text-zinc-400">Pix com liberação imediata</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-800/30 border border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0">
                 <Truck className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Envio & Retirada</h4>
-                <p className="text-xs text-slate-400">Retirada no RJ ou envio por Sedex</p>
+                <h4 className="text-sm font-bold text-white">Link Imediato</h4>
+                <p className="text-xs text-zinc-400">Download direto na tela e e-mail</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-800/30 border border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-emerald-400 flex items-center justify-center shrink-0">
                 <MessageCircle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-white">Atendimento Rápido</h4>
-                <p className="text-xs text-slate-400">{storeConfig.whatsappDisplay}</p>
+                <h4 className="text-sm font-bold text-white">Atendimento WhatsApp</h4>
+                <p className="text-xs text-zinc-400">{storeConfig.whatsappDisplay || '(00) 00000-0000'}</p>
               </div>
             </div>
           </div>
@@ -67,116 +67,104 @@ export const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#F8A4D8] to-[#D8B4F8] text-slate-900 flex items-center justify-center shadow-md font-bold text-xl">
-                🎀
-              </div>
-              <span className="font-festive text-xl font-bold text-white tracking-tight">
-                {storeConfig.storeName}
+              <span className="font-sans text-2xl font-black text-white tracking-tight">
+                {storeConfig.storeName || 'Soumbolinho'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {storeConfig.slogan}. Criamos itens exclusivos para tornar o aniversário do seu filho um momento mágico e encantador.
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              {storeConfig.slogan || 'Sua loja de moldes, papelaria e arquivos digitais'}.
             </p>
             <div className="flex items-center gap-3 pt-2">
-              <a
-                href={`https://instagram.com/${storeConfig.instagram.replace('@', '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-[#F8A4D8] text-slate-300 hover:text-slate-900 flex items-center justify-center transition-colors"
-                title="Instagram"
-              >
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a
-                href={`https://wa.me/${storeConfig.whatsappNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                title="WhatsApp"
-              >
-                <MessageCircle className="w-4 h-4" />
-              </a>
+              {storeConfig.instagram && (
+                <a
+                  href={`https://instagram.com/${storeConfig.instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-white text-zinc-300 hover:text-black flex items-center justify-center transition-colors"
+                  title="Instagram"
+                >
+                  <Instagram className="w-4 h-4" />
+                </a>
+              )}
+              {storeConfig.whatsappNumber && (
+                <a
+                  href={`https://wa.me/${storeConfig.whatsappNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-emerald-600 text-zinc-300 hover:text-white flex items-center justify-center transition-colors"
+                  title="WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </a>
+              )}
             </div>
           </div>
 
-          {/* Categories Quick Links */}
+          {/* Categorias */}
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#F8A4D8]" />
-              Categorias
-            </h3>
-            <ul className="space-y-2 text-xs">
-              {categories.slice(0, 6).map((cat) => (
-                <li key={cat.id}>
+            <h4 className="text-sm font-bold text-white mb-4">Categorias</h4>
+            <ul className="space-y-2 text-xs text-zinc-400">
+              {categories.slice(0, 5).map((category) => (
+                <li key={category.id}>
                   <button
                     onClick={() => {
-                      setSelectedCategory(cat.id);
+                      setSelectedCategory(category.id);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="text-slate-400 hover:text-[#F8A4D8] transition-colors"
+                    className="hover:text-white transition-colors cursor-pointer"
                   >
-                    {cat.name}
+                    {category.name}
                   </button>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Business & Location Info */}
+          {/* Informações */}
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">
-              Atendimento & Contato
-            </h3>
-            <ul className="space-y-3 text-xs text-slate-400">
-              <li className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-[#F8A4D8] shrink-0 mt-0.5" />
-                <span>{storeConfig.address}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Clock className="w-4 h-4 text-[#D8B4F8] shrink-0 mt-0.5" />
-                <span>{storeConfig.workingHours}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span className="font-bold text-slate-200">{storeConfig.whatsappDisplay}</span>
-              </li>
+            <h4 className="text-sm font-bold text-white mb-4">Informações</h4>
+            <ul className="space-y-2 text-xs text-zinc-400">
+              <li>Compra 100% Segura</li>
+              <li>Acesso Imediato aos Arquivos</li>
+              <li>Suporte no WhatsApp</li>
+              <li>Pagamento via Pix ou Cartão</li>
             </ul>
           </div>
 
-          {/* How to Order */}
-          <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">
-              Como Funciona?
-            </h3>
-            <ol className="space-y-2 text-xs text-slate-400 list-decimal list-inside leading-relaxed">
-              <li>Escolha os itens desejados no catálogo.</li>
-              <li>Preencha nome e tema para personalização.</li>
-              <li>Finalize o pedido e envie para o WhatsApp.</li>
-              <li>Aprove as artes antes da confecção!</li>
-            </ol>
+          {/* Atendimento */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-bold text-white mb-4">Atendimento</h4>
+            <div className="text-xs text-zinc-400 space-y-2">
+              <p className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-zinc-500 shrink-0" />
+                <span>Segunda a Sábado • 09h às 18h</span>
+              </p>
+              <p className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>WhatsApp: {storeConfig.whatsappDisplay}</span>
+              </p>
+            </div>
           </div>
 
-        </div>
-
-        {/* Bottom Copyright & Admin Access */}
-        <div className="mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© {new Date().getFullYear()} {storeConfig.storeName}. Todos os direitos reservados.</p>
-          
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              Papelaria Personalizada com Amor 💕
-            </span>
-            <button
-              onClick={handleOpenAdmin}
-              className="text-slate-600 hover:text-slate-400 flex items-center gap-1 text-[11px] hover:underline transition-colors"
-              title="Acessar Painel Administrativo (/admin)"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Admin</span>
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Bottom Bar */}
+      <div className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© {new Date().getFullYear()} {storeConfig.storeName || 'Soumbolinho'} • Todos os direitos reservados.</p>
+          <button
+            onClick={handleOpenAdmin}
+            className="hover:text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <Lock className="w-3 h-3" />
+            <span>Área Administrativa</span>
+          </button>
+        </div>
+      </div>
+
     </footer>
   );
 };
+
+export default Footer;

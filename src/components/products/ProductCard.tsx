@@ -62,7 +62,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
 
         {/* Badge se houver */}
         {product.badge && (
-          <span className="absolute top-1.5 left-1.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-sm bg-[#FF1493] text-white shadow-xs">
+          <span className="absolute top-1.5 left-1.5 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-sm bg-black text-white shadow-xs">
             {product.badge}
           </span>
         )}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
 
@@ -15,11 +14,11 @@ export const Breadcrumbs: React.FC = () => {
   const currentCategory = categories.find((c) => c.id === filters.selectedCategory);
 
   return (
-    <nav className="flex items-center gap-1.5 text-xs sm:text-[13px] text-[#2B3A8C] font-semibold overflow-x-auto no-scrollbar py-0.5">
+    <nav className="flex items-center gap-1.5 text-xs sm:text-[13px] text-slate-600 font-semibold overflow-x-auto no-scrollbar py-0.5">
       {/* Home */}
       <button
         onClick={resetFilters}
-        className="hover:text-[#FF1493] transition-colors"
+        className="hover:text-black transition-colors cursor-pointer"
       >
         Home
       </button>
@@ -27,10 +26,10 @@ export const Breadcrumbs: React.FC = () => {
       {/* Category */}
       {currentCategory && (
         <>
-          <span className="text-[#2B3A8C] font-bold">›</span>
+          <span className="text-slate-400 font-bold">›</span>
           <button
             onClick={() => setSelectedSubcategory(null)}
-            className="hover:text-[#FF1493] transition-colors truncate flex items-center gap-1"
+            className="hover:text-black transition-colors truncate flex items-center gap-1 cursor-pointer"
           >
             <span>•</span>
             <span>{currentCategory.name}</span>
@@ -41,8 +40,8 @@ export const Breadcrumbs: React.FC = () => {
       {/* Subcategory */}
       {filters.selectedSubcategory && (
         <>
-          <span className="text-[#2B3A8C] font-bold">›</span>
-          <span className="truncate flex items-center gap-1">
+          <span className="text-slate-400 font-bold">›</span>
+          <span className="truncate flex items-center gap-1 text-slate-900 font-bold">
             <span>°</span>
             <span>{filters.selectedSubcategory}</span>
           </span>
@@ -52,8 +51,8 @@ export const Breadcrumbs: React.FC = () => {
       {/* Search Query */}
       {filters.search && (
         <>
-          <span className="text-[#2B3A8C] font-bold">›</span>
-          <span className="text-[#FF1493]">
+          <span className="text-slate-400 font-bold">›</span>
+          <span className="text-black font-bold">
             Busca: "{filters.search}"
           </span>
         </>
@@ -61,3 +60,5 @@ export const Breadcrumbs: React.FC = () => {
     </nav>
   );
 };
+
+export default Breadcrumbs;

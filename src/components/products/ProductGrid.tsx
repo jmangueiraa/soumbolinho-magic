@@ -37,8 +37,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ onSelectProduct }) => 
 
       {/* 2. Category Title and Sort Dropdown */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="font-festive text-2xl sm:text-3xl font-extrabold text-[#FF1493] tracking-tight flex items-center gap-1.5">
-          <span className="text-xl sm:text-2xl font-bold">{marker}</span>
+        <h1 className="font-sans text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+          <span className="text-lg sm:text-xl font-bold text-slate-400">{marker}</span>
           <span>{activeTitle}</span>
         </h1>
 

@@ -23,17 +23,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
     onClose();
   };
 
-  const badgeColor = {
-    'Mais Vendido': 'bg-[#F8A4D8] text-slate-900',
-    'Lançamento': 'bg-[#D8B4F8] text-slate-900',
-    'Personalizado': 'bg-black text-white',
-    'Destaque': 'bg-rose-500 text-white',
-    'Pronta Entrega': 'bg-emerald-500 text-white',
-  }[product.badge || ''] || 'bg-slate-800 text-white';
-
   const unitSuffix = product.unitSuffix || '/Un';
 
-  // Fallback seguro de leitura de imagem com suporte a todos os campos
   const rawImg = 
     product.image || 
     product.image_url || 
@@ -50,7 +41,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
@@ -60,14 +51,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-black shadow-md flex items-center justify-center backdrop-blur-md transition-all"
+          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-black shadow-md flex items-center justify-center backdrop-blur-md transition-all cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Left: Product Image or Placeholder */}
-        <div className="md:w-1/2 bg-[#FFEBF6]/60 relative flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#FFA6DF]/30">
-          <div className="relative aspect-square w-full max-w-[280px] rounded-3xl overflow-hidden shadow-xs border border-[#FFA6DF]/40 bg-white flex items-center justify-center">
+        <div className="md:w-1/2 bg-slate-50 relative flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-slate-200">
+          <div className="relative aspect-square w-full max-w-[280px] rounded-2xl overflow-hidden shadow-xs border border-slate-200 bg-white flex items-center justify-center">
             {shouldShowImage ? (
               <img
                 src={imgUrl}
@@ -81,12 +72,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             ) : (
               <ProductImagePlaceholder 
                 iconClassName="w-12 h-12 sm:w-14 sm:h-14" 
-                showText={true} 
+                showText={false} 
               />
             )}
 
             {product.badge && (
-              <span className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md border border-white/60 ${badgeColor}`}>
+              <span className="absolute top-3 left-3 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-md bg-black text-white shadow-xs">
                 {product.badge}
               </span>
             )}
@@ -100,11 +91,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             {/* Header info */}
             <div>
               {product.subcategory && (
-                <span className="text-xs font-bold uppercase tracking-wider text-[#B886E8]">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   {product.subcategory}
                 </span>
               )}
-              <h2 className="font-festive text-xl sm:text-2xl font-bold text-slate-900 mt-1">
+              <h2 className="font-sans text-xl sm:text-2xl font-black text-slate-900 mt-1">
                 {product.name}
               </h2>
             </div>
@@ -126,28 +117,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
 
             {/* Description */}
             {product.description && (
-              <div className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+              <div className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                 {product.description}
               </div>
             )}
 
-            {/* Customization Input */}
+            {/* Customization Input if applicable */}
             {product.isCustomizable && (
               <div className="space-y-1.5 pt-2">
                 <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-[#FF1493]" />
-                  Personalização (Nome do aniversariante, idade ou tema):
+                  <Sparkles className="w-4 h-4 text-slate-700" />
+                  Observações / Personalização:
                 </label>
                 <textarea
                   rows={2}
                   value={observations}
                   onChange={(e) => setObservations(e.target.value)}
-                  placeholder={product.customizationPlaceholder || 'Ex: Nome: Alice, Idade: 3 anos, Tema: Jardim Encantado'}
-                  className="w-full text-xs p-3 bg-white border border-[#FFA6DF] rounded-2xl focus:ring-2 focus:ring-[#FF1493] outline-none resize-none transition-all placeholder:text-slate-400 shadow-inner"
+                  placeholder={product.customizationPlaceholder || 'Ex: Informações adicionais do pedido'}
+                  className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl focus:ring-1 focus:ring-black outline-none resize-none transition-all placeholder:text-slate-400 shadow-2xs"
                 />
-                <p className="text-[11px] text-slate-400">
-                  🎀 Enviaremos a prévia da arte para aprovação no WhatsApp antes de produzir!
-                </p>
               </div>
             )}
 
@@ -156,10 +144,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
           {/* Bottom Actions: Quantity Selector & Add Button */}
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
             {/* Quantity control */}
-            <div className="flex items-center border border-slate-200 rounded-2xl bg-slate-50 p-1">
+            <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors shadow-xs"
+                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
@@ -168,18 +156,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
               </span>
               <button
                 onClick={() => setQuantity((q) => q + 1)}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors shadow-xs"
+                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Black Add to Cart Button */}
+            {/* Green / Black Add to Cart Button */}
             <button
               onClick={handleAdd}
-              className="flex-1 py-3.5 px-4 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 active:scale-98 transition-all border border-black cursor-pointer"
+              className="flex-1 py-3.5 px-4 bg-[#65bc45] hover:bg-[#5aa83d] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
             >
-              <ShoppingBag className="w-4 h-4 text-[#FF1493]" />
+              <ShoppingBag className="w-4 h-4 text-white" />
               <span>Adicionar ao carrinho</span>
             </button>
           </div>
@@ -190,3 +178,5 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
     </div>
   );
 };
+
+export default ProductDetailModal;
