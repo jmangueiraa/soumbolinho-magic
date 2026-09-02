@@ -64,12 +64,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Comprador';
 
     // Payload rigoroso exigido pelo Banco Central e Mercado Pago
+    // Usamos um e-mail técnico no Mercado Pago para que o cliente NÃO receba o e-mail de cobrança do Mercado Pago
     const pixPayload = {
       transaction_amount: Number(parseFloat(String(numericAmount)).toFixed(2)),
       description: 'Pedido Soumbolinho',
       payment_method_id: 'pix',
       payer: {
-        email: String(customer_email).trim().toLowerCase(),
+        email: 'pagamentos@soumbolinho.com.br',
         first_name: firstName,
         last_name: lastName,
         identification: {

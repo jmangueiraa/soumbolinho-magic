@@ -115,7 +115,7 @@ export async function createMercadoPagoPixPayment(
     description: 'Pedido Soumbolinho',
     payment_method_id: 'pix',
     payer: {
-      email: emailCliente,
+      email: 'pagamentos@soumbolinho.com.br',
       first_name: firstName,
       last_name: lastName,
       identification: {
