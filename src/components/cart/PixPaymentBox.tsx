@@ -151,3 +151,6 @@ export const PixPaymentBox: React.FC<PixPaymentBoxProps> = ({
     </div>
   );
 };
+
+export default PixPaymentBox;
+
