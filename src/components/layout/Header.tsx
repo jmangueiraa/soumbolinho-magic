@@ -43,17 +43,17 @@ export const Header: React.FC = () => {
             </button>
           </div>
 
-          {/* CENTRO / LOGO: Nome da Loja */}
+          {/* CENTRO / LOGO: Novo Logo Soumbolinho */}
           <a 
             href="#" 
             className="flex items-center gap-2 group shrink min-w-0" 
             onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           >
-            <div className="flex flex-col items-center sm:items-start min-w-0 truncate">
-              <span className="font-sans text-lg sm:text-2xl font-black tracking-tight text-white leading-tight truncate">
-                {storeConfig.storeName || 'Soumbolinho'}
-              </span>
-            </div>
+            <img 
+              src="/logo.jpg" 
+              alt={storeConfig.storeName || 'Soumbolinho'} 
+              className="h-10 sm:h-12 w-auto max-w-[160px] sm:max-w-[200px] object-contain rounded-lg"
+            />
           </a>
 
           {/* BARRA DE PESQUISA (Desktop) */}

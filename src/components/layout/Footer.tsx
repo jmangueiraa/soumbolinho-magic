@@ -67,9 +67,11 @@ export const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <span className="font-sans text-2xl font-black text-white tracking-tight">
-                {storeConfig.storeName || 'Soumbolinho'}
-              </span>
+              <img 
+                src="/logo.jpg" 
+                alt={storeConfig.storeName || 'Soumbolinho'} 
+                className="h-10 w-auto object-contain rounded-lg"
+              />
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
               {storeConfig.slogan || 'Sua loja de moldes, papelaria e arquivos digitais'}.

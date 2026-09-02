@@ -35,11 +35,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
           
           {/* Brand Logo / Admin Title */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#FF1493] to-[#D8B4F8] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-              🎀
-            </div>
+            <img 
+              src="/logo.jpg" 
+              alt={storeConfig.storeName || 'Soumbolinho'} 
+              className="h-10 w-auto object-contain rounded-lg border border-slate-200"
+            />
             <div>
-              <h1 className="font-festive font-extrabold text-slate-900 text-lg leading-tight flex items-center gap-2">
+              <h1 className="font-sans font-black text-slate-900 text-lg leading-tight flex items-center gap-2">
                 <span>{storeConfig.storeName}</span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-black text-white">
                   Admin
