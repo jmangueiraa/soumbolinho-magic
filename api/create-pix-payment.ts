@@ -15,6 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const {
+      amount,
       transaction_amount,
       description = 'Pedido Revistinhas Lucrativas',
       customer_name = 'Cliente',
@@ -22,7 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       access_token: clientAccessToken,
     } = req.body || {};
 
-    const accessToken = clientAccessToken || process.env.MERCADO_PAGO_ACCESS_TOKEN || process.env.VITE_MERCADO_PAGO_ACCESS_TOKEN;
+    const rawToken = clientAccessToken || process.env.MERCADO_PAGO_ACCESS_TOKEN || process.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '';
+    const accessToken = rawToken.replace(/['";\s]/g, '').trim();
 
     if (!accessToken) {
       return res.status(400).json({
@@ -31,29 +33,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const numericAmount = Number(parseFloat(String(transaction_amount)).toFixed(2));
+    const value = amount !== undefined ? amount : transaction_amount;
+    const numericAmount = Number(parseFloat(String(value)).toFixed(2));
     if (!numericAmount || numericAmount <= 0) {
       return res.status(400).json({
         success: false,
-        error: 'O valor da transação (transaction_amount) deve ser maior que zero.',
+        error: 'O valor da transação deve ser maior que zero.',
       });
     }
 
     if (!customer_email) {
       return res.status(400).json({
         success: false,
-        error: 'O e-mail do comprador (customer_email) é obrigatório para gerar o Pix.',
+        error: 'O e-mail do comprador (customer_email) é obrigatório.',
       });
     }
 
-    const nameParts = String(customer_name).trim().split(' ');
-    const firstName = nameParts[0] || 'Cliente';
-    const lastName = nameParts.slice(1).join(' ') || 'Cliente';
+    const trimmedName = String(customer_name).trim();
+    const firstName = trimmedName.split(' ')[0] || 'Cliente';
+    const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Consumidor';
 
-    // Payload rigoroso do Mercado Pago Pix
+    // 1. Corpo rigoroso solicitado
     const pixPayload = {
-      transaction_amount: numericAmount,
-      description: String(description).slice(0, 100),
+      transaction_amount: Number(numericAmount),
+      description: 'Pedido Revistinhas Lucrativas',
       payment_method_id: 'pix',
       payer: {
         email: String(customer_email).trim().toLowerCase(),
@@ -62,16 +65,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     };
 
-    const idempotencyKey = `pix-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // 2. Cabeçalho de Idempotência
+    const idempotencyKey = `${Date.now()}-${Math.random()}`;
 
-    console.log('[Mercado Pago API] 🚀 Enviando requisição para https://api.mercadopago.com/v1/payments:', pixPayload);
+    console.log('[Mercado Pago v1/payments] 🚀 Enviando requisição Pix:', JSON.stringify(pixPayload));
 
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken.trim()}`,
-        'X-Idempotency-Key': idempotencyKey,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        'X-Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify(pixPayload),
     });
@@ -79,17 +83,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const data = await mpResponse.json();
 
     if (!mpResponse.ok) {
-      console.error('[Mercado Pago API] ❌ Erro retornado pela API do Mercado Pago:', data);
+      console.error('[Mercado Pago v1/payments] ❌ Erro retornado pela API:', data);
       
       let detailedCause = '';
       if (Array.isArray(data.cause) && data.cause.length > 0) {
         detailedCause = data.cause.map((c: any) => `${c.code || ''}: ${c.description || JSON.stringify(c)}`).join('; ');
       } else if (data.cause) {
-        detailedCause = JSON.stringify(data.cause);
+        detailedCause = typeof data.cause === 'object' ? JSON.stringify(data.cause) : String(data.cause);
       }
 
       const errorMessage = data.message || 'Erro ao gerar pagamento Pix no Mercado Pago.';
-      const fullError = detailedCause ? `${errorMessage} Detalhes: ${detailedCause}` : errorMessage;
+      const fullError = detailedCause ? `${errorMessage} (Detalhes: ${detailedCause})` : errorMessage;
 
       return res.status(mpResponse.status).json({
         success: false,
@@ -100,12 +104,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // 3. Extração correta do QR Code e Copia e Cola
     const transactionData = data.point_of_interaction?.transaction_data;
     const qrCode = transactionData?.qr_code || '';
-    const qrCodeBase64 = transactionData?.qr_code_base64 || '';
-    const ticketUrl = transactionData?.ticket_url || '';
+    const rawQrCodeBase64 = transactionData?.qr_code_base64 || '';
+    const qrCodeImage = rawQrCodeBase64 ? `data:image/png;base64,${rawQrCodeBase64}` : '';
 
-    console.log('[Mercado Pago API] ✅ Pix gerado com sucesso! Payment ID:', data.id);
+    console.log('[Mercado Pago v1/payments] ✅ Pix gerado com sucesso! ID:', data.id);
 
     return res.status(200).json({
       success: true,
@@ -113,11 +118,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: data.status,
       status_detail: data.status_detail,
       qr_code: qrCode,
-      qr_code_base64: qrCodeBase64,
-      ticket_url: ticketUrl,
+      qr_code_base64: rawQrCodeBase64,
+      qr_code_image: qrCodeImage,
+      ticket_url: transactionData?.ticket_url || '',
     });
   } catch (err: any) {
-    console.error('[Mercado Pago API] ❌ Exceção ao processar Pix:', err);
+    console.error('[Mercado Pago v1/payments] ❌ Exceção:', err);
     return res.status(500).json({
       success: false,
       error: err.message || 'Erro interno ao comunicar com o Mercado Pago.',

@@ -105,8 +105,8 @@ export const CheckoutPage: React.FC = () => {
     let finalQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(finalPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
     let finalPaymentId = generatedOrderId;
 
-    // 1. Tentar gerar o Pix oficial via API do Mercado Pago (v1/payments)
-    if (customerInfo.paymentMethod === 'pix' && hasMercadoPago) {
+    // 1. Gerar o Pix oficial via API do Mercado Pago (v1/payments)
+    if (customerInfo.paymentMethod === 'pix') {
       try {
         const pixResponse = await createMercadoPagoPixPayment({
           amount: finalTotal,
@@ -118,10 +118,12 @@ export const CheckoutPage: React.FC = () => {
 
         if (pixResponse.success && pixResponse.qrCode) {
           finalPixCode = pixResponse.qrCode;
-          finalQrUrl = pixResponse.qrCodeBase64
+          finalQrUrl = pixResponse.qrCodeImage || (pixResponse.qrCodeBase64
             ? `data:image/png;base64,${pixResponse.qrCodeBase64}`
-            : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`;
+            : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`);
           if (pixResponse.paymentId) finalPaymentId = pixResponse.paymentId;
+        } else {
+          throw new Error('A API do Mercado Pago não retornou o código Pix.');
         }
       } catch (mpErr: any) {
         console.error('[CheckoutPage] ❌ Erro detalhado do Mercado Pago Pix:', mpErr);
