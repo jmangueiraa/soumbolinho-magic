@@ -1,7 +1,8 @@
 import React from 'react';
-import { Heart, MessageCircle, Instagram, MapPin, Clock, ShieldCheck, Truck, Sparkles, Lock } from 'lucide-react';
+import { Heart, MessageCircle, Instagram, MapPin, Clock, ShieldCheck, Truck, Lock } from 'lucide-react';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
+import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
 export const Footer: React.FC = () => {
   const { storeConfig, categories } = useStoreData();
@@ -67,11 +68,7 @@ export const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <img 
-                src="/logo.jpg" 
-                alt={storeConfig.storeName || 'Soumbolinho'} 
-                className="h-10 w-auto object-contain rounded-lg"
-              />
+              <SoumbolinhoLogo variant="light" size="md" />
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
               {storeConfig.slogan || 'Sua loja de moldes, papelaria e arquivos digitais'}.

@@ -15,6 +15,7 @@ import { ProductsManager } from './ProductsManager';
 import { CategoriesManager } from './CategoriesManager';
 import { StoreSettingsManager } from './StoreSettingsManager';
 import { BannersManager } from './BannersManager';
+import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
 type AdminTab = 'products' | 'categories' | 'banners' | 'settings';
 
@@ -35,22 +36,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
           
           {/* Brand Logo / Admin Title */}
           <div className="flex items-center gap-3">
-            <img 
-              src="/logo.jpg" 
-              alt={storeConfig.storeName || 'Soumbolinho'} 
-              className="h-10 w-auto object-contain rounded-lg border border-slate-200"
-            />
-            <div>
-              <h1 className="font-sans font-black text-slate-900 text-lg leading-tight flex items-center gap-2">
-                <span>{storeConfig.storeName}</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-black text-white">
-                  Admin
-                </span>
-              </h1>
-              <p className="text-[11px] text-[#2B3A8C] font-semibold">
-                Painel de Controle e Gestão
-              </p>
-            </div>
+            <SoumbolinhoLogo variant="dark" size="sm" />
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-black text-white">
+              Admin
+            </span>
           </div>
 
           {/* Top Actions: Ver Loja & Logout */}

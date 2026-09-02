@@ -5,6 +5,8 @@ import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 
+import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
+
 export const Header: React.FC = () => {
   const { storeConfig } = useStoreData();
   const { totalItemsCount, totalPrice, openCart } = useCart();
@@ -43,17 +45,13 @@ export const Header: React.FC = () => {
             </button>
           </div>
 
-          {/* CENTRO / LOGO: Novo Logo Soumbolinho */}
+          {/* CENTRO / LOGO: Logo Festivo Soumbolinho sem Fundo */}
           <a 
             href="#" 
-            className="flex items-center gap-2 group shrink min-w-0" 
+            className="flex items-center group shrink min-w-0" 
             onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           >
-            <img 
-              src="/logo.jpg" 
-              alt={storeConfig.storeName || 'Soumbolinho'} 
-              className="h-10 sm:h-12 w-auto max-w-[160px] sm:max-w-[200px] object-contain rounded-lg"
-            />
+            <SoumbolinhoLogo variant="light" size="md" />
           </a>
 
           {/* BARRA DE PESQUISA (Desktop) */}
