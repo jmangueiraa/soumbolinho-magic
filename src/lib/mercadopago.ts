@@ -71,7 +71,7 @@ export async function createMercadoPagoPixPayment(
       body: JSON.stringify({
         amount: numericAmount,
         transaction_amount: numericAmount,
-        description: 'Pedido Revistinhas Lucrativas',
+        description: 'Pedido Soumbolinho',
         customer_name: customerName,
         customer_email: emailCliente,
         customer_cpf: cleanCpf,
@@ -112,7 +112,7 @@ export async function createMercadoPagoPixPayment(
 
   const pixPayload = {
     transaction_amount: numericAmount,
-    description: 'Pedido Revistinhas Lucrativas',
+    description: 'Pedido Soumbolinho',
     payment_method_id: 'pix',
     payer: {
       email: emailCliente,

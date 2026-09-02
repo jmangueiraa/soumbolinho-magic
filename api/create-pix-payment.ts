@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const {
       amount,
       transaction_amount,
-      description = 'Pedido Revistinhas Lucrativas',
+      description = 'Pedido Soumbolinho',
       customer_name = 'Cliente',
       customer_email,
       customer_cpf,
@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Payload rigoroso exigido pelo Banco Central e Mercado Pago
     const pixPayload = {
       transaction_amount: Number(parseFloat(String(numericAmount)).toFixed(2)),
-      description: 'Pedido Revistinhas Lucrativas',
+      description: 'Pedido Soumbolinho',
       payment_method_id: 'pix',
       payer: {
         email: String(customer_email).trim().toLowerCase(),

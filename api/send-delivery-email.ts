@@ -39,8 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const resend = new Resend(apiKey);
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Revistinhas Lucrativas <onboarding@resend.dev>';
-    const subject = 'Seu pedido do Revistinhas Lucrativas | Produtos Digitais para Imprimir e Vender está a caminho!';
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Soumbolinho <onboarding@resend.dev>';
+    const subject = 'Seu pedido da Soumbolinho | Produtos Digitais está a caminho!';
 
     // Renderiza o HTML exato com as variáveis substituídas
     const htmlBody = `<!DOCTYPE html>
@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         <!-- Logotipo / Cabeçalho -->
         <div style="margin-bottom: 24px;">
           <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #111827;">
-            🛍️ Revistinhas <span style="color: #48bb78;">Lucrativas</span>
+            🛍️ Soum<span style="color: #48bb78;">bolinho</span>
           </h2>
         </div>
 

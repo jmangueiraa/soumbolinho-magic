@@ -1,6 +1,6 @@
 import { CartItem, StoreConfig } from '../types';
 
-export const DEFAULT_EMAIL_SUBJECT = 'Seu pedido do Revistinhas Lucrativas | Produtos Digitais para Imprimir e Vender está a caminho!';
+export const DEFAULT_EMAIL_SUBJECT = 'Seu pedido da Soumbolinho | Produtos Digitais está a caminho!';
 
 export interface OrderEmailData {
   customerName: string;
@@ -64,7 +64,7 @@ export function generateOrderConfirmationEmailHtml(data: OrderEmailData): string
         <!-- Logotipo / Cabeçalho -->
         <div style="margin-bottom: 24px;">
           <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #111827;">
-            🛍️ Revistinhas <span style="color: #48bb78;">Lucrativas</span>
+            🛍️ Soum<span style="color: #48bb78;">bolinho</span>
           </h2>
         </div>
 

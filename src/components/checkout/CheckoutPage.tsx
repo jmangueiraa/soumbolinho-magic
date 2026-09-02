@@ -39,12 +39,28 @@ export const CheckoutPage: React.FC = () => {
     paymentMethod: 'pix' as 'pix' | 'cartao',
   });
 
+  const [cardInfo, setCardInfo] = useState({
+    cardNumber: '',
+    cardholderName: '',
+    expirationDate: '',
+    securityCode: '',
+    installments: '1',
+  });
+
   const [couponCode, setCouponCode] = useState('');
   const [isCouponOpen, setIsCouponOpen] = useState(false);
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
 
-  const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; cpf?: string }>({});
+  const [formErrors, setFormErrors] = useState<{ 
+    name?: string; 
+    email?: string; 
+    cpf?: string;
+    cardNumber?: string;
+    cardholderName?: string;
+    expirationDate?: string;
+    securityCode?: string;
+  }>({});
   const [mpError, setMpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -57,6 +73,28 @@ export const CheckoutPage: React.FC = () => {
     if (clean.length <= 6) return `${clean.slice(0, 3)}.${clean.slice(3)}`;
     if (clean.length <= 9) return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6)}`;
     return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6, 9)}-${clean.slice(9, 11)}`;
+  };
+
+  // Formata o Número do Cartão com espaços a cada 4 dígitos
+  const formatCardNumber = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 16);
+    return clean.replace(/(\d{4})(?=\d)/g, '$1 ');
+  };
+
+  // Formata a Validade no padrão MM/AA
+  const formatExpirationDate = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 4);
+    if (clean.length <= 2) return clean;
+    return `${clean.slice(0, 2)}/${clean.slice(2)}`;
+  };
+
+  // Alterna o método de pagamento e limpa dados do outro método
+  const handleSelectPaymentMethod = (method: 'pix' | 'cartao') => {
+    setCustomerInfo({ ...customerInfo, paymentMethod: method });
+    setOrderReceived(null);
+    setMpError(null);
+    setIsPaymentApproved(false);
+    setFormErrors({});
   };
 
   // Estado da tela de Pedido Recebido na Mesma Página (Order Received)
@@ -117,7 +155,16 @@ export const CheckoutPage: React.FC = () => {
   const finalTotal = Math.max(0, totalPrice - discount);
 
   const validateForm = () => {
-    const errors: { name?: string; email?: string; cpf?: string } = {};
+    const errors: { 
+      name?: string; 
+      email?: string; 
+      cpf?: string;
+      cardNumber?: string;
+      cardholderName?: string;
+      expirationDate?: string;
+      securityCode?: string;
+    } = {};
+
     if (!customerInfo.name.trim()) errors.name = 'Informe o seu nome.';
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -127,11 +174,34 @@ export const CheckoutPage: React.FC = () => {
       errors.email = 'Informe um e-mail válido.';
     }
 
-    const cleanCpf = customerInfo.cpf.replace(/\D/g, '');
-    if (!cleanCpf) {
-      errors.cpf = 'Informe o seu CPF (obrigatório para emissão do Pix).';
-    } else if (cleanCpf.length !== 11) {
-      errors.cpf = 'CPF incompleto. Digite os 11 dígitos.';
+    if (customerInfo.paymentMethod === 'pix') {
+      const cleanCpf = customerInfo.cpf.replace(/\D/g, '');
+      if (!cleanCpf) {
+        errors.cpf = 'Informe o seu CPF (obrigatório para emissão do Pix).';
+      } else if (cleanCpf.length !== 11) {
+        errors.cpf = 'CPF incompleto. Digite os 11 dígitos.';
+      }
+    } else if (customerInfo.paymentMethod === 'cartao') {
+      const cleanCard = cardInfo.cardNumber.replace(/\D/g, '');
+      if (!cleanCard) {
+        errors.cardNumber = 'Informe o número do cartão.';
+      } else if (cleanCard.length < 13 || cleanCard.length > 19) {
+        errors.cardNumber = 'Número de cartão inválido.';
+      }
+
+      if (!cardInfo.cardholderName.trim()) {
+        errors.cardholderName = 'Informe o nome impresso no cartão.';
+      }
+
+      const cleanExp = cardInfo.expirationDate.replace(/\D/g, '');
+      if (!cleanExp || cleanExp.length !== 4) {
+        errors.expirationDate = 'Informe a validade (MM/AA).';
+      }
+
+      const cleanCvv = cardInfo.securityCode.replace(/\D/g, '');
+      if (!cleanCvv || cleanCvv.length < 3) {
+        errors.securityCode = 'Informe o CVV (3 ou 4 dígitos).';
+      }
     }
 
     setFormErrors(errors);
@@ -159,45 +229,97 @@ export const CheckoutPage: React.FC = () => {
 
     const generatedOrderId = String(Math.floor(700 + Math.random() * 200));
     const currentDate = new Date().toLocaleDateString('pt-BR');
+
+    // FLUXO 1: CARTÃO DE CRÉDITO
+    if (customerInfo.paymentMethod === 'cartao') {
+      const orderData = {
+        orderId: generatedOrderId,
+        orderDate: currentDate,
+        totalAmount: finalTotal,
+        paymentMethod: 'Cartão de crédito',
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        items: [...items],
+        pixCode: '',
+        qrCodeUrl: '',
+      };
+
+      try {
+        sessionStorage.setItem('last_checkout_customer', JSON.stringify({
+          name: customerInfo.name,
+          email: customerInfo.email
+        }));
+      } catch (e) {
+        console.warn(e);
+      }
+
+      // 1. Salvar no Supabase como aprovado
+      await createOrderInSupabase({
+        orderId: generatedOrderId,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        items: [...items],
+        totalAmount: finalTotal,
+        paymentId: generatedOrderId,
+        status: 'approved',
+      });
+
+      // 2. Disparar e-mail com os links de entrega
+      await sendOrderConfirmationEmail({
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        orderId: generatedOrderId,
+        orderDate: currentDate,
+        items: [...items],
+        totalAmount: finalTotal,
+        storeConfig,
+      });
+
+      setIsPaymentApproved(true);
+      setOrderReceived(orderData);
+      clearCart();
+      setIsLoading(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // FLUXO 2: PIX
     const pixKey = storeConfig.whatsappNumber || '21974975884';
-    let finalPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5925REVISTINHAS LUCRATIVAS6009RIO DE JANEIRO62070503***6304`;
+    let finalPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5911SOUMBOLINHO6009RIO DE JANEIRO62070503***6304`;
     let finalQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(finalPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
     let finalPaymentId = generatedOrderId;
 
-    // 1. Gerar o Pix oficial via API do Mercado Pago (v1/payments)
-    if (customerInfo.paymentMethod === 'pix') {
-      try {
-        const pixResponse = await createMercadoPagoPixPayment({
-          amount: finalTotal,
-          customerName: customerInfo.name,
-          customerEmail: customerInfo.email,
-          customerCpf: customerInfo.cpf,
-          description: 'Pedido Revistinhas Lucrativas',
-          storeConfig,
-        });
+    try {
+      const pixResponse = await createMercadoPagoPixPayment({
+        amount: finalTotal,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        customerCpf: customerInfo.cpf,
+        description: 'Pedido Soumbolinho',
+        storeConfig,
+      });
 
-        if (pixResponse.success && pixResponse.qrCode) {
-          finalPixCode = pixResponse.qrCode;
-          finalQrUrl = pixResponse.qrCodeImage || (pixResponse.qrCodeBase64
-            ? `data:image/png;base64,${pixResponse.qrCodeBase64}`
-            : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`);
-          if (pixResponse.paymentId) finalPaymentId = pixResponse.paymentId;
-        } else {
-          throw new Error('A API do Mercado Pago não retornou o código Pix.');
-        }
-      } catch (mpErr: any) {
-        console.error('[CheckoutPage] ❌ Erro detalhado do Mercado Pago Pix:', mpErr);
-        setMpError(mpErr.message || 'Erro ao comunicar com o Mercado Pago.');
-        setIsLoading(false);
-        return;
+      if (pixResponse.success && pixResponse.qrCode) {
+        finalPixCode = pixResponse.qrCode;
+        finalQrUrl = pixResponse.qrCodeImage || (pixResponse.qrCodeBase64
+          ? `data:image/png;base64,${pixResponse.qrCodeBase64}`
+          : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`);
+        if (pixResponse.paymentId) finalPaymentId = pixResponse.paymentId;
+      } else {
+        throw new Error('A API do Mercado Pago não retornou o código Pix.');
       }
+    } catch (mpErr: any) {
+      console.error('[CheckoutPage] ❌ Erro detalhado do Mercado Pago Pix:', mpErr);
+      setMpError(mpErr.message || 'Erro ao comunicar com o Mercado Pago.');
+      setIsLoading(false);
+      return;
     }
 
     const orderData = {
       orderId: finalPaymentId,
       orderDate: currentDate,
       totalAmount: finalTotal,
-      paymentMethod: customerInfo.paymentMethod === 'pix' ? 'Pix' : 'Cartão de crédito',
+      paymentMethod: 'Pix',
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
       items: [...items],
@@ -214,7 +336,7 @@ export const CheckoutPage: React.FC = () => {
       console.warn(e);
     }
 
-    // 2. Salvar pedido na tabela 'orders' do Supabase
+    // Salvar pedido no Supabase
     await createOrderInSupabase({
       orderId: finalPaymentId,
       customerName: customerInfo.name,
@@ -225,23 +347,10 @@ export const CheckoutPage: React.FC = () => {
       status: 'pending',
     });
 
-    // 3. Disparar envio do e-mail de confirmação com os links de download
-    sendOrderConfirmationEmail({
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      orderId: finalPaymentId,
-      orderDate: currentDate,
-      items: [...items],
-      totalAmount: finalTotal,
-      storeConfig,
-    });
-
-    // 4. Manter na mesma página com o layout de pagamento recebido
+    // Manter na mesma página exibindo o Pix
     setOrderReceived(orderData);
     clearCart();
     setIsLoading(false);
-
-    // Scroll para o topo suavemente
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -720,43 +829,41 @@ export const CheckoutPage: React.FC = () => {
 
               {/* Card 3: Formas de Pagamento */}
               <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                
-                {/* Opção Cartão de Crédito */}
-                <label className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={customerInfo.paymentMethod === 'cartao'}
-                      onChange={() => setCustomerInfo({ ...customerInfo, paymentMethod: 'cartao' })}
-                      className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-xs sm:text-sm font-semibold text-slate-800">Cartão de crédito</span>
-                  </div>
-                  <CreditCard className="w-5 h-5 text-slate-400" />
-                </label>
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Formas de Pagamento
+                </h3>
 
                 {/* Opção Pix */}
                 <div className="space-y-3">
-                  <label className="flex items-center justify-between p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/20 transition-colors cursor-pointer">
+                  <label 
+                    onClick={() => handleSelectPaymentMethod('pix')}
+                    className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      customerInfo.paymentMethod === 'pix' 
+                        ? 'border-emerald-500 bg-emerald-50/20 shadow-xs' 
+                        : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
                     <div className="flex items-center gap-2.5">
                       <input
                         type="radio"
                         name="payment"
                         checked={customerInfo.paymentMethod === 'pix'}
-                        onChange={() => setCustomerInfo({ ...customerInfo, paymentMethod: 'pix' })}
+                        onChange={() => handleSelectPaymentMethod('pix')}
                         className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="text-xs sm:text-sm font-bold text-slate-900">Pix</span>
                     </div>
-                    <span className="text-teal-600 font-extrabold text-sm">❖</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                        Aprovação Imediata
+                      </span>
+                      <span className="text-teal-600 font-extrabold text-sm">❖</span>
+                    </div>
                   </label>
 
-                  {/* Card Informativo Pix do Banco Central */}
+                  {/* Card Informativo Pix do Banco Central (SOMENTE NO PIX) */}
                   {customerInfo.paymentMethod === 'pix' && (
                     <div className="bg-slate-50/90 p-5 rounded-2xl border border-slate-200 text-center space-y-3 animate-in fade-in duration-200">
-                      
-                      {/* Logo Pix */}
                       <div className="flex flex-col items-center justify-center gap-1">
                         <div className="flex items-center gap-2">
                           <svg className="w-8 h-8 text-[#32BCAD]" viewBox="0 0 512 512" fill="currentColor">
@@ -782,23 +889,150 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Opção Cartão de Crédito */}
+                <div className="space-y-3">
+                  <label 
+                    onClick={() => handleSelectPaymentMethod('cartao')}
+                    className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      customerInfo.paymentMethod === 'cartao' 
+                        ? 'border-emerald-500 bg-emerald-50/20 shadow-xs' 
+                        : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={customerInfo.paymentMethod === 'cartao'}
+                        onChange={() => handleSelectPaymentMethod('cartao')}
+                        className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="text-xs sm:text-sm font-bold text-slate-900">Cartão de crédito</span>
+                    </div>
+                    <CreditCard className="w-5 h-5 text-slate-400" />
+                  </label>
+
+                  {/* FORMULÁRIO DO CARTÃO DE CRÉDITO (SOMENTE NO CARTÃO) */}
+                  {customerInfo.paymentMethod === 'cartao' && (
+                    <div className="bg-slate-50/90 p-5 rounded-2xl border border-slate-200 space-y-4 animate-in fade-in duration-200">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <CreditCard className="w-4 h-4 text-emerald-600" />
+                        <span>Dados do Cartão de Crédito</span>
+                      </h4>
+
+                      <div className="space-y-3">
+                        {/* Número do Cartão */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Número do Cartão <span className="text-rose-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={19}
+                            value={cardInfo.cardNumber}
+                            onChange={(e) => setCardInfo({ ...cardInfo, cardNumber: formatCardNumber(e.target.value) })}
+                            placeholder="0000 0000 0000 0000"
+                            className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 font-mono tracking-wider"
+                          />
+                          {formErrors.cardNumber && (
+                            <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.cardNumber}</span>
+                          )}
+                        </div>
+
+                        {/* Nome do Titular */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Nome impresso no Cartão <span className="text-rose-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={cardInfo.cardholderName}
+                            onChange={(e) => setCardInfo({ ...cardInfo, cardholderName: e.target.value.toUpperCase() })}
+                            placeholder="NOME COMO NO CARTÃO"
+                            className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 uppercase"
+                          />
+                          {formErrors.cardholderName && (
+                            <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.cardholderName}</span>
+                          )}
+                        </div>
+
+                        {/* Validade e CVV */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Validade (MM/AA) <span className="text-rose-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={5}
+                              value={cardInfo.expirationDate}
+                              onChange={(e) => setCardInfo({ ...cardInfo, expirationDate: formatExpirationDate(e.target.value) })}
+                              placeholder="MM/AA"
+                              className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 font-mono text-center"
+                            />
+                            {formErrors.expirationDate && (
+                              <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.expirationDate}</span>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Código CVV <span className="text-rose-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={4}
+                              value={cardInfo.securityCode}
+                              onChange={(e) => setCardInfo({ ...cardInfo, securityCode: e.target.value.replace(/\D/g, '') })}
+                              placeholder="123"
+                              className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 font-mono text-center"
+                            />
+                            {formErrors.securityCode && (
+                              <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.securityCode}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Parcelas */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Parcelamento
+                          </label>
+                          <select
+                            value={cardInfo.installments}
+                            onChange={(e) => setCardInfo({ ...cardInfo, installments: e.target.value })}
+                            className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400"
+                          >
+                            <option value="1">1x de {formatCurrency(finalTotal)} (Sem juros)</option>
+                            <option value="2">2x de {formatCurrency(finalTotal / 2)} (Sem juros)</option>
+                            <option value="3">3x de {formatCurrency(finalTotal / 3)} (Sem juros)</option>
+                            <option value="4">4x de {formatCurrency(finalTotal / 4)}</option>
+                            <option value="6">6x de {formatCurrency(finalTotal / 6)}</option>
+                            <option value="12">12x de {formatCurrency(finalTotal / 12)}</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Termos e Política de Privacidade */}
                 <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
                   Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-emerald-600 font-semibold cursor-pointer hover:underline">política de privacidade</span>.
                 </p>
 
-                {/* Alerta de Erro do Mercado Pago */}
+                {/* Alerta de Erro */}
                 {mpError && (
                   <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in">
                     <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold block">Erro retornado pelo Mercado Pago:</span>
+                      <span className="font-bold block">Erro no processamento:</span>
                       <span className="text-[11px] leading-tight block mt-0.5">{mpError}</span>
                     </div>
                   </div>
                 )}
 
-                {/* Botão Finalizar Pedido */}
+                {/* Botão Finalizar Pedido Independente */}
                 <button
                   type="button"
                   onClick={handleFinalizeOrder}
@@ -808,10 +1042,10 @@ export const CheckoutPage: React.FC = () => {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin text-white" />
-                      <span>Processando Pedido Pix...</span>
+                      <span>{customerInfo.paymentMethod === 'pix' ? 'Processando Pix...' : 'Processando Cartão...'}</span>
                     </>
                   ) : (
-                    <span>Finalizar pedido</span>
+                    <span>{customerInfo.paymentMethod === 'pix' ? 'Finalizar e Pagar com Pix' : 'Pagar com Cartão de Crédito'}</span>
                   )}
                 </button>
 
