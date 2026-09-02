@@ -18,7 +18,7 @@ export interface PixPaymentOptions {
   amount: number;
   customerName: string;
   customerEmail: string;
-  customerCpf: string;
+  customerCpf?: string;
   description?: string;
   storeConfig?: Partial<StoreConfig>;
   customAccessToken?: string;
@@ -179,19 +179,24 @@ export async function createMercadoPagoPixPayment(
     throw new Error('Access Token do Mercado Pago não configurado na Vercel.');
   }
 
+  const payerObj: any = {
+    email: 'pagamentos@soumbolinho.com.br',
+    first_name: firstName,
+    last_name: lastName,
+  };
+
+  if (cleanCpf && cleanCpf.length === 11) {
+    payerObj.identification = {
+      type: 'CPF',
+      number: cleanCpf,
+    };
+  }
+
   const pixPayload = {
     transaction_amount: numericAmount,
     description: 'Pedido Soumbolinho',
     payment_method_id: 'pix',
-    payer: {
-      email: 'pagamentos@soumbolinho.com.br',
-      first_name: firstName,
-      last_name: lastName,
-      identification: {
-        type: 'CPF',
-        number: cleanCpf,
-      },
-    },
+    payer: payerObj,
   };
 
   const idempotencyKey = `${Date.now()}-${Math.random()}`;

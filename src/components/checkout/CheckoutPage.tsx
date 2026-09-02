@@ -35,7 +35,6 @@ export const CheckoutPage: React.FC = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     email: '',
-    cpf: '',
     paymentMethod: 'pix' as 'pix' | 'cartao',
   });
 
@@ -55,7 +54,6 @@ export const CheckoutPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<{ 
     name?: string; 
     email?: string; 
-    cpf?: string;
     cardNumber?: string;
     cardholderName?: string;
     expirationDate?: string;
@@ -65,15 +63,6 @@ export const CheckoutPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isPaymentApproved, setIsPaymentApproved] = useState(false);
-
-  // Formata o CPF no padrão 000.000.000-00
-  const formatCPF = (val: string) => {
-    const clean = val.replace(/\D/g, '').slice(0, 11);
-    if (clean.length <= 3) return clean;
-    if (clean.length <= 6) return `${clean.slice(0, 3)}.${clean.slice(3)}`;
-    if (clean.length <= 9) return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6)}`;
-    return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6, 9)}-${clean.slice(9, 11)}`;
-  };
 
   // Formata o Número do Cartão com espaços a cada 4 dígitos
   const formatCardNumber = (val: string) => {
@@ -172,7 +161,6 @@ export const CheckoutPage: React.FC = () => {
     const errors: { 
       name?: string; 
       email?: string; 
-      cpf?: string;
       cardNumber?: string;
       cardholderName?: string;
       expirationDate?: string;
@@ -188,14 +176,7 @@ export const CheckoutPage: React.FC = () => {
       errors.email = 'Informe um e-mail válido.';
     }
 
-    if (customerInfo.paymentMethod === 'pix') {
-      const cleanCpf = customerInfo.cpf.replace(/\D/g, '');
-      if (!cleanCpf) {
-        errors.cpf = 'Informe o seu CPF (obrigatório para emissão do Pix).';
-      } else if (cleanCpf.length !== 11) {
-        errors.cpf = 'CPF incompleto. Digite os 11 dígitos.';
-      }
-    } else if (customerInfo.paymentMethod === 'cartao') {
+    if (customerInfo.paymentMethod === 'cartao') {
       const cleanCard = cardInfo.cardNumber.replace(/\D/g, '');
       if (!cleanCard) {
         errors.cardNumber = 'Informe o número do cartão.';
@@ -308,7 +289,6 @@ export const CheckoutPage: React.FC = () => {
         amount: finalTotal,
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
-        customerCpf: customerInfo.cpf,
         description: 'Pedido Soumbolinho',
         storeConfig,
       });
@@ -744,27 +724,6 @@ export const CheckoutPage: React.FC = () => {
                       <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.email}</span>
                     )}
                   </div>
-
-                  {/* CPF * (EXIBIDO SOMENTE QUANDO PIX ESTIVER SELECIONADO) */}
-                  {customerInfo.paymentMethod === 'pix' && (
-                    <div className="animate-in fade-in duration-200">
-                      <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                        CPF (obrigatório para emissão do Pix) <span className="text-rose-600">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={14}
-                        value={customerInfo.cpf}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, cpf: formatCPF(e.target.value) })}
-                        placeholder="000.000.000-00"
-                        className="w-full text-xs sm:text-sm px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all placeholder:text-slate-400 font-mono tracking-wider"
-                      />
-                      {formErrors.cpf && (
-                        <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.cpf}</span>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

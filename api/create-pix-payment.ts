@@ -52,32 +52,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const cleanCpf = String(customer_cpf || cpf || '').replace(/\D/g, '');
-    if (!cleanCpf || cleanCpf.length !== 11) {
-      return res.status(400).json({
-        success: false,
-        error: 'O CPF do comprador é obrigatório e deve conter exatamente 11 dígitos numéricos.',
-      });
-    }
 
-    const trimmedName = String(customer_name).trim();
+    const trimmedName = String(customer_name || 'Cliente').trim();
     const firstName = trimmedName.split(' ')[0] || 'Cliente';
     const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Comprador';
 
-    // Payload rigoroso exigido pelo Banco Central e Mercado Pago
-    // Usamos um e-mail técnico no Mercado Pago para que o cliente NÃO receba o e-mail de cobrança do Mercado Pago
+    // Payload para o Mercado Pago
+    const payerObj: any = {
+      email: 'pagamentos@soumbolinho.com.br',
+      first_name: firstName,
+      last_name: lastName,
+    };
+
+    if (cleanCpf && cleanCpf.length === 11) {
+      payerObj.identification = {
+        type: 'CPF',
+        number: cleanCpf,
+      };
+    }
+
     const pixPayload = {
       transaction_amount: Number(parseFloat(String(numericAmount)).toFixed(2)),
       description: 'Pedido Soumbolinho',
       payment_method_id: 'pix',
-      payer: {
-        email: 'pagamentos@soumbolinho.com.br',
-        first_name: firstName,
-        last_name: lastName,
-        identification: {
-          type: 'CPF',
-          number: cleanCpf,
-        },
-      },
+      payer: payerObj,
     };
 
     const idempotencyKey = `${Date.now()}-${Math.random()}`;
