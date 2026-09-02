@@ -48,6 +48,75 @@ export function getMercadoPagoAccessToken(storeConfig?: Partial<StoreConfig>): s
 }
 
 /**
+ * Verifica se o Mercado Pago está configurado no sistema
+ */
+export const isMercadoPagoConfigured = (storeConfig?: Partial<StoreConfig>): boolean => {
+  const token = getMercadoPagoAccessToken(storeConfig);
+  return Boolean(
+    token ||
+    (import.meta as any).env?.VITE_MERCADO_PAGO_PUBLIC_KEY ||
+    (import.meta as any).env?.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
+    true
+  );
+};
+
+/**
+ * Cria uma preferência do Mercado Pago (Checkout Pro / Redirect)
+ */
+export async function createMercadoPagoPreference(
+  options: CreatePreferenceOptions
+): Promise<PreferenceResponse> {
+  const { items, storeConfig, customAccessToken } = options;
+  const accessToken = customAccessToken || getMercadoPagoAccessToken(storeConfig);
+
+  const preferencePayload = {
+    items: items.map((item) => ({
+      title: item.product.name,
+      unit_price: Number(item.product.price.toFixed(2)),
+      quantity: item.quantity,
+      currency_id: 'BRL',
+    })),
+    back_urls: {
+      success: typeof window !== 'undefined' ? `${window.location.origin}/#/finalizar-compra` : '',
+      failure: typeof window !== 'undefined' ? `${window.location.origin}/#/finalizar-compra` : '',
+      pending: typeof window !== 'undefined' ? `${window.location.origin}/#/finalizar-compra` : '',
+    },
+    auto_return: 'approved',
+  };
+
+  try {
+    const res = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(preferencePayload),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      return {
+        id: data.id,
+        init_point: data.init_point,
+        sandbox_init_point: data.sandbox_init_point,
+      };
+    }
+    return {
+      id: '',
+      init_point: '',
+      error: data.message || 'Erro ao criar preferência.',
+    };
+  } catch (err: any) {
+    return {
+      id: '',
+      init_point: '',
+      error: err.message || 'Erro de conexão.',
+    };
+  }
+}
+
+/**
  * Cria um Pagamento Pix Direto via Mercado Pago API (v1/payments)
  */
 export async function createMercadoPagoPixPayment(
