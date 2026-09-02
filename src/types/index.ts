@@ -57,6 +57,7 @@ export interface CartItem {
 export interface OrderCustomerInfo {
   name: string;
   email: string;
+  cpf?: string;
   phone?: string;
   eventDate?: string;
   deliveryType: 'retirada' | 'entrega';

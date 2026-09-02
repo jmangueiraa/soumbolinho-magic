@@ -20,6 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description = 'Pedido Revistinhas Lucrativas',
       customer_name = 'Cliente',
       customer_email,
+      customer_cpf,
+      cpf,
       access_token: clientAccessToken,
     } = req.body || {};
 
@@ -29,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!accessToken) {
       return res.status(400).json({
         success: false,
-        error: 'Access Token do Mercado Pago não configurado. Configure nas variáveis de ambiente da Vercel (MERCADO_PAGO_ACCESS_TOKEN).',
+        error: 'Access Token do Mercado Pago não configurado nas variáveis de ambiente da Vercel (MERCADO_PAGO_ACCESS_TOKEN).',
       });
     }
 
@@ -49,26 +51,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    const cleanCpf = String(customer_cpf || cpf || '').replace(/\D/g, '');
+    if (!cleanCpf || cleanCpf.length !== 11) {
+      return res.status(400).json({
+        success: false,
+        error: 'O CPF do comprador é obrigatório e deve conter exatamente 11 dígitos numéricos.',
+      });
+    }
+
     const trimmedName = String(customer_name).trim();
     const firstName = trimmedName.split(' ')[0] || 'Cliente';
-    const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Consumidor';
+    const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Comprador';
 
-    // 1. Corpo rigoroso solicitado
+    // Payload rigoroso exigido pelo Banco Central e Mercado Pago
     const pixPayload = {
-      transaction_amount: Number(numericAmount),
+      transaction_amount: Number(parseFloat(String(numericAmount)).toFixed(2)),
       description: 'Pedido Revistinhas Lucrativas',
       payment_method_id: 'pix',
       payer: {
         email: String(customer_email).trim().toLowerCase(),
         first_name: firstName,
         last_name: lastName,
+        identification: {
+          type: 'CPF',
+          number: cleanCpf,
+        },
       },
     };
 
-    // 2. Cabeçalho de Idempotência
     const idempotencyKey = `${Date.now()}-${Math.random()}`;
 
-    console.log('[Mercado Pago v1/payments] 🚀 Enviando requisição Pix:', JSON.stringify(pixPayload));
+    console.log('[Mercado Pago v1/payments] 🚀 Enviando payload com CPF:', JSON.stringify(pixPayload));
 
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -104,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // 3. Extração correta do QR Code e Copia e Cola
+    // Extração completa do QR Code e Copia e Cola
     const transactionData = data.point_of_interaction?.transaction_data;
     const qrCode = transactionData?.qr_code || '';
     const rawQrCodeBase64 = transactionData?.qr_code_base64 || '';

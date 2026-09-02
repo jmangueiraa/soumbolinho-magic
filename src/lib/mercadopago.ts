@@ -18,6 +18,7 @@ export interface PixPaymentOptions {
   amount: number;
   customerName: string;
   customerEmail: string;
+  customerCpf: string;
   description?: string;
   storeConfig?: Partial<StoreConfig>;
   customAccessToken?: string;
@@ -52,14 +53,15 @@ export function getMercadoPagoAccessToken(storeConfig?: Partial<StoreConfig>): s
 export async function createMercadoPagoPixPayment(
   options: PixPaymentOptions
 ): Promise<PixPaymentResponse> {
-  const { amount, customerName, customerEmail, storeConfig, customAccessToken } = options;
+  const { amount, customerName, customerEmail, customerCpf, storeConfig, customAccessToken } = options;
 
   const accessToken = (customAccessToken || getMercadoPagoAccessToken(storeConfig)).trim();
   const numericAmount = Number(parseFloat(String(amount)).toFixed(2));
   const emailCliente = String(customerEmail || '').trim().toLowerCase();
+  const cleanCpf = String(customerCpf || '').replace(/\D/g, '');
   const trimmedName = String(customerName || 'Cliente').trim();
   const firstName = trimmedName.split(' ')[0] || 'Cliente';
-  const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Consumidor';
+  const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Comprador';
 
   // 1. Tentar primeiro via Endpoint Serverless da Vercel (/api/create-pix-payment)
   try {
@@ -72,6 +74,7 @@ export async function createMercadoPagoPixPayment(
         description: 'Pedido Revistinhas Lucrativas',
         customer_name: customerName,
         customer_email: emailCliente,
+        customer_cpf: cleanCpf,
         access_token: accessToken || undefined,
       }),
     });
@@ -79,7 +82,7 @@ export async function createMercadoPagoPixPayment(
     const data = await serverlessRes.json();
 
     if (serverlessRes.ok && data.success && data.qr_code) {
-      console.log('[Mercado Pago Pix] ✅ Pix gerado via Serverless Function:', data);
+      console.log('[Mercado Pago Pix] ✅ Pix gerado via Serverless Function com CPF:', data);
       const rawBase64 = data.qr_code_base64 || '';
       const qrCodeImg = data.qr_code_image || (rawBase64 ? `data:image/png;base64,${rawBase64}` : '');
 
@@ -102,9 +105,9 @@ export async function createMercadoPagoPixPayment(
     console.warn('[Mercado Pago Pix] Tentando chamada direta para api.mercadopago.com/v1/payments...');
   }
 
-  // 2. Chamada direta para https://api.mercadopago.com/v1/payments caso esteja rodando fora da Vercel
+  // 2. Chamada direta de fallback para https://api.mercadopago.com/v1/payments
   if (!accessToken) {
-    throw new Error('Access Token do Mercado Pago não configurado. Configure a variável MERCADO_PAGO_ACCESS_TOKEN na Vercel.');
+    throw new Error('Access Token do Mercado Pago não configurado na Vercel.');
   }
 
   const pixPayload = {
@@ -115,6 +118,10 @@ export async function createMercadoPagoPixPayment(
       email: emailCliente,
       first_name: firstName,
       last_name: lastName,
+      identification: {
+        type: 'CPF',
+        number: cleanCpf,
+      },
     },
   };
 
