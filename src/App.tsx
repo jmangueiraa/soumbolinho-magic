@@ -18,6 +18,7 @@ import { BannerSlider } from './components/home/BannerSlider';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { CheckoutPage } from './components/checkout/CheckoutPage';
+import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckoutPage';
 
 const StoreFront: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -85,10 +86,11 @@ const StoreFront: React.FC = () => {
 
 const NavigationRouter: React.FC = () => {
   const { isAuthenticated } = useStoreData();
-  const [currentRoute, setCurrentRoute] = useState<'store' | 'admin' | 'checkout'>(() => {
+  const [currentRoute, setCurrentRoute] = useState<'store' | 'admin' | 'checkout' | 'checkout-cartao'>(() => {
     const hash = window.location.hash.toLowerCase();
     const path = window.location.pathname.toLowerCase();
     if (hash.includes('/admin') || path.includes('/admin')) return 'admin';
+    if (hash.includes('/checkout/cartao') || hash.includes('/pagamento-cartao') || hash.includes('cartao')) return 'checkout-cartao';
     if (hash.includes('/finalizar-compra') || hash.includes('/checkout') || path.includes('/finalizar-compra') || path.includes('/checkout')) return 'checkout';
     return 'store';
   });
@@ -99,6 +101,8 @@ const NavigationRouter: React.FC = () => {
       const path = window.location.pathname.toLowerCase();
       if (hash.includes('/admin') || path.includes('/admin')) {
         setCurrentRoute('admin');
+      } else if (hash.includes('/checkout/cartao') || hash.includes('/pagamento-cartao') || hash.includes('cartao')) {
+        setCurrentRoute('checkout-cartao');
       } else if (hash.includes('/finalizar-compra') || hash.includes('/checkout') || path.includes('/finalizar-compra') || path.includes('/checkout')) {
         setCurrentRoute('checkout');
       } else {
@@ -124,6 +128,10 @@ const NavigationRouter: React.FC = () => {
       return <AdminLogin onBackToStore={handleBackToStore} />;
     }
     return <AdminLayout onBackToStore={handleBackToStore} />;
+  }
+
+  if (currentRoute === 'checkout-cartao') {
+    return <CreditCardCheckoutPage />;
   }
 
   if (currentRoute === 'checkout') {

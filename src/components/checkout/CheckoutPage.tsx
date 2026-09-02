@@ -88,9 +88,13 @@ export const CheckoutPage: React.FC = () => {
     return `${clean.slice(0, 2)}/${clean.slice(2)}`;
   };
 
-  // Alterna o método de pagamento e limpa dados do outro método
+  // Alterna o método de pagamento e navega para a página dedicada se for cartão
   const handleSelectPaymentMethod = (method: 'pix' | 'cartao') => {
-    setCustomerInfo({ ...customerInfo, paymentMethod: method });
+    if (method === 'cartao') {
+      window.location.hash = '/checkout/cartao';
+      return;
+    }
+    setCustomerInfo({ ...customerInfo, paymentMethod: 'pix' });
     setOrderReceived(null);
     setMpError(null);
     setIsPaymentApproved(false);
@@ -892,131 +896,21 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Opção Cartão de Crédito */}
+                {/* Opção Cartão de Crédito (Página Dedicada) */}
                 <div className="space-y-3">
-                  <label 
-                    onClick={() => handleSelectPaymentMethod('cartao')}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
-                      customerInfo.paymentMethod === 'cartao' 
-                        ? 'border-emerald-500 bg-emerald-50/20 shadow-xs' 
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
+                  <a 
+                    href="#/checkout/cartao"
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/20 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={customerInfo.paymentMethod === 'cartao'}
-                        onChange={() => handleSelectPaymentMethod('cartao')}
-                        className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="text-xs sm:text-sm font-bold text-slate-900">Cartão de crédito</span>
-                    </div>
-                    <CreditCard className="w-5 h-5 text-slate-400" />
-                  </label>
-
-                  {/* FORMULÁRIO DO CARTÃO DE CRÉDITO (SOMENTE NO CARTÃO) */}
-                  {customerInfo.paymentMethod === 'cartao' && (
-                    <div className="bg-slate-50/90 p-5 rounded-2xl border border-slate-200 space-y-4 animate-in fade-in duration-200">
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                        <CreditCard className="w-4 h-4 text-emerald-600" />
-                        <span>Dados do Cartão de Crédito</span>
-                      </h4>
-
-                      <div className="space-y-3">
-                        {/* Número do Cartão */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Número do Cartão <span className="text-rose-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            maxLength={19}
-                            value={cardInfo.cardNumber}
-                            onChange={(e) => setCardInfo({ ...cardInfo, cardNumber: formatCardNumber(e.target.value) })}
-                            placeholder="0000 0000 0000 0000"
-                            className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 font-mono tracking-wider"
-                          />
-                          {formErrors.cardNumber && (
-                            <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.cardNumber}</span>
-                          )}
-                        </div>
-
-                        {/* Nome do Titular */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Nome impresso no Cartão <span className="text-rose-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={cardInfo.cardholderName}
-                            onChange={(e) => setCardInfo({ ...cardInfo, cardholderName: e.target.value.toUpperCase() })}
-                            placeholder="NOME COMO NO CARTÃO"
-                            className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 uppercase"
-                          />
-                          {formErrors.cardholderName && (
-                            <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.cardholderName}</span>
-                          )}
-                        </div>
-
-                        {/* Validade e CVV */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                              Validade (MM/AA) <span className="text-rose-600">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              maxLength={5}
-                              value={cardInfo.expirationDate}
-                              onChange={(e) => setCardInfo({ ...cardInfo, expirationDate: formatExpirationDate(e.target.value) })}
-                              placeholder="MM/AA"
-                              className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 font-mono text-center"
-                            />
-                            {formErrors.expirationDate && (
-                              <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.expirationDate}</span>
-                            )}
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                              Código CVV <span className="text-rose-600">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              maxLength={4}
-                              value={cardInfo.securityCode}
-                              onChange={(e) => setCardInfo({ ...cardInfo, securityCode: e.target.value.replace(/\D/g, '') })}
-                              placeholder="123"
-                              className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 font-mono text-center"
-                            />
-                            {formErrors.securityCode && (
-                              <span className="text-[10px] text-rose-500 mt-0.5 block">{formErrors.securityCode}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Parcelas */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Parcelamento
-                          </label>
-                          <select
-                            value={cardInfo.installments}
-                            onChange={(e) => setCardInfo({ ...cardInfo, installments: e.target.value })}
-                            className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400"
-                          >
-                            <option value="1">1x de {formatCurrency(finalTotal)} (Sem juros)</option>
-                            <option value="2">2x de {formatCurrency(finalTotal / 2)} (Sem juros)</option>
-                            <option value="3">3x de {formatCurrency(finalTotal / 3)} (Sem juros)</option>
-                            <option value="4">4x de {formatCurrency(finalTotal / 4)}</option>
-                            <option value="6">6x de {formatCurrency(finalTotal / 6)}</option>
-                            <option value="12">12x de {formatCurrency(finalTotal / 12)}</option>
-                          </select>
-                        </div>
+                      <CreditCard className="w-5 h-5 text-slate-500" />
+                      <div>
+                        <span className="text-xs sm:text-sm font-bold text-slate-800 block">Pagar com Cartão de crédito</span>
+                        <span className="text-[10px] text-slate-400">Clique para abrir a página de pagamento com cartão</span>
                       </div>
                     </div>
-                  )}
+                    <span className="text-xs text-emerald-700 font-bold">Abrir &rarr;</span>
+                  </a>
                 </div>
 
                 {/* Termos e Política de Privacidade */}
@@ -1035,7 +929,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Botão Finalizar Pedido Independente */}
+                {/* Botão Finalizar Pedido Pix */}
                 <button
                   type="button"
                   onClick={handleFinalizeOrder}
@@ -1045,10 +939,10 @@ export const CheckoutPage: React.FC = () => {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin text-white" />
-                      <span>{customerInfo.paymentMethod === 'pix' ? 'Processando Pix...' : 'Processando Cartão...'}</span>
+                      <span>Gerando Pix...</span>
                     </>
                   ) : (
-                    <span>{customerInfo.paymentMethod === 'pix' ? 'Finalizar e Pagar com Pix' : 'Pagar com Cartão de Crédito'}</span>
+                    <span>Finalizar e Pagar com Pix</span>
                   )}
                 </button>
 
