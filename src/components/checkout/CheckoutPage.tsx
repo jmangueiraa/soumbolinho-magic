@@ -464,7 +464,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             {/* SE O PAGAMENTO ESTIVER APROVADO: MOSTRA SUCESSO E DOWNLOADS */}
-            {isPaymentApproved ? (
+            {isPaymentApproved || orderReceived.paymentMethod === 'Cartão de crédito' ? (
               <div className="bg-gradient-to-b from-emerald-500/10 via-emerald-50/50 to-white p-6 sm:p-8 rounded-3xl border-2 border-emerald-500 shadow-lg space-y-6 text-center animate-in zoom-in-95 duration-300">
                 <div className="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md animate-bounce">
                   <Check className="w-9 h-9 stroke-[3]" />
@@ -475,7 +475,9 @@ export const CheckoutPage: React.FC = () => {
                     Pagamento Aprovado com Sucesso!
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-lg mx-auto leading-relaxed">
-                    Identificamos o seu pagamento Pix no Mercado Pago. O link de download também foi enviado para <strong>{orderReceived.customerEmail}</strong>.
+                    {orderReceived.paymentMethod === 'Cartão de crédito'
+                      ? `Seu pagamento com Cartão de Crédito foi aprovado. Os links de download foram liberados abaixo e enviados para ${orderReceived.customerEmail}.`
+                      : `Identificamos o seu pagamento Pix no Mercado Pago. O link de download também foi enviado para ${orderReceived.customerEmail}.`}
                   </p>
                 </div>
 
@@ -511,10 +513,9 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
 
-                </div>
               </div>
             ) : (
-              /* SE O PAGAMENTO AINDA NÃO FOI APROVADO: MOSTRA QR CODE E POLLING */
+              /* SE O PAGAMENTO AINDA NÃO FOI APROVADO E FOR PIX: MOSTRA QR CODE E POLLING */
               <>
                 {/* Banner de Polling Ativo */}
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center flex items-center justify-center gap-2 text-xs text-amber-800 animate-pulse">
@@ -727,24 +728,26 @@ export const CheckoutPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* CPF * */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                      CPF (exigido pelo Banco Central para Pix) <span className="text-rose-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={14}
-                      value={customerInfo.cpf}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, cpf: formatCPF(e.target.value) })}
-                      placeholder="000.000.000-00"
-                      className="w-full text-xs sm:text-sm px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all placeholder:text-slate-400 font-mono tracking-wider"
-                    />
-                    {formErrors.cpf && (
-                      <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.cpf}</span>
-                    )}
-                  </div>
+                  {/* CPF * (EXIBIDO SOMENTE QUANDO PIX ESTIVER SELECIONADO) */}
+                  {customerInfo.paymentMethod === 'pix' && (
+                    <div className="animate-in fade-in duration-200">
+                      <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                        CPF (obrigatório para emissão do Pix) <span className="text-rose-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={14}
+                        value={customerInfo.cpf}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, cpf: formatCPF(e.target.value) })}
+                        placeholder="000.000.000-00"
+                        className="w-full text-xs sm:text-sm px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all placeholder:text-slate-400 font-mono tracking-wider"
+                      />
+                      {formErrors.cpf && (
+                        <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.cpf}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
