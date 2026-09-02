@@ -268,10 +268,10 @@ export const CreditCardCheckoutPage: React.FC = () => {
                           href={downloadUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-md transition-all active:scale-95 shrink-0"
+                          className="px-5 py-3.5 bg-[#4CAF50] hover:bg-[#43A047] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition-all active:scale-95 shrink-0 cursor-pointer"
                         >
-                          <Download className="w-4 h-4" />
-                          <span>Acessar seu Produto / Fazer Download</span>
+                          <Download className="w-4 h-4 stroke-[2.5]" />
+                          <span>Baixar Arquivo Agora</span>
                         </a>
                       </div>
                     );

@@ -114,27 +114,35 @@ export const CheckoutPage: React.FC = () => {
     qrCodeUrl: string;
   } | null>(null);
 
-  // Polling automático a cada 5s para detectar confirmação do Pix
+  // Polling automático a cada 4s para detectar confirmação do Pix
   React.useEffect(() => {
     if (!orderReceived?.orderId || isPaymentApproved) return;
 
-    const paymentId = orderReceived.orderId;
-    if (!/^\d+$/.test(paymentId)) return;
+    const paymentId = String(orderReceived.orderId).trim();
+    if (!/^\d+$/.test(paymentId)) {
+      console.warn(`[Pix Polling] ⚠️ ID #${paymentId} não numérico, ignorando polling.`);
+      return;
+    }
 
-    console.log(`[Polling Pix] ⏳ Iniciando verificação automática a cada 5s para o pagamento #${paymentId}...`);
+    console.log(`[Pix Polling] ⏳ Iniciando verificação automática a cada 4s para o pagamento #${paymentId}...`);
 
     const intervalId = setInterval(async () => {
       try {
+        console.log(`[Pix Polling] 🔍 Consultando /api/check-payment?id=${paymentId}...`);
         const result = await checkMercadoPagoPaymentStatus(paymentId, storeConfig);
+        console.log(`[Pix Polling] 📡 Retorno para #${paymentId}:`, result);
+
         if (result.success && result.status === 'approved') {
-          console.log(`[Polling Pix] 🎉 Pagamento #${paymentId} APROVADO!`);
+          console.log(`[Pix Polling] 🎉 Pagamento #${paymentId} APROVADO COM SUCESSO!`);
           clearInterval(intervalId);
           setIsPaymentApproved(true);
 
           // 1. Atualizar status na tabela 'orders' do Supabase
+          console.log(`[Pix Polling] 📝 Atualizando pedido no Supabase para status = 'approved'...`);
           await updateOrderStatusInSupabase(paymentId, 'approved');
 
-          // 2. Disparar e-mail de entrega com o link do produto
+          // 2. Disparar e-mail de entrega com o link do produto via /api/send-delivery-email
+          console.log(`[Pix Polling] ✉️ Disparando e-mail de entrega via /api/send-delivery-email...`);
           await sendOrderConfirmationEmail({
             customerName: orderReceived.customerName,
             customerEmail: orderReceived.customerEmail,
@@ -144,13 +152,15 @@ export const CheckoutPage: React.FC = () => {
             totalAmount: orderReceived.totalAmount,
             storeConfig,
           });
+          console.log(`[Pix Polling] ✅ E-mail de entrega enviado com sucesso!`);
         }
       } catch (err) {
-        console.warn('[Polling Pix] Erro ao consultar status:', err);
+        console.warn('[Pix Polling] ❌ Erro ao consultar status:', err);
       }
-    }, 5000);
+    }, 4000);
 
     return () => {
+      console.log(`[Pix Polling] 🛑 Encerrando polling para #${paymentId}`);
       clearInterval(intervalId);
     };
   }, [orderReceived, isPaymentApproved, storeConfig]);
@@ -308,7 +318,10 @@ export const CheckoutPage: React.FC = () => {
         finalQrUrl = pixResponse.qrCodeImage || (pixResponse.qrCodeBase64
           ? `data:image/png;base64,${pixResponse.qrCodeBase64}`
           : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`);
-        if (pixResponse.paymentId) finalPaymentId = pixResponse.paymentId;
+        if (pixResponse.paymentId) {
+          finalPaymentId = String(pixResponse.paymentId);
+          console.log('[CheckoutPage] ✅ Payment ID real retornado pelo Mercado Pago:', finalPaymentId);
+        }
       } else {
         throw new Error('A API do Mercado Pago não retornou o código Pix.');
       }
@@ -506,10 +519,10 @@ export const CheckoutPage: React.FC = () => {
                             href={downloadUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-md transition-all active:scale-95 shrink-0"
+                            className="px-5 py-3.5 bg-[#4CAF50] hover:bg-[#43A047] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition-all active:scale-95 shrink-0 cursor-pointer"
                           >
-                            <Download className="w-4 h-4" />
-                            <span>Acessar seu Produto / Fazer Download</span>
+                            <Download className="w-4 h-4 stroke-[2.5]" />
+                            <span>Baixar Arquivo Agora</span>
                           </a>
                         </div>
                       );

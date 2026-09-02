@@ -176,35 +176,62 @@ export async function createMercadoPagoPixPayment(
  * Consulta o status atualizado do pagamento no Mercado Pago (GET /v1/payments/{id})
  */
 export async function checkMercadoPagoPaymentStatus(
-  paymentId: string,
+  paymentId: string | number,
   storeConfig?: Partial<StoreConfig>
 ): Promise<{ success: boolean; status?: string; statusDetail?: string; error?: string }> {
   const cleanId = String(paymentId).replace(/\D/g, '');
-  if (!cleanId) return { success: false, error: 'ID inválido' };
+  if (!cleanId) {
+    console.warn('[Pix Polling] ⚠️ ID de pagamento inválido:', paymentId);
+    return { success: false, error: 'ID inválido' };
+  }
 
   const accessToken = getMercadoPagoAccessToken(storeConfig);
+  console.log(`[Pix Polling] 🔍 Consultando status do pagamento #${cleanId}...`);
 
-  // 1. Tentar via Serverless Function
+  // 1. Tentar primeiro via Endpoint Serverless /api/check-payment
   try {
-    const res = await fetch(`/api/check-payment-status?id=${cleanId}`, {
+    const res = await fetch(`/api/check-payment?id=${cleanId}`, {
       method: 'GET',
     });
 
     if (res.ok) {
       const data = await res.json();
+      console.log(`[Pix Polling] 📡 Resposta de /api/check-payment para #${cleanId}: status = '${data.status}'`);
       return {
         success: true,
         status: data.status,
         statusDetail: data.status_detail,
       };
+    } else {
+      console.warn(`[Pix Polling] ⚠️ /api/check-payment retornou HTTP ${res.status}`);
     }
-  } catch (e) {
-    // Fallback para chamada direta
+  } catch (e: any) {
+    console.warn('[Pix Polling] ⚠️ Erro ao chamar /api/check-payment:', e.message);
   }
 
-  // 2. Fallback chamada direta
+  // 2. Fallback via /api/check-payment-status
+  try {
+    const res2 = await fetch(`/api/check-payment-status?id=${cleanId}`, {
+      method: 'GET',
+    });
+
+    if (res2.ok) {
+      const data2 = await res2.json();
+      console.log(`[Pix Polling] 📡 Resposta de /api/check-payment-status para #${cleanId}: status = '${data2.status}'`);
+      return {
+        success: true,
+        status: data2.status,
+        statusDetail: data2.status_detail,
+      };
+    }
+  } catch (e: any) {
+    console.warn('[Pix Polling] ⚠️ Erro ao chamar /api/check-payment-status:', e.message);
+  }
+
+  // 3. Fallback chamada direta para a API do Mercado Pago
   if (accessToken) {
     try {
+      console.log(`[Pix Polling] 🌐 Tentando chamada direta para api.mercadopago.com/v1/payments/${cleanId}...`);
       const directRes = await fetch(`https://api.mercadopago.com/v1/payments/${cleanId}`, {
         method: 'GET',
         headers: {
@@ -215,6 +242,7 @@ export async function checkMercadoPagoPaymentStatus(
 
       if (directRes.ok) {
         const data = await directRes.json();
+        console.log(`[Pix Polling] 📡 Chamada direta MP retornou status = '${data.status}'`);
         return {
           success: true,
           status: data.status,
@@ -222,6 +250,7 @@ export async function checkMercadoPagoPaymentStatus(
         };
       }
     } catch (e: any) {
+      console.warn('[Pix Polling] ❌ Erro na chamada direta ao MP:', e.message);
       return { success: false, error: e.message };
     }
   }
