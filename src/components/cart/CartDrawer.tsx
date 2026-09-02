@@ -112,28 +112,44 @@ export const CartDrawer: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-2.5 pt-1">
-              {/* Botão Principal: Ir para a Página de Finalização de Compra na Mesma Aba */}
+            <div className="space-y-2 pt-1">
+              {/* Botão Pix */}
               <button
                 type="button"
-                onClick={handleGoToCheckout}
-                className="w-full py-4 px-4 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer group"
+                onClick={() => {
+                  closeCart();
+                  window.location.hash = '#/checkout';
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full py-3.5 px-4 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
               >
-                <span>Finalizar Compra</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span>❖ Pagar com Pix (Aprovação Imediata)</span>
               </button>
 
-              {/* Botão Secundário: WhatsApp */}
+              {/* Botão Cartão de Crédito */}
+              <button
+                type="button"
+                onClick={() => {
+                  closeCart();
+                  window.location.hash = '#/checkout/cartao';
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-black text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+              >
+                <span>💳 Pagar com Cartão de Crédito (Até 12x)</span>
+              </button>
+
+              {/* Botão WhatsApp */}
               <button
                 type="button"
                 onClick={() => {
                   closeCart();
                   openCheckout();
                 }}
-                className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+                className="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4 fill-emerald-600 text-emerald-600" />
-                <span>Ou Pedir Rápido no WhatsApp</span>
+                <span>Pedir no WhatsApp</span>
               </button>
             </div>
 

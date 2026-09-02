@@ -93,7 +93,11 @@ export const CheckoutModal: React.FC = () => {
   const handlePayWithMercadoPago = () => {
     if (!validateForm()) return;
     closeCheckout();
-    window.location.hash = '#/finalizar-compra';
+    if (customerInfo.paymentMethod === 'cartao') {
+      window.location.hash = '#/checkout/cartao';
+    } else {
+      window.location.hash = '#/finalizar-compra';
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
