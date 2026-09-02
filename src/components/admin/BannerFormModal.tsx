@@ -19,7 +19,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
   const { addBanner, updateBanner, banners } = useStoreData();
 
   const [formData, setFormData] = useState({
-    type: 'text' as 'image' | 'text',
+    type: 'image' as 'image' | 'text',
     imageUrl: '',
     altText: '',
     tag: '',
@@ -39,7 +39,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
   useEffect(() => {
     if (bannerToEdit) {
       setFormData({
-        type: bannerToEdit.type,
+        type: bannerToEdit.type || 'image',
         imageUrl: bannerToEdit.imageUrl || '',
         altText: bannerToEdit.altText || '',
         tag: bannerToEdit.tag || '',
@@ -54,16 +54,16 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
       setImagePreview(bannerToEdit.imageUrl || '');
     } else {
       setFormData({
-        type: 'text',
+        type: 'image',
         imageUrl: '',
-        altText: '',
-        tag: '🎀 Ateliê Encantando Festa',
+        altText: 'Banner Soumbolinho',
+        tag: '',
         title: '',
         subtitle: '',
         highlightText: '',
         themeColor: 'blue',
         linkUrl: '',
-        order: banners.length + 1,
+        order: 1,
         isActive: true,
       });
       setImagePreview('');

@@ -4,9 +4,6 @@ import {
   Trash2, 
   Edit3, 
   Sliders, 
-  Sparkles, 
-  Eye, 
-  FileText, 
   Image as ImageIcon,
   CheckCircle,
   ToggleLeft,
@@ -48,7 +45,7 @@ export const BannersManager: React.FC = () => {
     setDeleteModalState({ isOpen: false, banner: null });
   };
 
-  const sortedBanners = [...banners].sort((a, b) => a.order - b.order);
+  const mainBanner = banners[0] || null;
 
   return (
     <div className="space-y-6">
@@ -58,131 +55,117 @@ export const BannersManager: React.FC = () => {
         <div>
           <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
             <Sliders className="w-5 h-5 text-[#FF1493]" />
-            <span>Gerenciar Banners / Slides do Topo</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FFEBF6] text-[#FF1493] font-bold">
-              {banners.length} {banners.length === 1 ? 'slide' : 'slides'}
-            </span>
+            <span>Banner Principal do Topo (Imagem Única)</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Adicione avisos, promoções e banners rotativos com transição automática no topo da loja
+            Configure a imagem do banner em destaque no topo da sua loja
           </p>
         </div>
 
         <button
-          onClick={handleOpenCreate}
+          onClick={() => {
+            if (mainBanner) {
+              handleOpenEdit(mainBanner);
+            } else {
+              handleOpenCreate();
+            }
+          }}
           className="px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border border-black"
         >
-          <Plus className="w-4 h-4 text-[#FFD1EC]" />
-          <span>Novo Banner / Slide</span>
+          <ImageIcon className="w-4 h-4 text-[#FFD1EC]" />
+          <span>{mainBanner ? 'Alterar Imagem do Banner' : 'Adicionar Banner'}</span>
         </button>
       </div>
 
-      {/* Banners Grid / List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {sortedBanners.map((banner, index) => (
-          <div
-            key={banner.id}
-            className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between space-y-4 shadow-sm ${
-              banner.isActive ? 'border-[#FFA6DF]/60' : 'border-slate-200 opacity-60'
-            }`}
-          >
-            {/* Slide Header with Order and Badges */}
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[11px] font-bold flex items-center justify-center">
-                  #{banner.order || index + 1}
-                </span>
-                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 ${
-                  banner.type === 'text'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-purple-100 text-purple-800'
-                }`}>
-                  {banner.type === 'text' ? (
-                    <>
-                      <FileText className="w-3 h-3" />
-                      <span>Texto Informativo</span>
-                    </>
-                  ) : (
-                    <>
-                      <ImageIcon className="w-3 h-3" />
-                      <span>Imagem Completa</span>
-                    </>
-                  )}
-                </span>
-              </div>
-
-              {/* Status Toggle */}
-              <button
-                onClick={() => toggleBannerStatus(banner.id)}
-                className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors ${
-                  banner.isActive
-                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                }`}
-                title="Alternar Ativo/Inativo"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${banner.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                <span>{banner.isActive ? 'Ativo no Topo' : 'Pausado'}</span>
-              </button>
+      {/* Visualização do Banner Principal */}
+      {mainBanner ? (
+        <div className="bg-white rounded-3xl p-6 border border-[#FFA6DF]/60 shadow-sm space-y-4">
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900">
+                Status na Loja:
+              </span>
+              <span className={`text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
+                mainBanner.isActive
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-100 text-slate-500'
+              }`}>
+                {mainBanner.isActive ? '● Ativo e Visível' : '○ Pausado'}
+              </span>
             </div>
 
-            {/* Slide Visual Preview Card */}
-            <div className="rounded-2xl p-4 bg-gradient-to-r from-[#FFD1EC]/40 via-[#F3EAFF]/40 to-[#FFD1EC]/40 border border-[#FFA6DF]/40">
-              {banner.type === 'image' && banner.imageUrl ? (
-                <div className="w-full h-24 rounded-xl overflow-hidden bg-slate-100">
-                  <img src={banner.imageUrl} alt="" className="w-full h-full object-cover" />
-                </div>
+            <button
+              onClick={() => toggleBannerStatus(mainBanner.id)}
+              className={`text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer ${
+                mainBanner.isActive
+                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {mainBanner.isActive ? 'Pausar Exibição' : 'Ativar Exibição'}
+            </button>
+          </div>
+
+          {/* Imagem do Banner */}
+          <div className="relative rounded-2xl overflow-hidden border border-slate-200 max-h-[300px] bg-slate-50">
+            {mainBanner.imageUrl ? (
+              <img
+                src={mainBanner.imageUrl}
+                alt={mainBanner.altText || 'Banner'}
+                className="w-full h-auto max-h-[300px] object-cover rounded-2xl block"
+              />
+            ) : (
+              <div className="p-12 text-center text-slate-400 text-xs">
+                Nenhuma imagem definida para o banner.
+              </div>
+            )}
+          </div>
+
+          {/* Ações e Link */}
+          <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-500">
+            <div>
+              {mainBanner.linkUrl ? (
+                <span>Link ao clicar: <strong>{mainBanner.linkUrl}</strong></span>
               ) : (
-                <div className="bg-white/90 p-3 rounded-xl border border-slate-200/80 text-center space-y-1">
-                  {banner.tag && (
-                    <span className="text-[10px] font-bold text-[#FF1493] block">
-                      {banner.tag}
-                    </span>
-                  )}
-                  <h4 className="font-festive font-bold text-slate-900 text-xs sm:text-sm line-clamp-1">
-                    {banner.title || 'Sem título'}
-                  </h4>
-                  {banner.subtitle && (
-                    <p className="text-[11px] text-slate-600 line-clamp-1">
-                      {banner.subtitle}
-                    </p>
-                  )}
-                  {banner.highlightText && (
-                    <p className="text-[10px] text-[#FF1493] font-bold line-clamp-1">
-                      {banner.highlightText}
-                    </p>
-                  )}
-                </div>
+                <span>Sem link de redirecionamento</span>
               )}
             </div>
 
-            {/* Actions Bar */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-              <div className="text-slate-400 text-[11px]">
-                {banner.linkUrl ? `Link: ${banner.linkUrl}` : 'Sem link de clique'}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleOpenEdit(mainBanner)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Editar Imagem / Link</span>
+              </button>
 
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleOpenEdit(banner)}
-                  className="p-1.5 text-slate-600 hover:text-black hover:bg-slate-100 rounded-lg transition-colors"
-                  title="Editar dados do banner"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setDeleteModalState({ isOpen: true, banner })}
-                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                  title="Excluir banner"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => setDeleteModalState({ isOpen: true, banner: mainBanner })}
+                className="px-3 py-2 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                title="Remover banner"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remover</span>
+              </button>
             </div>
-
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-200 space-y-3">
+          <ImageIcon className="w-12 h-12 text-slate-300 mx-auto" />
+          <h3 className="font-bold text-slate-700 text-sm">Nenhum banner cadastrado</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Clique no botão acima para adicionar a imagem do banner principal do topo da loja.
+          </p>
+          <button
+            onClick={handleOpenCreate}
+            className="px-5 py-2.5 bg-black text-white text-xs font-bold rounded-xl"
+          >
+            Adicionar Imagem do Banner
+          </button>
+        </div>
+      )}
 
       {/* Modal Form */}
       <BannerFormModal
@@ -195,7 +178,7 @@ export const BannersManager: React.FC = () => {
       <DeleteConfirmModal
         isOpen={deleteModalState.isOpen}
         title="Excluir Banner"
-        message="Deseja realmente remover este banner rotativo do catálogo?"
+        message="Deseja realmente remover o banner do topo da loja?"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteModalState({ isOpen: false, banner: null })}
       />
@@ -203,3 +186,5 @@ export const BannersManager: React.FC = () => {
     </div>
   );
 };
+
+export default BannersManager;
