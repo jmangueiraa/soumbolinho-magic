@@ -14,7 +14,8 @@ import {
   Download,
   ExternalLink,
   Mail,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -88,6 +89,15 @@ export const CheckoutPage: React.FC = () => {
     setMpError(null);
     setIsPaymentApproved(false);
     setFormErrors({});
+  };
+
+  // Limpa o estado e retorna para o início
+  const handleFinishAndExit = () => {
+    clearCart();
+    setOrderReceived(null);
+    setIsPaymentApproved(false);
+    window.location.hash = '#/';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Estado da tela de Pedido Recebido na Mesma Página (Order Received)
@@ -462,7 +472,18 @@ export const CheckoutPage: React.FC = () => {
 
             {/* SE O PAGAMENTO ESTIVER APROVADO: MOSTRA SUCESSO E DOWNLOADS */}
             {isPaymentApproved || orderReceived.paymentMethod === 'Cartão de crédito' ? (
-              <div className="bg-gradient-to-b from-emerald-500/10 via-emerald-50/50 to-white p-6 sm:p-8 rounded-3xl border-2 border-emerald-500 shadow-lg space-y-6 text-center animate-in zoom-in-95 duration-300">
+              <div className="relative bg-gradient-to-b from-emerald-500/10 via-emerald-50/50 to-white p-6 sm:p-8 rounded-3xl border-2 border-emerald-500 shadow-lg space-y-6 text-center animate-in zoom-in-95 duration-300">
+                
+                {/* Botão Fechar 'X' no Canto Superior Direito */}
+                <button
+                  type="button"
+                  onClick={handleFinishAndExit}
+                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+                  title="Fechar e Voltar ao Início"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
                 <div className="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md animate-bounce">
                   <Check className="w-9 h-9 stroke-[3]" />
                 </div>
@@ -508,6 +529,17 @@ export const CheckoutPage: React.FC = () => {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Botão Inferior: Fechar e Voltar ao Início */}
+                <div className="pt-4 border-t border-emerald-200/60 max-w-md mx-auto">
+                  <button
+                    type="button"
+                    onClick={handleFinishAndExit}
+                    className="w-full py-3.5 px-6 bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>Fechar e Voltar ao Início</span>
+                  </button>
                 </div>
 
               </div>
