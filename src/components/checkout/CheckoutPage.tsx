@@ -21,8 +21,8 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
-import { createOrderInSupabase } from '../../services/orderService';
-import { createMercadoPagoPixPayment, isMercadoPagoConfigured } from '../../lib/mercadopago';
+import { createOrderInSupabase, updateOrderStatusInSupabase } from '../../services/orderService';
+import { createMercadoPagoPixPayment, isMercadoPagoConfigured, checkMercadoPagoPaymentStatus } from '../../lib/mercadopago';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -48,6 +48,7 @@ export const CheckoutPage: React.FC = () => {
   const [mpError, setMpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isPaymentApproved, setIsPaymentApproved] = useState(false);
 
   // Formata o CPF no padrão 000.000.000-00
   const formatCPF = (val: string) => {
@@ -70,6 +71,47 @@ export const CheckoutPage: React.FC = () => {
     pixCode: string;
     qrCodeUrl: string;
   } | null>(null);
+
+  // Polling automático a cada 5s para detectar confirmação do Pix
+  React.useEffect(() => {
+    if (!orderReceived?.orderId || isPaymentApproved) return;
+
+    const paymentId = orderReceived.orderId;
+    if (!/^\d+$/.test(paymentId)) return;
+
+    console.log(`[Polling Pix] ⏳ Iniciando verificação automática a cada 5s para o pagamento #${paymentId}...`);
+
+    const intervalId = setInterval(async () => {
+      try {
+        const result = await checkMercadoPagoPaymentStatus(paymentId, storeConfig);
+        if (result.success && result.status === 'approved') {
+          console.log(`[Polling Pix] 🎉 Pagamento #${paymentId} APROVADO!`);
+          clearInterval(intervalId);
+          setIsPaymentApproved(true);
+
+          // 1. Atualizar status na tabela 'orders' do Supabase
+          await updateOrderStatusInSupabase(paymentId, 'approved');
+
+          // 2. Disparar e-mail de entrega com o link do produto
+          await sendOrderConfirmationEmail({
+            customerName: orderReceived.customerName,
+            customerEmail: orderReceived.customerEmail,
+            orderId: paymentId,
+            orderDate: orderReceived.orderDate,
+            items: orderReceived.items,
+            totalAmount: orderReceived.totalAmount,
+            storeConfig,
+          });
+        }
+      } catch (err) {
+        console.warn('[Polling Pix] Erro ao consultar status:', err);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [orderReceived, isPaymentApproved, storeConfig]);
 
   const hasMercadoPago = isMercadoPagoConfigured(storeConfig);
   const finalTotal = Math.max(0, totalPrice - discount);
@@ -270,7 +312,7 @@ export const CheckoutPage: React.FC = () => {
             {/* Mensagem e Barra de Dados do Pedido */}
             <div className="space-y-4">
               <p className="text-xs sm:text-sm text-slate-700 font-medium">
-                Obrigado. Seu pedido foi recebido.
+                {isPaymentApproved ? '🎉 Parabéns! Seu pagamento foi confirmado com sucesso.' : 'Obrigado. Seu pedido foi recebido.'}
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 sm:p-5 bg-slate-50/90 rounded-2xl border border-slate-200 text-xs">
@@ -303,194 +345,265 @@ export const CheckoutPage: React.FC = () => {
 
                 <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                    MÉTODO DE PAGAMENTO:
+                    STATUS:
                   </span>
-                  <span className="font-extrabold text-emerald-600 text-sm flex items-center gap-1">
-                    {orderReceived.paymentMethod}
+                  <span className={`font-extrabold text-sm flex items-center gap-1 ${isPaymentApproved ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {isPaymentApproved ? '✓ Pago / Aprovado' : 'Aguardando Pix'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Título de Pagamento Pix */}
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Agora é só pagar com o Pix para finalizar sua compra
-            </h2>
-
-            {/* Card Principal do Pix em 2 Colunas */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              
-              {/* Coluna Esquerda: Instruções Pix */}
-              <div className="lg:col-span-6 space-y-6">
-                
-                {/* Logo Pix Banco Central */}
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-10 h-10 text-[#32BCAD]" viewBox="0 0 512 512" fill="currentColor">
-                    <path d="M112.5 131.3L234.7 9.1c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5L277.2 296c-11.7 11.7-30.8 11.7-42.5 0L112.5 173.8c-11.7-11.7-11.7-30.8 0-42.5zM399.5 380.7L277.3 502.9c-11.7 11.7-30.8 11.7-42.5 0L112.5 380.7c-11.7-11.7-11.7-30.8 0-42.5L234.8 216c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5z"/>
-                  </svg>
-                  <div>
-                    <span className="text-2xl font-black tracking-tight text-slate-800 leading-none block">pix</span>
-                    <span className="text-[10px] text-slate-400 font-medium">powered by Banco Central</span>
-                  </div>
+            {/* SE O PAGAMENTO ESTIVER APROVADO: MOSTRA SUCESSO E DOWNLOADS */}
+            {isPaymentApproved ? (
+              <div className="bg-gradient-to-b from-emerald-500/10 via-emerald-50/50 to-white p-6 sm:p-8 rounded-3xl border-2 border-emerald-500 shadow-lg space-y-6 text-center animate-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md animate-bounce">
+                  <Check className="w-9 h-9 stroke-[3]" />
                 </div>
 
-                <div className="space-y-3">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Como pagar com Pix:
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Pagamento Aprovado com Sucesso!
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-lg mx-auto leading-relaxed">
+                    Identificamos o seu pagamento Pix no Mercado Pago. O link de download também foi enviado para <strong>{orderReceived.customerEmail}</strong>.
+                  </p>
+                </div>
+
+                {/* Card de Downloads com Botão Verde */}
+                <div className="space-y-3 pt-2 text-left max-w-2xl mx-auto">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Download className="w-4 h-4 text-emerald-600" />
+                    <span>Seus Arquivos para Download:</span>
                   </h3>
 
-                  <ol className="space-y-3 text-xs text-slate-600">
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                        1
-                      </span>
-                      <span className="pt-0.5">Acesse o app ou site do seu banco</span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                        2
-                      </span>
-                      <span className="pt-0.5">Busque a opção de pagar com Pix</span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                        3
-                      </span>
-                      <span className="pt-0.5">Leia o QR code ou código Pix</span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                        4
-                      </span>
-                      <span className="pt-0.5">Pronto! Você verá a confirmação do pagamento</span>
-                    </li>
-                  </ol>
-                </div>
+                  <div className="space-y-2">
+                    {orderReceived.items.map((item) => {
+                      const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
+                      return (
+                        <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white rounded-2xl border border-emerald-200 shadow-sm gap-3">
+                          <div>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 block">{item.product.name}</span>
+                            <span className="text-[10px] text-emerald-700 font-semibold">✓ Acesso vitalício imediato</span>
+                          </div>
 
-              </div>
-
-              {/* Coluna Direita: QR Code e Código Copia e Cola */}
-              <div className="lg:col-span-6 space-y-4 text-center lg:text-left">
-                
-                <div>
-                  <span className="text-xs text-slate-500">Valor a pagar:</span>
-                  <span className="text-lg font-black text-slate-900 ml-1">
-                    {formatCurrency(orderReceived.totalAmount)}
-                  </span>
-                </div>
-
-                <div className="text-xs font-bold text-slate-800">
-                  Escaneie o QR code:
-                </div>
-
-                {/* QR Code */}
-                <div className="flex flex-col items-center lg:items-start justify-center">
-                  <div className="p-2.5 bg-white rounded-2xl border border-slate-200 shadow-xs inline-block">
-                    <img
-                      src={orderReceived.qrCodeUrl}
-                      alt="QR Code Pix"
-                      className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
-                    />
-                  </div>
-                  <span className="text-[11px] text-slate-400 mt-2">
-                    Código válido por 30 minutos
-                  </span>
-                </div>
-
-                {/* Código Copia e Cola */}
-                <div className="space-y-2 pt-2 text-left">
-                  <p className="text-[11px] text-slate-500">
-                    Se preferir, você pode pagar copiando e colando o seguinte código:
-                  </p>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={orderReceived.pixCode}
-                      className="flex-1 text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none select-all truncate"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={handleCopyPix}
-                      className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 ${
-                        copied
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
-                      }`}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span>Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Copiar código Pix</span>
-                        </>
-                      )}
-                    </button>
+                          <a
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-md transition-all active:scale-95 shrink-0"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span>Acessar seu Produto / Fazer Download</span>
+                          </a>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Botão Enviar Pedido no WhatsApp */}
-                <div className="pt-3">
+                {/* Botão de Notificar no WhatsApp */}
+                <div className="pt-4">
                   <button
                     type="button"
                     onClick={handleNotifyWhatsApp}
-                    className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-full transition-all cursor-pointer"
                   >
                     <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>Confirmar e Enviar Pedido no WhatsApp</span>
+                    <span>Confirmar no WhatsApp</span>
                   </button>
                 </div>
-
               </div>
-
-            </div>
-
-            {/* Card de Downloads / Acesso ao Produto Digital */}
-            <div className="bg-emerald-50/80 p-5 sm:p-6 rounded-3xl border border-emerald-200 space-y-3.5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-                  <Download className="w-4 h-4" />
+            ) : (
+              /* SE O PAGAMENTO AINDA NÃO FOI APROVADO: MOSTRA QR CODE E POLLING */
+              <>
+                {/* Banner de Polling Ativo */}
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center flex items-center justify-center gap-2 text-xs text-amber-800 animate-pulse">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                  <span className="font-semibold">Aguardando pagamento... A tela atualizará automaticamente assim que você pagar no app do banco.</span>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-emerald-950">
-                    Seu Produto Digital / Arquivos para Download
-                  </h3>
-                  <p className="text-[11px] text-emerald-800">
-                    O link de acesso também foi enviado para <strong>{orderReceived.customerEmail}</strong>
-                  </p>
-                </div>
-              </div>
 
-              <div className="space-y-2 pt-1">
-                {orderReceived.items.map((item) => {
-                  const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
-                  return (
-                    <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-white rounded-2xl border border-emerald-100 shadow-xs gap-3">
+                {/* Título de Pagamento Pix */}
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                  Agora é só pagar com o Pix para finalizar sua compra
+                </h2>
+
+                {/* Card Principal do Pix em 2 Colunas */}
+                <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  
+                  {/* Coluna Esquerda: Instruções Pix */}
+                  <div className="lg:col-span-6 space-y-6">
+                    
+                    {/* Logo Pix Banco Central */}
+                    <div className="flex items-center gap-2.5">
+                      <svg className="w-10 h-10 text-[#32BCAD]" viewBox="0 0 512 512" fill="currentColor">
+                        <path d="M112.5 131.3L234.7 9.1c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5L277.2 296c-11.7 11.7-30.8 11.7-42.5 0L112.5 173.8c-11.7-11.7-11.7-30.8 0-42.5zM399.5 380.7L277.3 502.9c-11.7 11.7-30.8 11.7-42.5 0L112.5 380.7c-11.7-11.7-11.7-30.8 0-42.5L234.8 216c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5z"/>
+                      </svg>
                       <div>
-                        <span className="text-xs font-bold text-slate-900 block">{item.product.name}</span>
-                        <span className="text-[10px] text-slate-400">Acesso vitalício • Entrega Imediata</span>
+                        <span className="text-2xl font-black tracking-tight text-slate-800 leading-none block">pix</span>
+                        <span className="text-[10px] text-slate-400 font-medium">powered by Banco Central</span>
                       </div>
-
-                      <a
-                        href={downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Acessar seu Produto / Fazer Download</span>
-                      </a>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold text-slate-900">
+                        Como pagar com Pix:
+                      </h3>
+
+                      <ol className="space-y-3 text-xs text-slate-600">
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                            1
+                          </span>
+                          <span className="pt-0.5">Acesse o app ou site do seu banco</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                            2
+                          </span>
+                          <span className="pt-0.5">Busque a opção de pagar com Pix</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                            3
+                          </span>
+                          <span className="pt-0.5">Leia o QR code ou código Pix</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                            4
+                          </span>
+                          <span className="pt-0.5">Pronto! Você verá a confirmação do pagamento</span>
+                        </li>
+                      </ol>
+                    </div>
+
+                  </div>
+
+                  {/* Coluna Direita: QR Code e Código Copia e Cola */}
+                  <div className="lg:col-span-6 space-y-4 text-center lg:text-left">
+                    
+                    <div>
+                      <span className="text-xs text-slate-500">Valor a pagar:</span>
+                      <span className="text-lg font-black text-slate-900 ml-1">
+                        {formatCurrency(orderReceived.totalAmount)}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-bold text-slate-800">
+                      Escaneie o QR code:
+                    </div>
+
+                    {/* QR Code */}
+                    <div className="flex flex-col items-center lg:items-start justify-center">
+                      <div className="p-2.5 bg-white rounded-2xl border border-slate-200 shadow-xs inline-block">
+                        <img
+                          src={orderReceived.qrCodeUrl}
+                          alt="QR Code Pix"
+                          className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
+                        />
+                      </div>
+                      <span className="text-[11px] text-slate-400 mt-2">
+                        Código válido por 30 minutos
+                      </span>
+                    </div>
+
+                    {/* Código Copia e Cola */}
+                    <div className="space-y-2 pt-2 text-left">
+                      <p className="text-[11px] text-slate-500">
+                        Se preferir, você pode pagar copiando e colando o seguinte código:
+                      </p>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={orderReceived.pixCode}
+                          className="flex-1 text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none select-all truncate"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={handleCopyPix}
+                          className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 ${
+                            copied
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                          }`}
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span>Copiado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              <span>Copiar código Pix</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Botão Enviar Pedido no WhatsApp */}
+                    <div className="pt-3">
+                      <button
+                        type="button"
+                        onClick={handleNotifyWhatsApp}
+                        className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all cursor-pointer"
+                      >
+                        <MessageCircle className="w-4 h-4 fill-white" />
+                        <span>Confirmar e Enviar Pedido no WhatsApp</span>
+                      </button>
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* Card de Downloads Previsto */}
+                <div className="bg-emerald-50/80 p-5 sm:p-6 rounded-3xl border border-emerald-200 space-y-3.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                      <Download className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-emerald-950">
+                        Seu Produto Digital / Arquivos para Download
+                      </h3>
+                      <p className="text-[11px] text-emerald-800">
+                        O link de acesso também será enviado para <strong>{orderReceived.customerEmail}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    {orderReceived.items.map((item) => {
+                      const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
+                      return (
+                        <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-white rounded-2xl border border-emerald-100 shadow-xs gap-3">
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block">{item.product.name}</span>
+                            <span className="text-[10px] text-slate-400">Acesso vitalício • Entrega Imediata</span>
+                          </div>
+
+                          <a
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Acessar seu Produto / Fazer Download</span>
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Link para voltar ao início */}
             <div className="text-center pt-4">

@@ -171,3 +171,60 @@ export async function createMercadoPagoPixPayment(
     ticketUrl: transactionData?.ticket_url,
   };
 }
+
+/**
+ * Consulta o status atualizado do pagamento no Mercado Pago (GET /v1/payments/{id})
+ */
+export async function checkMercadoPagoPaymentStatus(
+  paymentId: string,
+  storeConfig?: Partial<StoreConfig>
+): Promise<{ success: boolean; status?: string; statusDetail?: string; error?: string }> {
+  const cleanId = String(paymentId).replace(/\D/g, '');
+  if (!cleanId) return { success: false, error: 'ID inválido' };
+
+  const accessToken = getMercadoPagoAccessToken(storeConfig);
+
+  // 1. Tentar via Serverless Function
+  try {
+    const res = await fetch(`/api/check-payment-status?id=${cleanId}`, {
+      method: 'GET',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        success: true,
+        status: data.status,
+        statusDetail: data.status_detail,
+      };
+    }
+  } catch (e) {
+    // Fallback para chamada direta
+  }
+
+  // 2. Fallback chamada direta
+  if (accessToken) {
+    try {
+      const directRes = await fetch(`https://api.mercadopago.com/v1/payments/${cleanId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (directRes.ok) {
+        const data = await directRes.json();
+        return {
+          success: true,
+          status: data.status,
+          statusDetail: data.status_detail,
+        };
+      }
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  return { success: false, error: 'Não foi possível verificar status' };
+}
