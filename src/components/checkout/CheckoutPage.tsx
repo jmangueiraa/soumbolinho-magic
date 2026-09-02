@@ -402,16 +402,6 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Botão de Notificar no WhatsApp */}
-                <div className="pt-4">
-                  <button
-                    type="button"
-                    onClick={handleNotifyWhatsApp}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-full transition-all cursor-pointer"
-                  >
-                    <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>Confirmar no WhatsApp</span>
-                  </button>
                 </div>
               </div>
             ) : (
@@ -546,61 +536,8 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Botão Enviar Pedido no WhatsApp */}
-                    <div className="pt-3">
-                      <button
-                        type="button"
-                        onClick={handleNotifyWhatsApp}
-                        className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all cursor-pointer"
-                      >
-                        <MessageCircle className="w-4 h-4 fill-white" />
-                        <span>Confirmar e Enviar Pedido no WhatsApp</span>
-                      </button>
-                    </div>
-
                   </div>
 
-                </div>
-
-                {/* Card de Downloads Previsto */}
-                <div className="bg-emerald-50/80 p-5 sm:p-6 rounded-3xl border border-emerald-200 space-y-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-                      <Download className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-emerald-950">
-                        Seu Produto Digital / Arquivos para Download
-                      </h3>
-                      <p className="text-[11px] text-emerald-800">
-                        O link de acesso também será enviado para <strong>{orderReceived.customerEmail}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    {orderReceived.items.map((item) => {
-                      const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
-                      return (
-                        <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-white rounded-2xl border border-emerald-100 shadow-xs gap-3">
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 block">{item.product.name}</span>
-                            <span className="text-[10px] text-slate-400">Acesso vitalício • Entrega Imediata</span>
-                          </div>
-
-                          <a
-                            href={downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Acessar seu Produto / Fazer Download</span>
-                          </a>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
               </>
             )}
