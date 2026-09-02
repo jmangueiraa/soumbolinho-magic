@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ShoppingBag, Menu, X, Lock, Sparkles } from 'lucide-react';
+import { Search, ShoppingBag, Menu, X, Sparkles } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -17,10 +17,6 @@ export const Header: React.FC = () => {
     setIsMobileFiltersOpen, 
     hasActiveFilters 
   } = useFilter();
-
-  const handleOpenAdmin = () => {
-    window.location.hash = '/admin';
-  };
 
   return (
     <header className="sticky top-0 z-40 w-full bg-black text-white border-b border-zinc-800 shadow-md transition-all">
@@ -76,18 +72,8 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* LADO DIREITO: Admin & Botão do Carrinho Estilo Referência */}
+          {/* LADO DIREITO: Botão do Carrinho Estilo Referência */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Botão Admin Discreto */}
-            <button
-              onClick={handleOpenAdmin}
-              className="p-2 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              title="Acessar Painel Administrativo (/admin)"
-              aria-label="Admin"
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-
             {/* Botão do Carrinho com borda e badge (ex: R$ 10,00 🛒 1) */}
             <button
               onClick={openCart}

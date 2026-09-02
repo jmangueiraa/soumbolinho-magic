@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MessageCircle, Instagram, MapPin, Clock, ShieldCheck, Truck, Lock } from 'lucide-react';
+import { Heart, MessageCircle, Instagram, MapPin, Clock, ShieldCheck, Truck } from 'lucide-react';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
@@ -7,10 +7,6 @@ import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 export const Footer: React.FC = () => {
   const { storeConfig, categories } = useStoreData();
   const { setSelectedCategory } = useFilter();
-
-  const handleOpenAdmin = () => {
-    window.location.hash = '/admin';
-  };
 
   return (
     <footer className="bg-black text-zinc-300 mt-20 border-t border-zinc-800">
@@ -150,15 +146,8 @@ export const Footer: React.FC = () => {
 
       {/* Bottom Bar */}
       <div className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center">
           <p>© {new Date().getFullYear()} {storeConfig.storeName || 'Soumbolinho'} • Todos os direitos reservados.</p>
-          <button
-            onClick={handleOpenAdmin}
-            className="hover:text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            <Lock className="w-3 h-3" />
-            <span>Área Administrativa</span>
-          </button>
         </div>
       </div>
 
