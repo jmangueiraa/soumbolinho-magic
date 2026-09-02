@@ -180,7 +180,7 @@ export async function createMercadoPagoPixPayment(
   }
 
   const payerObj: any = {
-    email: 'pagamentos@soumbolinho.com.br',
+    email: 'cobranca@soumbolinho.com.br',
     first_name: firstName,
     last_name: lastName,
   };
@@ -196,6 +196,7 @@ export async function createMercadoPagoPixPayment(
     transaction_amount: numericAmount,
     description: 'Pedido Soumbolinho',
     payment_method_id: 'pix',
+    binary_mode: true,
     payer: payerObj,
   };
 

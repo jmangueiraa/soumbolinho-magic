@@ -57,9 +57,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const firstName = trimmedName.split(' ')[0] || 'Cliente';
     const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Comprador';
 
-    // Payload para o Mercado Pago
+    // Payload para o Mercado Pago (com silenciamento de e-mails e binary_mode)
     const payerObj: any = {
-      email: 'pagamentos@soumbolinho.com.br',
+      email: 'cobranca@soumbolinho.com.br',
       first_name: firstName,
       last_name: lastName,
     };
@@ -75,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       transaction_amount: Number(parseFloat(String(numericAmount)).toFixed(2)),
       description: 'Pedido Soumbolinho',
       payment_method_id: 'pix',
+      binary_mode: true,
       payer: payerObj,
     };
 
