@@ -3,7 +3,7 @@ import { X, Save, Upload, Sparkles, Image as ImageIcon, FileText, Check } from '
 import { BannerSlide } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 
-import { uploadProductImage } from '../../lib/storage';
+import { uploadBannerImage } from '../../lib/storage';
 
 interface BannerFormModalProps {
   isOpen: boolean;
@@ -34,6 +34,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
 
   const [imagePreview, setImagePreview] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -81,25 +82,19 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
     setImagePreview(localUrl);
     setIsUploading(true);
 
-    const { url, error: uploadErr } = await uploadProductImage(file);
+    const { url, error: uploadErr } = await uploadBannerImage(file);
     setIsUploading(false);
 
     if (url) {
       setImagePreview(url);
       setFormData((prev) => ({ ...prev, imageUrl: url }));
     } else {
-      console.warn('Fallback base64 para banner:', uploadErr);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setImagePreview(base64);
-        setFormData((prev) => ({ ...prev, imageUrl: base64 }));
-      };
-      reader.readAsDataURL(file);
+      console.warn('[BannerFormModal] Erro no upload do Supabase Storage:', uploadErr);
+      setError(`Erro no upload: ${uploadErr || 'Não foi possível salvar a imagem'}`);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (formData.type === 'text' && !formData.title.trim()) {
@@ -112,27 +107,35 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
       return;
     }
 
-    const payload: Omit<BannerSlide, 'id'> = {
-      type: formData.type,
-      imageUrl: formData.imageUrl.trim() || undefined,
-      altText: formData.altText.trim() || undefined,
-      tag: formData.tag.trim() || undefined,
-      title: formData.title.trim() || undefined,
-      subtitle: formData.subtitle.trim() || undefined,
-      highlightText: formData.highlightText.trim() || undefined,
-      themeColor: formData.themeColor,
-      linkUrl: formData.linkUrl.trim() || undefined,
-      order: Number(formData.order) || 1,
-      isActive: formData.isActive,
-    };
+    try {
+      setIsSubmitting(true);
+      const payload: Omit<BannerSlide, 'id'> = {
+        type: formData.type,
+        imageUrl: formData.imageUrl.trim() || undefined,
+        altText: formData.altText.trim() || undefined,
+        tag: formData.tag.trim() || undefined,
+        title: formData.title.trim() || undefined,
+        subtitle: formData.subtitle.trim() || undefined,
+        highlightText: formData.highlightText.trim() || undefined,
+        themeColor: formData.themeColor,
+        linkUrl: formData.linkUrl.trim() || undefined,
+        order: Number(formData.order) || 1,
+        isActive: formData.isActive,
+      };
 
-    if (bannerToEdit) {
-      updateBanner(bannerToEdit.id, payload);
-    } else {
-      addBanner(payload);
+      if (bannerToEdit) {
+        await updateBanner(bannerToEdit.id, payload);
+      } else {
+        await addBanner(payload);
+      }
+
+      setIsSubmitting(false);
+      onClose();
+    } catch (err: any) {
+      console.error('[BannerFormModal] Erro ao salvar banner:', err);
+      setError(err.message || 'Erro ao salvar banner no Supabase.');
+      setIsSubmitting(false);
     }
-
-    onClose();
   };
 
   return (

@@ -12,12 +12,24 @@ import {
   toggleProductStockInSupabase,
   updateProductPriceInSupabase
 } from '../services/productService';
+import { 
+  fetchAllBanners, 
+  createBannerInSupabase, 
+  updateBannerInSupabase, 
+  deleteBannerFromSupabase 
+} from '../services/bannerService';
+import { 
+  fetchAllCategories, 
+  createCategoryInSupabase, 
+  updateCategoryInSupabase, 
+  deleteCategoryFromSupabase 
+} from '../services/categoryService';
+import { 
+  fetchStoreConfig, 
+  saveStoreConfigInSupabase 
+} from '../services/storeConfigService';
 
-const LS_CATEGORIES_KEY = 'encantando_festa_categories_v2';
-const LS_CONFIG_KEY = 'encantando_festa_config_v2';
-const LS_BANNERS_KEY = 'encantando_festa_banners_v2';
-const LS_AUTH_KEY = 'encantando_festa_admin_auth_v2';
-
+const LS_AUTH_KEY = 'soumbolinho_admin_auth_session';
 const DEFAULT_ADMIN_PASSWORD = 'admin';
 
 interface StoreDataContextType {
@@ -26,6 +38,7 @@ interface StoreDataContextType {
   storeConfig: StoreConfig;
   banners: BannerSlide[];
   isAuthenticated: boolean;
+  isLoading: boolean;
   adminNotification: { message: string; type: 'success' | 'error' | 'info' } | null;
   showNotification: (message: string, type?: 'success' | 'error' | 'info') => void;
   // Auth
@@ -37,61 +50,36 @@ interface StoreDataContextType {
   deleteProduct: (id: string) => Promise<void>;
   toggleProductStock: (id: string) => Promise<void>;
   quickUpdatePrice: (id: string, newPrice: number) => Promise<void>;
-  // Categorias
-  addCategory: (name: string, icon?: string) => Category;
-  updateCategory: (id: string, updates: Partial<Category>) => void;
-  deleteCategory: (id: string) => void;
-  addSubcategory: (categoryId: string, subcategoryName: string) => void;
-  deleteSubcategory: (categoryId: string, subcategoryName: string) => void;
-  // Banners / Carrossel
-  addBanner: (bannerData: Omit<BannerSlide, 'id'>) => BannerSlide;
-  updateBanner: (id: string, updates: Partial<BannerSlide>) => void;
-  deleteBanner: (id: string) => void;
-  toggleBannerStatus: (id: string) => void;
-  reorderBanners: (orderedBanners: BannerSlide[]) => void;
-  // Configurações
-  updateStoreConfig: (updates: Partial<StoreConfig>) => void;
-  // Reset
-  resetToDefaults: () => void;
+  // Categorias 100% Supabase
+  addCategory: (name: string, icon?: string) => Promise<Category>;
+  updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  addSubcategory: (categoryId: string, subcategoryName: string) => Promise<void>;
+  deleteSubcategory: (categoryId: string, subcategoryName: string) => Promise<void>;
+  // Banners 100% Supabase
+  addBanner: (bannerData: Omit<BannerSlide, 'id'>) => Promise<BannerSlide>;
+  updateBanner: (id: string, updates: Partial<BannerSlide>) => Promise<void>;
+  deleteBanner: (id: string) => Promise<void>;
+  toggleBannerStatus: (id: string) => Promise<void>;
+  reorderBanners: (orderedBanners: BannerSlide[]) => Promise<void>;
+  // Configurações 100% Supabase
+  updateStoreConfig: (updates: Partial<StoreConfig>) => Promise<void>;
+  // Recarregar dados
+  refreshAllData: () => Promise<void>;
+  resetToDefaults: () => Promise<void>;
 }
 
 const StoreDataContext = createContext<StoreDataContextType | undefined>(undefined);
 
 export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Produtos 100% Supabase (sem fallback de LocalStorage)
+  // Estados 100% Supabase em Memória Viva (Sem LocalStorage para dados)
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [storeConfig, setStoreConfig] = useState<StoreConfig>(INITIAL_STORE_CONFIG);
+  const [banners, setBanners] = useState<BannerSlide[]>(INITIAL_BANNERS);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // 2. Categorias
-  const [categories, setCategories] = useState<Category[]>(() => {
-    try {
-      const saved = localStorage.getItem(LS_CATEGORIES_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
-    } catch {
-      return INITIAL_CATEGORIES;
-    }
-  });
-
-  // 3. Configurações da Loja
-  const [storeConfig, setStoreConfig] = useState<StoreConfig>(() => {
-    try {
-      const saved = localStorage.getItem(LS_CONFIG_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_STORE_CONFIG;
-    } catch {
-      return INITIAL_STORE_CONFIG;
-    }
-  });
-
-  // 4. Banners do Topo
-  const [banners, setBanners] = useState<BannerSlide[]>(() => {
-    try {
-      const saved = localStorage.getItem(LS_BANNERS_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_BANNERS;
-    } catch {
-      return INITIAL_BANNERS;
-    }
-  });
-
-  // 5. Autenticação Admin
+  // Autenticação Admin de Sessão
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(LS_AUTH_KEY) === 'true';
@@ -109,72 +97,97 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 3500);
   };
 
-  // Sincronizar produtos diretamente com o Supabase (select * order by created_at desc)
-  useEffect(() => {
-    async function loadFromSupabase() {
-      try {
-        const { data: supabaseProducts, error } = await fetchAllProducts();
+  // -------------------------------------------------------------
+  // 1. CARREGAMENTO INICIAL DIRETO DO SUPABASE
+  // -------------------------------------------------------------
+  const refreshAllData = async () => {
+    try {
+      console.log('[StoreDataContext] 🔄 Carregando dados completos diretamente do Supabase...');
+      const [prodsRes, catsRes, configRes, bannersRes] = await Promise.all([
+        fetchAllProducts(),
+        fetchAllCategories(),
+        fetchStoreConfig(),
+        fetchAllBanners(),
+      ]);
 
-        if (error) {
-          console.warn('[StoreDataContext] Aviso ao buscar produtos do Supabase:', error);
-          return;
-        }
-
-        console.log(`[StoreDataContext] 🚀 Atualizando lista com ${supabaseProducts.length} produtos do Supabase.`);
-        setProducts(supabaseProducts);
-      } catch (err) {
-        console.error('[StoreDataContext] Erro ao sincronizar com Supabase:', err);
-      }
+      if (prodsRes.data) setProducts(prodsRes.data);
+      if (catsRes.data) setCategories(catsRes.data);
+      if (configRes.data) setStoreConfig(configRes.data);
+      if (bannersRes.data) setBanners(bannersRes.data);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('[StoreDataContext] Erro ao sincronizar com o Supabase:', err);
+      setIsLoading(false);
     }
+  };
 
-    loadFromSupabase();
+  useEffect(() => {
+    refreshAllData();
 
-    // Inscrever no canal Realtime do Supabase para refletir alterações de todos os usuários instantaneamente
-    const channel = supabase
-      .channel('realtime_products_sync_all')
+    // -------------------------------------------------------------
+    // 2. SUPABASE REALTIME MULTI-CANAL PARA ATUALIZAÇÃO INSTANTÂNEA
+    // -------------------------------------------------------------
+    const globalChannel = supabase
+      .channel('realtime_store_sync_v3')
+      // Sincronização de Produtos
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          console.log('[StoreDataContext] ⚡ Alteração global recebida via Supabase Realtime:', payload);
-          loadFromSupabase();
+        async (payload) => {
+          console.log('[StoreDataContext] ⚡ Realtime: Tabela products atualizada:', payload);
+          const { data } = await fetchAllProducts();
+          if (data) setProducts(data);
+        }
+      )
+      // Sincronização de Categorias
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        async (payload) => {
+          console.log('[StoreDataContext] ⚡ Realtime: Tabela categories atualizada:', payload);
+          const { data } = await fetchAllCategories();
+          if (data) setCategories(data);
+        }
+      )
+      // Sincronização de Banners
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'banners' },
+        async (payload) => {
+          console.log('[StoreDataContext] ⚡ Realtime: Tabela banners atualizada:', payload);
+          const { data } = await fetchAllBanners();
+          if (data) setBanners(data);
+        }
+      )
+      // Sincronização de Configurações
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'store_config' },
+        async (payload) => {
+          console.log('[StoreDataContext] ⚡ Realtime: Tabela store_config atualizada:', payload);
+          const { data } = await fetchStoreConfig();
+          if (data) setStoreConfig(data);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'site_settings' },
+        async (payload) => {
+          console.log('[StoreDataContext] ⚡ Realtime: Tabela site_settings atualizada:', payload);
+          const { data } = await fetchStoreConfig();
+          if (data) setStoreConfig(data);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(globalChannel);
     };
   }, []);
 
-  // Sincronizar categorias
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_CATEGORIES_KEY, JSON.stringify(categories));
-    } catch (e) {
-      console.error('Falha ao salvar categorias no LocalStorage', e);
-    }
-  }, [categories]);
-
-  // Sincronizar configurações
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_CONFIG_KEY, JSON.stringify(storeConfig));
-    } catch (e) {
-      console.error('Falha ao salvar configurações no LocalStorage', e);
-    }
-  }, [storeConfig]);
-
-  // Sincronizar banners
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_BANNERS_KEY, JSON.stringify(banners));
-    } catch (e) {
-      console.error('Falha ao salvar banners no LocalStorage', e);
-    }
-  }, [banners]);
-
-  // Login / Logout
+  // -------------------------------------------------------------
+  // 3. AUTENTICAÇÃO
+  // -------------------------------------------------------------
   const login = (password: string): boolean => {
     const valid = password.trim() === DEFAULT_ADMIN_PASSWORD || password.trim() === '123456';
     if (valid) {
@@ -195,9 +208,8 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // -------------------------------------------------------------
-  // Ações de Produtos 100% Diretas no Supabase
+  // 4. AÇÕES DE PRODUTOS NO SUPABASE
   // -------------------------------------------------------------
-
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
     const { product: createdProduct, error } = await createProductInSupabase(productData);
 
@@ -273,10 +285,9 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   // -------------------------------------------------------------
-  // Ações de Categorias
+  // 5. AÇÕES DE CATEGORIAS NO SUPABASE
   // -------------------------------------------------------------
-
-  const addCategory = (name: string, icon = 'Gift'): Category => {
+  const addCategory = async (name: string, icon = 'Gift'): Promise<Category> => {
     const slug = name
       .toLowerCase()
       .normalize('NFD')
@@ -291,114 +302,147 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       subcategories: []
     };
 
-    setCategories((prev) => [...prev, newCategory]);
-    showNotification(`Categoria "${name}" criada com sucesso!`, 'success');
+    setCategories((prev) => [...prev.filter((c) => c.id !== newCategory.id), newCategory]);
+    const { error } = await createCategoryInSupabase(newCategory);
+    
+    if (error) {
+      showNotification(`Aviso: salvo em memória (${error})`, 'info');
+    } else {
+      showNotification(`Categoria "${name}" salva no Supabase!`, 'success');
+    }
+
     return newCategory;
   };
 
-  const updateCategory = (id: string, updates: Partial<Category>) => {
+  const updateCategory = async (id: string, updates: Partial<Category>): Promise<void> => {
     setCategories((prev) =>
       prev.map((cat) => (cat.id === id ? { ...cat, ...updates } : cat))
     );
-    showNotification('Categoria atualizada!', 'success');
+    const { error } = await updateCategoryInSupabase(id, updates);
+    if (!error) {
+      showNotification('Categoria atualizada no Supabase!', 'success');
+    }
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string): Promise<void> => {
     const cat = categories.find((c) => c.id === id);
     setCategories((prev) => prev.filter((c) => c.id !== id));
-    showNotification(`Categoria "${cat?.name || ''}" excluída!`, 'info');
+    await deleteCategoryFromSupabase(id);
+    showNotification(`Categoria "${cat?.name || ''}" excluída do Supabase!`, 'info');
   };
 
-  const addSubcategory = (categoryId: string, subcategoryName: string) => {
+  const addSubcategory = async (categoryId: string, subcategoryName: string): Promise<void> => {
     const trimmed = subcategoryName.trim();
     if (!trimmed) return;
 
+    const targetCat = categories.find((c) => c.id === categoryId);
+    if (!targetCat) return;
+
+    const updatedSubcategories = targetCat.subcategories.includes(trimmed)
+      ? targetCat.subcategories
+      : [...targetCat.subcategories, trimmed];
+
     setCategories((prev) =>
-      prev.map((cat) => {
-        if (cat.id === categoryId) {
-          if (cat.subcategories.includes(trimmed)) return cat;
-          return {
-            ...cat,
-            subcategories: [...cat.subcategories, trimmed]
-          };
-        }
-        return cat;
-      })
+      prev.map((cat) => (cat.id === categoryId ? { ...cat, subcategories: updatedSubcategories } : cat))
     );
-    showNotification(`Subcategoria "${trimmed}" adicionada!`, 'success');
+
+    await updateCategoryInSupabase(categoryId, { subcategories: updatedSubcategories });
+    showNotification(`Subcategoria "${trimmed}" salva no Supabase!`, 'success');
   };
 
-  const deleteSubcategory = (categoryId: string, subcategoryName: string) => {
+  const deleteSubcategory = async (categoryId: string, subcategoryName: string): Promise<void> => {
+    const targetCat = categories.find((c) => c.id === categoryId);
+    if (!targetCat) return;
+
+    const updatedSubcategories = targetCat.subcategories.filter((s) => s !== subcategoryName);
+
     setCategories((prev) =>
-      prev.map((cat) => {
-        if (cat.id === categoryId) {
-          return {
-            ...cat,
-            subcategories: cat.subcategories.filter((s) => s !== subcategoryName)
-          };
-        }
-        return cat;
-      })
+      prev.map((cat) => (cat.id === categoryId ? { ...cat, subcategories: updatedSubcategories } : cat))
     );
-    showNotification(`Subcategoria "${subcategoryName}" removida!`, 'info');
+
+    await updateCategoryInSupabase(categoryId, { subcategories: updatedSubcategories });
+    showNotification(`Subcategoria "${subcategoryName}" removida do Supabase!`, 'info');
   };
 
   // -------------------------------------------------------------
-  // Ações de Banners / Carrossel
+  // 6. AÇÕES DE BANNERS NO SUPABASE
   // -------------------------------------------------------------
+  const addBanner = async (bannerData: Omit<BannerSlide, 'id'>): Promise<BannerSlide> => {
+    const { banner, error } = await createBannerInSupabase(bannerData);
+    const finalBanner = banner || { ...bannerData, id: `banner_${Date.now()}` };
 
-  const addBanner = (bannerData: Omit<BannerSlide, 'id'>): BannerSlide => {
-    const newId = `banner-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const newBanner: BannerSlide = {
-      ...bannerData,
-      id: newId,
-    };
-    setBanners((prev) => [...prev, newBanner].sort((a, b) => a.order - b.order));
-    showNotification('Novo banner adicionado com sucesso!', 'success');
-    return newBanner;
+    setBanners((prev) => [...prev.filter((b) => b.id !== finalBanner.id), finalBanner].sort((a, b) => a.order - b.order));
+    
+    if (error) {
+      showNotification(`Aviso ao salvar banner: ${error}`, 'info');
+    } else {
+      showNotification('Banner salvo no Supabase com sucesso!', 'success');
+    }
+
+    return finalBanner;
   };
 
-  const updateBanner = (id: string, updates: Partial<BannerSlide>) => {
+  const updateBanner = async (id: string, updates: Partial<BannerSlide>): Promise<void> => {
     setBanners((prev) =>
       prev
         .map((b) => (b.id === id ? { ...b, ...updates } : b))
         .sort((a, b) => a.order - b.order)
     );
-    showNotification('Banner atualizado!', 'success');
+    const { error } = await updateBannerInSupabase(id, updates);
+    if (!error) {
+      showNotification('Banner atualizado no Supabase!', 'success');
+    }
   };
 
-  const deleteBanner = (id: string) => {
+  const deleteBanner = async (id: string): Promise<void> => {
     setBanners((prev) => prev.filter((b) => b.id !== id));
-    showNotification('Banner excluído!', 'info');
+    await deleteBannerFromSupabase(id);
+    showNotification('Banner excluído do Supabase!', 'info');
   };
 
-  const toggleBannerStatus = (id: string) => {
+  const toggleBannerStatus = async (id: string): Promise<void> => {
+    const target = banners.find((b) => b.id === id);
+    if (!target) return;
+
+    const nextStatus = !target.isActive;
     setBanners((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, isActive: !b.isActive } : b))
+      prev.map((b) => (b.id === id ? { ...b, isActive: nextStatus } : b))
     );
-    showNotification('Status do banner alterado!', 'info');
+
+    await updateBannerInSupabase(id, { isActive: nextStatus });
+    showNotification('Status do banner atualizado no Supabase!', 'info');
   };
 
-  const reorderBanners = (orderedBanners: BannerSlide[]) => {
+  const reorderBanners = async (orderedBanners: BannerSlide[]): Promise<void> => {
     setBanners(orderedBanners);
-    showNotification('Ordem dos banners atualizada!', 'success');
+    await Promise.all(
+      orderedBanners.map((b, idx) => updateBannerInSupabase(b.id, { order: idx }))
+    );
+    showNotification('Ordem dos banners atualizada no Supabase!', 'success');
   };
 
-  // Configurações
-  const updateStoreConfig = (updates: Partial<StoreConfig>) => {
-    setStoreConfig((prev) => ({ ...prev, ...updates }));
-    showNotification('Configurações da loja salvas com sucesso!', 'success');
+  // -------------------------------------------------------------
+  // 7. CONFIGURAÇÕES DA LOJA NO SUPABASE
+  // -------------------------------------------------------------
+  const updateStoreConfig = async (updates: Partial<StoreConfig>): Promise<void> => {
+    const newConfig = { ...storeConfig, ...updates };
+    setStoreConfig(newConfig);
+
+    const { success, error } = await saveStoreConfigInSupabase(newConfig);
+    if (!success) {
+      showNotification(`Aviso ao salvar configurações: ${error}`, 'error');
+    } else {
+      showNotification('Configurações da loja salvas no Supabase!', 'success');
+    }
   };
 
-  // Restaurar dados padrão de fábrica
-  const resetToDefaults = () => {
+  // Resetar
+  const resetToDefaults = async (): Promise<void> => {
     setCategories(INITIAL_CATEGORIES);
     setStoreConfig(INITIAL_STORE_CONFIG);
     setBanners(INITIAL_BANNERS);
-    localStorage.removeItem(LS_CATEGORIES_KEY);
-    localStorage.removeItem(LS_CONFIG_KEY);
-    localStorage.removeItem(LS_BANNERS_KEY);
-    showNotification('Configurações restauradas para o padrão!', 'info');
+    await saveStoreConfigInSupabase(INITIAL_STORE_CONFIG);
+    showNotification('Configurações restauradas para o padrão no Supabase!', 'info');
   };
 
   return (
@@ -409,6 +453,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         storeConfig,
         banners,
         isAuthenticated,
+        isLoading,
         adminNotification,
         showNotification,
         login,
@@ -429,6 +474,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleBannerStatus,
         reorderBanners,
         updateStoreConfig,
+        refreshAllData,
         resetToDefaults,
       }}
     >
@@ -444,3 +490,5 @@ export const useStoreData = (): StoreDataContextType => {
   }
   return context;
 };
+
+export default StoreDataContext;
