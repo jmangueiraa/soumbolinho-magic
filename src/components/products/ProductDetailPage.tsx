@@ -9,6 +9,7 @@ import { Toast } from '../common/Toast';
 import { CartDrawer } from '../cart/CartDrawer';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
+import { getProductMedia } from '../../utils/media';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -19,7 +20,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const { addToCart, openCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [addedAnimation, setAddedAnimation] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
 
   const handleAddToCart = () => {
     addToCart(product, quantity);
@@ -30,18 +31,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     }, 400);
   };
 
-  // Leitura com fallback seguro de todos os possíveis campos de imagem
-  const rawImg = 
-    product.image || 
-    product.image_url || 
-    product.imageUrl || 
-    product.photo_url || 
-    (Array.isArray((product as any).images) && (product as any).images[0]) || 
-    (Array.isArray(product.galleryImages) && product.galleryImages[0]) || 
-    '';
-
-  const imgUrl = typeof rawImg === 'string' ? rawImg.trim() : '';
-  const hasValidImage = Boolean(imgUrl && !imageError);
+  // Identificação inteligente de Foto ou Vídeo
+  const { url: mediaUrl, isVideo } = getProductMedia(product);
+  const hasValidMedia = Boolean(mediaUrl && !mediaError);
 
   // Formata ou gera a descrição completa conforme o padrão da referência
   const renderDescription = () => {
@@ -98,16 +90,29 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
         <div className="space-y-6">
           
-          {/* Foto Principal do Produto em Destaque */}
+          {/* Mídia Principal do Produto em Destaque (Foto ou Vídeo) */}
           <div className="w-full max-w-sm sm:max-w-md mx-auto aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 shadow-sm flex items-center justify-center">
-            {hasValidImage ? (
-              <img
-                src={imgUrl}
-                alt={product.name}
-                onError={() => setImageError(true)}
-                className="w-full h-full object-cover"
-                loading="eager"
-              />
+            {hasValidMedia ? (
+              isVideo ? (
+                <video
+                  src={mediaUrl}
+                  controls
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  onError={() => setMediaError(true)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt={product.name}
+                  onError={() => setMediaError(true)}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              )
             ) : (
               <ProductImagePlaceholder 
                 iconClassName="w-12 h-12 text-slate-300" 

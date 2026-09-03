@@ -10,6 +10,9 @@ export interface Product {
   image?: string;
   image_url?: string;
   photo_url?: string;
+  videoUrl?: string;
+  video_url?: string;
+  mediaType?: 'image' | 'video';
   delivery_url?: string;
   deliveryUrl?: string;
   galleryImages?: string[];
