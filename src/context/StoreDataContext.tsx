@@ -207,19 +207,25 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     showNotification('Sessão administrativa encerrada.', 'info');
   };
 
-  // -------------------------------------------------------------
-  // 4. AÇÕES DE PRODUTOS NO SUPABASE
-  // -------------------------------------------------------------
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
     const { product: createdProduct, error } = await createProductInSupabase(productData);
 
     if (error || !createdProduct) {
-      showNotification(`Erro ao cadastrar no banco: ${error || 'Falha desconhecida'}`, 'error');
+      console.error('[StoreDataContext] ❌ Falha ao cadastrar produto:', error);
+      showNotification(`Erro ao cadastrar: ${error || 'Falha no banco'}`, 'error');
       throw new Error(error || 'Falha ao salvar produto no Supabase.');
     }
 
     setProducts((prev) => [createdProduct, ...prev.filter((p) => p.id !== createdProduct.id)]);
-    showNotification(`Produto "${createdProduct.name}" cadastrado no Supabase!`, 'success');
+    
+    // Atualiza imediatamente a listagem completa
+    fetchAllProducts().then((res) => {
+      if (res.data && res.data.length > 0) {
+        setProducts(res.data);
+      }
+    });
+
+    showNotification(`Produto "${createdProduct.name}" cadastrado com sucesso!`, 'success');
     return createdProduct;
   };
 

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Product } from '../types';
-import { slugify } from '../utils/slug';
+import { slugify, generateUniqueSlug } from '../utils/slug';
 
 /**
  * Mapeia um registro bruto da tabela 'products' do Supabase para o modelo Product
@@ -48,32 +48,23 @@ export function mapSupabaseProduct(item: any): Product {
  */
 export async function fetchAllProducts(): Promise<{ data: Product[]; error: string | null }> {
   try {
-    console.log('[productService] 🌐 Consultando tabela "products" do Supabase: select * order by created_at desc...');
-
+    console.log('[productService] 📦 Buscando catálogo completo de produtos no Supabase...');
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('[productService] Falha na busca com created_at, tentando select geral:', error.message);
-      const fallbackQuery = await supabase.from('products').select('*');
-      
-      if (fallbackQuery.error) {
-        console.error('[productService] ❌ Erro ao buscar produtos do Supabase:', fallbackQuery.error);
-        return { data: [], error: fallbackQuery.error.message };
-      }
-
-      const mapped = (fallbackQuery.data || []).map(mapSupabaseProduct);
-      return { data: mapped, error: null };
+      console.error('[productService] ❌ Erro ao buscar produtos:', error);
+      return { data: [], error: error.message };
     }
 
     const mapped = (data || []).map(mapSupabaseProduct);
-    console.log(`[productService] ✅ ${mapped.length} produtos carregados diretamente do Supabase.`);
+    console.log(`[productService] ✅ ${mapped.length} produtos carregados do Supabase.`);
     return { data: mapped, error: null };
   } catch (err: any) {
-    console.error('[productService] ❌ Exceção ao consultar Supabase:', err);
-    return { data: [], error: err.message || 'Falha na conexão com o Supabase' };
+    console.error('[productService] ❌ Falha na requisição de produtos:', err);
+    return { data: [], error: err.message || 'Erro inesperado ao consultar produtos.' };
   }
 }
 
@@ -88,12 +79,12 @@ export async function createProductInSupabase(
   const numericPrice = Number(productData.price) || 0;
   const finalDeliveryUrl = (productData.delivery_url || productData.deliveryUrl || '').trim();
   const rawName = String(productData.name || '').trim();
-  const generatedSlug = (productData.slug || slugify(rawName) || newId).trim();
+  const finalSlug = (productData.slug || generateUniqueSlug(rawName)).trim();
 
-  const dbPayload = {
+  const dbPayload: any = {
     id: newId,
     name: rawName,
-    slug: generatedSlug,
+    slug: finalSlug,
     category: String(productData.category || '').trim(),
     subcategory: productData.subcategory ? String(productData.subcategory).trim() : null,
     price: numericPrice,
@@ -108,14 +99,27 @@ export async function createProductInSupabase(
     customization_placeholder: productData.customizationPlaceholder || null,
   };
 
-  console.log('[productService] 💾 Inserindo produto no Supabase:', dbPayload);
+  console.log('[productService] 💾 Inserindo produto no Supabase com slug:', finalSlug, dbPayload);
 
   try {
-    const { data, error } = await supabase.from('products').insert([dbPayload]).select();
+    let { data, error } = await supabase.from('products').insert([dbPayload]).select();
+
+    // Se o banco ainda não possuir a coluna 'slug' criada, faz fallback sem quebrar a operação
+    if (error && error.message && (error.message.includes('slug') || error.message.includes('column'))) {
+      console.warn('[productService] ⚠️ Coluna "slug" ausente no Supabase. Tentando gravar sem a coluna slug:', error.message);
+      const { slug, ...payloadWithoutSlug } = dbPayload;
+      const retry = await supabase.from('products').insert([payloadWithoutSlug]).select();
+      if (!retry.error && retry.data) {
+        data = retry.data;
+        error = null;
+      } else if (retry.error) {
+        error = retry.error;
+      }
+    }
 
     if (error) {
-      console.error('[productService] ❌ Erro ao inserir produto no Supabase:', error);
-      return { product: null, error: error.message };
+      console.error('[productService] ❌ Erro detalhado ao inserir produto no Supabase:', error);
+      return { product: null, error: error.message || JSON.stringify(error) };
     }
 
     const createdProduct = data && data[0] ? mapSupabaseProduct(data[0]) : mapSupabaseProduct(dbPayload);

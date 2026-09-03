@@ -5,7 +5,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
-import { slugify } from '../../utils/slug';
+import { slugify, generateUniqueSlug } from '../../utils/slug';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   productToEdit,
   onClose,
 }) => {
-  const { categories, addProduct, updateProduct } = useStoreData();
+  const { categories, addProduct, updateProduct, showNotification } = useStoreData();
   const product = productProp || productToEdit || null;
 
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
@@ -42,6 +42,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string }>({});
 
   useEffect(() => {
@@ -166,6 +167,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     e.preventDefault();
     if (!validate()) return;
 
+    setSubmitError(null);
     try {
       setIsSubmitting(true);
       let finalMediaUrl = (mediaType === 'video' ? formData.video_url || formData.image : formData.image).trim();
@@ -174,12 +176,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       if (selectedFile && (!finalMediaUrl || finalMediaUrl.startsWith('blob:'))) {
         console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload para o Supabase Storage...');
         setIsUploading(true);
-        const { url } = await uploadProductImage(selectedFile);
+        const { url, error: uploadErr } = await uploadProductImage(selectedFile);
         setIsUploading(false);
 
         if (url) {
           finalMediaUrl = url;
           console.log('[ProductFormModal] ✅ Mídia salva no bucket "products":', url);
+        } else if (uploadErr) {
+          console.warn('[ProductFormModal] Aviso de upload:', uploadErr);
         }
       }
 
@@ -188,7 +192,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const numericPrice = Number(parseFloat(rawPrice)) || 0;
 
       const cleanName = String(formData.name).trim();
-      const generatedSlug = slugify(cleanName);
+      const generatedSlug = generateUniqueSlug(cleanName);
 
       const payload: any = {
         name: cleanName,
@@ -211,7 +215,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         isCustomizable: true,
       };
 
-      console.log('Salvando produto no catálogo:', payload);
+      console.log('[ProductFormModal] 🚀 Enviando produto para o Supabase:', payload);
 
       if (product) {
         await updateProduct(product.id, payload);
@@ -219,10 +223,29 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         await addProduct(payload);
       }
 
+      // Limpa os campos após cadastro bem-sucedido
+      setFormData({
+        name: '',
+        category: '',
+        subcategory: '',
+        price: '',
+        unitSuffix: '/Un',
+        description: '',
+        delivery_url: '',
+        image: '',
+        video_url: '',
+        active: true,
+      });
+      setSelectedFile(null);
+      setMediaPreview('');
+      setSubmitError(null);
       setIsSubmitting(false);
       onClose();
-    } catch (error) {
-      console.error('Erro ao salvar produto:', error);
+    } catch (error: any) {
+      console.error('[ProductFormModal] ❌ Erro detalhado ao salvar produto no Supabase:', error);
+      const msg = error?.message || (typeof error === 'string' ? error : 'Falha ao salvar produto no Supabase.');
+      setSubmitError(msg);
+      showNotification(`Erro: ${msg}`, 'error');
       setIsSubmitting(false);
     }
   };
@@ -258,6 +281,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         {/* Modal Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-4">
+          
+          {/* Alerta Visual de Erro do Supabase */}
+          {submitError && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-3 shadow-xs">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="font-bold text-rose-900">Erro ao salvar no Supabase:</p>
+                <p className="font-mono text-[11px] text-rose-700 break-all">{submitError}</p>
+                <p className="text-[10px] text-rose-600 pt-0.5">
+                  Execute o script SQL no painel do Supabase se a coluna 'slug' for requerida.
+                </p>
+              </div>
+            </div>
+          )}
           
           {/* Nome do Produto */}
           <div>
@@ -551,15 +588,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
 
           {/* Submit Actions */}
-          <div className="pt-6 border-t border-slate-200 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isUploading || isSubmitting}
-              className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
+          <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {submitError ? (
+              <p className="text-[11px] font-semibold text-rose-600 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="truncate max-w-xs">{submitError}</span>
+              </p>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isUploading || isSubmitting}
+                className="px-5 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
 
             <button
               type="submit"
