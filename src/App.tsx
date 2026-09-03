@@ -20,9 +20,23 @@ import { AdminLogin } from './components/admin/AdminLogin';
 import { CheckoutPage } from './components/checkout/CheckoutPage';
 import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckoutPage';
 import { StoreHighlights } from './components/home/StoreHighlights';
+import { ProductDetailPage } from './components/products/ProductDetailPage';
 
 const StoreFront: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Se um produto estiver selecionado, exibe a tela de detalhes completa
+  if (selectedProduct) {
+    return (
+      <ProductDetailPage
+        product={selectedProduct}
+        onBack={() => {
+          setSelectedProduct(null);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-white text-slate-900">
@@ -47,10 +61,6 @@ const StoreFront: React.FC = () => {
       </main>
 
       {/* 4. Modals, Drawers & WhatsApp Overlays */}
-      <ProductDetailModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-      />
       <CartDrawer />
       <CheckoutModal />
       <PaymentFeedbackModal />

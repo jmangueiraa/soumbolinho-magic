@@ -1,35 +1,38 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles } from 'lucide-react';
 import { Product } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
+import { Header } from '../layout/Header';
+import { Footer } from '../layout/Footer';
+import { Toast } from '../common/Toast';
+import { CartDrawer } from '../cart/CartDrawer';
+import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 
-interface ProductDetailModalProps {
-  product: Product | null;
-  onClose: () => void;
+interface ProductDetailPageProps {
+  product: Product;
+  onBack: () => void;
 }
 
-export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose }) => {
+export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, onBack }) => {
   const { addToCart, openCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [addedAnimation, setAddedAnimation] = useState(false);
-
-  if (!product) return null;
 
   const handleAddToCart = () => {
     addToCart(product, quantity);
     setAddedAnimation(true);
     setTimeout(() => {
       setAddedAnimation(false);
-      onClose();
       openCart();
-    }, 350);
+    }, 400);
   };
 
+  // Formata ou gera a descrição completa conforme o padrão da referência
   const renderDescription = () => {
     if (product.description && product.description.trim().length > 20) {
       return (
-        <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line">
+        <div className="space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line">
           {product.description}
         </div>
       );
@@ -43,9 +46,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
 
         <div className="space-y-1 pt-1">
           <p className="font-bold text-slate-900">🎁 VOCÊ VAI RECEBER:</p>
-          <p>✅ 100 Modelos de {product.name}</p>
-          <p>✅ Temas infantis que estão em alta</p>
-          <p>✅ 100% editável no canva</p>
+          <p>✅ Modelos de {product.name}</p>
+          <p>✅ Temas infantis e comemorativos em alta</p>
+          <p>✅ 100% editável no Canva</p>
           <p>✅ Ideal para festas, escolas, brindes e lembrancinhas</p>
           <p>✅ Perfeito para quem está começando na papelaria personalizada</p>
         </div>
@@ -62,33 +65,30 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
-        onClick={onClose}
-      />
+    <div className="min-h-screen w-full flex flex-col bg-white text-slate-900">
+      {/* 1. Header Oficial da Loja */}
+      <Header />
 
-      {/* Modal Card */}
-      <div className="relative bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden z-10 p-5 sm:p-7 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+      {/* 2. Conteúdo da Página do Produto */}
+      <main className="flex-1 max-w-xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 select-none">
         
-        {/* Close Button */}
+        {/* Botão Voltar Discreto */}
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 text-slate-400 hover:text-black rounded-full hover:bg-slate-100 transition-all cursor-pointer"
-          title="Fechar"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-black transition-colors mb-5 cursor-pointer"
         >
-          <X className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4" />
+          <span>Voltar para todos os produtos</span>
         </button>
 
-        <div className="space-y-5 pt-1">
+        <div className="space-y-6">
           
           {/* Título com Emojis */}
-          <h2 className="font-sans font-bold text-sm sm:text-base text-slate-900 uppercase tracking-tight leading-snug pr-8">
+          <h1 className="font-sans font-bold text-base sm:text-lg text-slate-900 uppercase tracking-tight leading-snug">
             📚 {product.name} ✨
-          </h2>
+          </h1>
 
-          {/* Bloco de Descrição Formatada */}
+          {/* Bloco de Descrição com Checklist */}
           {renderDescription()}
 
           {/* Preço em Destaque Centralizado */}
@@ -98,10 +98,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             </span>
           </div>
 
-          {/* Formulário: Quantidade Quadrada + Botão Preto "Adicionar Ao Carrinho" */}
-          <div className="flex items-center gap-2.5 pt-1">
-            {/* Input de Quantidade */}
-            <div className="w-16 shrink-0">
+          {/* Formulário: Quantidade + Botão Preto "Adicionar Ao Carrinho" */}
+          <div className="flex items-center gap-3 pt-1">
+            {/* Input de Quantidade Quadrado */}
+            <div className="w-16 sm:w-20 shrink-0">
               <input
                 type="number"
                 min="1"
@@ -116,7 +116,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             <button
               type="button"
               onClick={handleAddToCart}
-              className={`flex-1 h-12 bg-black hover:bg-zinc-800 text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider rounded-none flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-98 ${
+              className={`flex-1 h-12 bg-black hover:bg-zinc-800 text-white font-bold text-xs sm:text-sm uppercase tracking-wider rounded-none flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-98 ${
                 addedAnimation ? 'bg-emerald-600' : ''
               }`}
             >
@@ -125,15 +125,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
           </div>
 
           {/* Banner Verde "Seu produto com Download imediato!" */}
-          <div className="w-full py-3.5 px-4 bg-[#65bc45] text-white font-bold text-center text-xs sm:text-sm rounded-none shadow-xs mt-3 tracking-tight">
+          <div className="w-full py-3.5 sm:py-4 px-4 bg-[#65bc45] text-white font-bold text-center text-sm sm:text-base rounded-none shadow-xs mt-4 tracking-tight">
             Seu produto com Download imediato!
           </div>
 
         </div>
 
-      </div>
+      </main>
+
+      {/* 3. Gaveta do Carrinho, Toast e WhatsApp */}
+      <CartDrawer />
+      <Toast />
+      <FloatingWhatsApp />
+
+      {/* 4. Footer */}
+      <Footer />
     </div>
   );
 };
 
-export default ProductDetailModal;
+export default ProductDetailPage;
