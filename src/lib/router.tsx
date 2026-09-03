@@ -1,12 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
+export const RESERVED_ROUTES = [
+  'admin',
+  'api',
+  'checkout',
+  'cart',
+  'carrinho',
+  'finalizar-compra',
+  'pagamento-cartao',
+  'cartao',
+  'login',
+  'produtos',
+  'produto'
+];
+
 interface RouterContextType {
   pathname: string;
   hash: string;
   search: string;
   navigate: (to: string | number) => void;
-  params: Record<string, string>;
-  setParams: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 const RouterContext = createContext<RouterContextType>({
@@ -14,21 +26,16 @@ const RouterContext = createContext<RouterContextType>({
   hash: '',
   search: '',
   navigate: () => {},
-  params: {},
-  setParams: () => {},
 });
 
 export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const getRouteInfo = () => {
-    return {
-      pathname: typeof window !== 'undefined' ? window.location.pathname || '/' : '/',
-      hash: typeof window !== 'undefined' ? window.location.hash || '' : '',
-      search: typeof window !== 'undefined' ? window.location.search || '' : '',
-    };
-  };
+  const getRouteInfo = () => ({
+    pathname: typeof window !== 'undefined' ? window.location.pathname || '/' : '/',
+    hash: typeof window !== 'undefined' ? window.location.hash || '' : '',
+    search: typeof window !== 'undefined' ? window.location.search || '' : '',
+  });
 
   const [routeInfo, setRouteInfo] = useState(getRouteInfo);
-  const [params, setParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -67,8 +74,6 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         ...routeInfo,
         navigate,
-        params,
-        setParams,
       }}
     >
       {children}
@@ -76,58 +81,47 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-const SYSTEM_ROUTES = [
-  'admin',
-  'checkout',
-  'finalizar-compra',
-  'pagamento-cartao',
-  'cartao',
-  'login',
-  'api'
-];
-
+/**
+ * Hook useParams seguro e determinístico:
+ * Extrai os parâmetros diretamente da URL atual sem disparar setState durante a renderização.
+ */
 export function useParams<T extends Record<string, string | undefined> = Record<string, string | undefined>>(): T {
-  const { params } = useContext(RouterContext);
-  
-  // Extra safety: detect parameters directly from window URL if accessed directly or via external link
-  const directParams = useMemo(() => {
-    if (typeof window === 'undefined') return params;
+  const { pathname, hash } = useContext(RouterContext);
 
-    const path = window.location.pathname;
-    const hash = window.location.hash;
-    
-    // 1. Check path /produto/:id
+  return useMemo(() => {
+    const path = (pathname || (typeof window !== 'undefined' ? window.location.pathname : '') || '').trim();
+    const h = (hash || (typeof window !== 'undefined' ? window.location.hash : '') || '').trim();
+
+    // 1. Rota /produto/:id
     const pathMatch = path.match(/\/produto\/([^/?#]+)/i);
     if (pathMatch && pathMatch[1]) {
       const decoded = decodeURIComponent(pathMatch[1]);
-      return { id: decoded, slug: decoded, ...params };
+      return { id: decoded, slug: decoded } as unknown as T;
     }
 
-    // 2. Check hash #/produto/:id
-    const hashMatch = hash.match(/produto\/([^/?#]+)/i);
+    // 2. Rota hash #/produto/:id
+    const hashMatch = h.match(/produto\/([^/?#]+)/i);
     if (hashMatch && hashMatch[1]) {
       const decoded = decodeURIComponent(hashMatch[1]);
-      return { id: decoded, slug: decoded, ...params };
+      return { id: decoded, slug: decoded } as unknown as T;
     }
 
-    // 3. Check root /:slug
+    // 3. Rota amigável na raiz /:slug
     const cleanPath = path.replace(/^\/+|\/+$/g, '').toLowerCase();
-    if (cleanPath && !cleanPath.includes('/') && !SYSTEM_ROUTES.includes(cleanPath)) {
+    if (cleanPath && !cleanPath.includes('/') && !RESERVED_ROUTES.includes(cleanPath)) {
       const decoded = decodeURIComponent(cleanPath);
-      return { slug: decoded, id: decoded, ...params };
+      return { slug: decoded, id: decoded } as unknown as T;
     }
 
-    // 4. Check root hash #/:slug
-    const cleanHash = hash.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
-    if (cleanHash && !cleanHash.includes('/') && !SYSTEM_ROUTES.includes(cleanHash)) {
+    // 4. Rota amigável hash #/:slug
+    const cleanHash = h.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
+    if (cleanHash && !cleanHash.includes('/') && !RESERVED_ROUTES.includes(cleanHash)) {
       const decoded = decodeURIComponent(cleanHash);
-      return { slug: decoded, id: decoded, ...params };
+      return { slug: decoded, id: decoded } as unknown as T;
     }
 
-    return params;
-  }, [params]);
-
-  return directParams as unknown as T;
+    return {} as unknown as T;
+  }, [pathname, hash]);
 }
 
 export function useNavigate() {
@@ -150,7 +144,7 @@ export const Route: React.FC<RouteProps> = ({ element }) => {
 };
 
 export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { pathname, hash, setParams } = useContext(RouterContext);
+  const { pathname, hash } = useContext(RouterContext);
 
   const matchedElement = useMemo(() => {
     const currentPath = pathname.toLowerCase();
@@ -163,67 +157,61 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       const { path, element } = child.props;
       const targetPath = path.toLowerCase();
 
-      // Parameterized route: e.g. /produto/:id
-      if (targetPath.includes(':')) {
-        const paramNames: string[] = [];
-        const regexStr = targetPath.replace(/:([a-zA-Z0-9_]+)/g, (_, paramName) => {
-          paramNames.push(paramName);
-          return '([^/?#]+)';
-        });
-        const regex = new RegExp(`^${regexStr}$`, 'i');
-
-        // Test against pathname
-        const pathMatch = currentPath.match(regex);
-        if (pathMatch) {
-          const extractedParams: Record<string, string> = {};
-          paramNames.forEach((name, index) => {
-            extractedParams[name] = decodeURIComponent(pathMatch[index + 1]);
-          });
-          if (targetPath === '/:slug' && SYSTEM_ROUTES.includes(extractedParams['slug']?.toLowerCase())) {
-            continue;
-          }
-          setParams(extractedParams);
+      // 1. Rota raiz exata
+      if (targetPath === '/') {
+        if (
+          (currentPath === '/' || currentPath === '') &&
+          (!currentHash || currentHash === '#' || currentHash === '#/')
+        ) {
           return element;
         }
+        continue;
+      }
 
-        // Test against hash (e.g. #/produto/123 or #produto/123)
-        const cleanHash = currentHash.replace(/^#\/?/, '/');
-        const hashMatch = cleanHash.match(regex);
-        if (hashMatch) {
-          const extractedParams: Record<string, string> = {};
-          paramNames.forEach((name, index) => {
-            extractedParams[name] = decodeURIComponent(hashMatch[index + 1]);
-          });
-          if (targetPath === '/:slug' && SYSTEM_ROUTES.includes(extractedParams['slug']?.toLowerCase())) {
-            continue;
-          }
-          setParams(extractedParams);
-          return element;
-        }
-      } else {
-        // Exact or root match
-        if (targetPath === '/' && (currentPath === '/' || currentPath === '') && (!currentHash || currentHash === '#' || currentHash === '#/')) {
-          return element;
-        }
-
-        if (targetPath !== '/' && currentPath === targetPath) {
+      // 2. Rota estática exata (ex: /admin, /checkout, /cart)
+      if (!targetPath.includes(':')) {
+        if (currentPath === targetPath) {
           return element;
         }
 
         const cleanHash = currentHash.replace(/^#\/?/, '/');
-        if (cleanHash === targetPath || (targetPath !== '/' && cleanHash.startsWith(targetPath))) {
+        if (cleanHash === targetPath || cleanHash.startsWith(`${targetPath}/`)) {
           return element;
         }
+        continue;
+      }
+
+      // 3. Rota dinâmica de produto antigo: /produto/:id
+      if (targetPath.startsWith('/produto/:')) {
+        if (currentPath.startsWith('/produto/') || currentHash.includes('/produto/')) {
+          return element;
+        }
+        continue;
+      }
+
+      // 4. Rota dinâmica amigável na raiz: /:slug
+      if (targetPath === '/:slug') {
+        const pathSegment = currentPath.replace(/^\/+|\/+$/g, '');
+        const hashSegment = currentHash.replace(/^#\/?/, '').replace(/\/+$/, '');
+
+        // Ignora palavras reservadas do sistema
+        if (pathSegment && !pathSegment.includes('/') && !RESERVED_ROUTES.includes(pathSegment)) {
+          return element;
+        }
+        if (hashSegment && !hashSegment.includes('/') && !RESERVED_ROUTES.includes(hashSegment)) {
+          return element;
+        }
+        continue;
       }
     }
 
-    // Default fallback to first element if at root
+    // Se nenhuma rota bater e estiver na raiz, exibe a primeira rota
     if (routeList.length > 0 && (currentPath === '/' || currentPath === '')) {
       return routeList[0].props.element;
     }
 
     return null;
-  }, [pathname, hash, children, setParams]);
+  }, [pathname, hash, children]);
 
   return <>{matchedElement}</>;
 };

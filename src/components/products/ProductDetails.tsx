@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check, ShoppingBag, Share2, Copy, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, ShoppingBag, Copy, AlertCircle, Loader2 } from 'lucide-react';
 import { Product } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
-import { useParams, useNavigate } from '../../lib/router';
-import { fetchProductByIdOrSlug } from '../../services/productService';
+import { useParams, useNavigate, RESERVED_ROUTES } from '../../lib/router';
+import { supabase } from '../../lib/supabase';
+import { mapSupabaseProduct } from '../../services/productService';
 import { copyProductLink, getProductShareUrl } from '../../utils/share';
 import { getProductMedia } from '../../utils/media';
-import { slugify } from '../../utils/slug';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -21,82 +21,90 @@ interface ProductDetailsProps {
   onBack?: () => void;
 }
 
-const SYSTEM_ROUTES = ['admin', 'checkout', 'finalizar-compra', 'pagamento-cartao', 'cartao', 'login', 'api'];
-
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propId, onBack: propOnBack }) => {
   const { slug: routeSlug, id: routeId } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
-  const { products, showNotification } = useStoreData();
+  const { showNotification } = useStoreData();
   const { addToCart, openCart } = useCart();
 
-  const targetIdentifier = (propId || routeSlug || routeId || '').trim();
-  const isSystemRoute = SYSTEM_ROUTES.includes(targetIdentifier.toLowerCase());
+  const slug = (propId || routeSlug || routeId || '').trim();
 
-  const [product, setProduct] = useState<Product | null>(() => {
-    if (!targetIdentifier || isSystemRoute) return null;
-    return (
-      products.find(
-        (p) =>
-          p.slug === targetIdentifier ||
-          p.id === targetIdentifier ||
-          slugify(p.name) === targetIdentifier ||
-          p.name.toLowerCase().trim() === targetIdentifier.toLowerCase().trim()
-      ) || null
-    );
-  });
-
-  const [isLoading, setIsLoading] = useState<boolean>(!product && !isSystemRoute);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [quantity, setQuantity] = useState<number>(1);
   const [mediaError, setMediaError] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [isAdding, setIsAdding] = useState<boolean>(false);
 
-  // Consulta o produto no Supabase pelo slug ou ID
+  // Consulta segura com controle de montagem e dependência estrita em [slug]
   useEffect(() => {
-    if (!targetIdentifier || isSystemRoute) {
-      setIsLoading(false);
-      return;
-    }
+    let isMounted = true;
 
-    // 1. Tenta encontrar nos produtos já carregados
-    const inMemory = products.find((p) => {
-      const pSlug = p.slug || slugify(p.name);
-      return (
-        pSlug === targetIdentifier ||
-        p.id === targetIdentifier ||
-        pSlug === slugify(targetIdentifier) ||
-        p.name.toLowerCase().trim() === targetIdentifier.toLowerCase().trim()
-      );
-    });
-
-    if (inMemory) {
-      setProduct(inMemory);
-      setIsLoading(false);
-    }
-
-    // 2. Consulta diretamente no Supabase por slug / ID
-    async function loadProductFromDb() {
-      if (!inMemory) setIsLoading(true);
-      const { data, error } = await fetchProductByIdOrSlug(targetIdentifier);
-
-      if (data) {
-        setProduct(data);
-      } else if (!inMemory) {
-        console.warn(`[ProductDetails] Produto "${targetIdentifier}" não localizado:`, error);
+    async function loadProduct() {
+      if (!slug || RESERVED_ROUTES.includes(slug.toLowerCase())) {
+        if (isMounted) {
+          setIsLoading(false);
+          setProduct(null);
+        }
+        return;
       }
-      setIsLoading(false);
+
+      setIsLoading(true);
+      try {
+        // 1. Busca no Supabase usando .eq('slug', slug)
+        const { data: bySlug, error: slugErr } = await supabase
+          .from('products')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        if (isMounted) {
+          if (bySlug) {
+            setProduct(mapSupabaseProduct(bySlug));
+            setIsLoading(false);
+            return;
+          }
+
+          // 2. Fallback por ID (caso venha de link antigo /produto/prod_id)
+          const { data: byId } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', slug)
+            .maybeSingle();
+
+          if (isMounted) {
+            if (byId) {
+              setProduct(mapSupabaseProduct(byId));
+            } else {
+              // Produto não localizado; encerra carregamento sem disparar loop de navegação
+              setProduct(null);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ProductDetails] Erro ao carregar produto:', err);
+        if (isMounted) setProduct(null);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     }
 
-    loadProductFromDb();
-  }, [targetIdentifier, products, isSystemRoute]);
+    loadProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
 
   const handleBack = () => {
     if (propOnBack) {
       propOnBack();
       return;
     }
-    navigate('/');
     window.location.hash = '';
+    navigate('/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -106,7 +114,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
     const success = await copyProductLink(product);
     if (success) {
       setCopied(true);
-      showNotification('Link amigável do produto copiado!', 'success');
+      showNotification('Link do produto copiado!', 'success');
       setTimeout(() => setCopied(false), 2500);
     }
   };
@@ -115,7 +123,6 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
   const handleBuyNowPix = () => {
     if (!product) return;
     addToCart(product, quantity);
-    // Redireciona imediatamente para o checkout Pix
     window.location.hash = '#/checkout';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -167,12 +174,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
     );
   };
 
-  // Estado de Carregamento
+  // 1. Estado de Carregamento
   if (isLoading) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-white text-slate-900">
         <Header />
-        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[350px]">
           <Loader2 className="w-10 h-10 animate-spin text-black mb-3" />
           <p className="text-sm font-semibold text-slate-600">Carregando detalhes do produto...</p>
         </main>
@@ -181,20 +188,21 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
     );
   }
 
-  // Estado Não Encontrado
+  // 2. Estado Não Encontrado (Sem redirecionamento automático para evitar loop)
   if (!product) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-white text-slate-900">
         <Header />
-        <main className="flex-1 max-w-lg mx-auto flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <main className="flex-1 max-w-lg mx-auto flex flex-col items-center justify-center p-8 text-center space-y-4 min-h-[350px]">
           <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
             <AlertCircle className="w-8 h-8" />
           </div>
           <h2 className="text-xl font-bold text-slate-900">Produto não encontrado</h2>
           <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
-            O item que você procura pode ter sido alterado ou não está mais disponível no catálogo.
+            O produto que você procura não está mais disponível ou o link pode ter sido alterado.
           </p>
           <button
+            type="button"
             onClick={handleBack}
             className="px-6 py-2.5 bg-black hover:bg-zinc-800 text-white text-xs font-bold rounded-lg shadow-md transition-all cursor-pointer"
           >
@@ -212,15 +220,16 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-white text-slate-900">
-      {/* 1. Header Oficial da Loja */}
+      {/* Header Oficial */}
       <Header />
 
-      {/* 2. Conteúdo da Página do Produto */}
+      {/* Conteúdo da Página do Produto */}
       <main className="flex-1 max-w-xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 select-none">
         
         {/* Barra Superior: Voltar + Botão Copiar Link */}
         <div className="flex items-center justify-between gap-3 mb-5">
           <button
+            type="button"
             onClick={handleBack}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-black transition-colors cursor-pointer"
           >
@@ -254,7 +263,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
 
         <div className="space-y-6">
           
-          {/* Mídia Principal do Produto em Destaque (Foto ou Vídeo) */}
+          {/* Mídia Principal (Foto ou Vídeo) */}
           <div className="w-full max-w-sm sm:max-w-md mx-auto aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-200 shadow-sm flex items-center justify-center relative">
             {hasValidMedia ? (
               isVideo ? (
@@ -354,12 +363,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
 
       </main>
 
-      {/* 3. Gaveta do Carrinho, Toast e WhatsApp */}
+      {/* Modals e Overlays */}
       <CartDrawer />
       <Toast />
       <FloatingWhatsApp />
 
-      {/* 4. Footer */}
+      {/* Footer */}
       <Footer />
     </div>
   );
