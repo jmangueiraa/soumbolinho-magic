@@ -210,3 +210,44 @@ export async function updateProductPriceInSupabase(
 ): Promise<{ success: boolean; error: string | null }> {
   return updateProductInSupabase(id, { price: newPrice });
 }
+
+/**
+ * 7. Consulta um único produto diretamente no Supabase por ID ou slug/nome
+ */
+export async function fetchProductByIdOrSlug(
+  identifier: string
+): Promise<{ data: Product | null; error: string | null }> {
+  try {
+    const cleanId = decodeURIComponent(identifier).trim();
+    console.log('[productService] 🔍 Consultando produto no Supabase:', cleanId);
+
+    // 1. Tenta buscar pelo ID exato
+    const { data: byId, error: errId } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', cleanId)
+      .maybeSingle();
+
+    if (byId) {
+      return { data: mapSupabaseProduct(byId), error: null };
+    }
+
+    // 2. Tenta buscar por correspondência no nome / slug
+    const normalizedQuery = cleanId.replace(/[-_]+/g, ' ');
+    const { data: byName, error: errName } = await supabase
+      .from('products')
+      .select('*')
+      .ilike('name', `%${normalizedQuery}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (byName) {
+      return { data: mapSupabaseProduct(byName), error: null };
+    }
+
+    return { data: null, error: errId?.message || errName?.message || 'Produto não encontrado.' };
+  } catch (err: any) {
+    console.error('[productService] ❌ Exceção ao consultar produto individual:', err);
+    return { data: null, error: err.message || 'Erro ao conectar ao banco de dados.' };
+  }
+}

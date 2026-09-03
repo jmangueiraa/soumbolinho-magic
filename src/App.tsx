@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
-import { Product } from './types';
+import React from 'react';
 import { StoreDataProvider, useStoreData } from './context/StoreDataContext';
 import { CartProvider } from './context/CartContext';
 import { FilterProvider } from './context/FilterContext';
+import { BrowserRouter, Routes, Route, useNavigate } from './lib/router';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { FloatingWhatsApp } from './components/layout/FloatingWhatsApp';
 import { SidebarFilters } from './components/filters/SidebarFilters';
 import { ProductGrid } from './components/products/ProductGrid';
-import { ProductDetailModal } from './components/products/ProductDetailModal';
+import { ProductDetails } from './components/products/ProductDetails';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CheckoutModal } from './components/cart/CheckoutModal';
 import { PaymentFeedbackModal } from './components/cart/PaymentFeedbackModal';
@@ -20,23 +19,9 @@ import { AdminLogin } from './components/admin/AdminLogin';
 import { CheckoutPage } from './components/checkout/CheckoutPage';
 import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckoutPage';
 import { StoreHighlights } from './components/home/StoreHighlights';
-import { ProductDetailPage } from './components/products/ProductDetailPage';
 
 const StoreFront: React.FC = () => {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-
-  // Se um produto estiver selecionado, exibe a tela de detalhes completa
-  if (selectedProduct) {
-    return (
-      <ProductDetailPage
-        product={selectedProduct}
-        onBack={() => {
-          setSelectedProduct(null);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
-    );
-  }
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-white text-slate-900">
@@ -56,18 +41,18 @@ const StoreFront: React.FC = () => {
           <SidebarFilters />
 
           {/* Right Product Grid */}
-          <ProductGrid onSelectProduct={(prod) => setSelectedProduct(prod)} />
+          <ProductGrid onSelectProduct={(prod) => navigate(`/produto/${prod.id}`)} />
         </div>
       </main>
 
-      {/* 4. Modals, Drawers & WhatsApp Overlays */}
+      {/* 5. Modals, Drawers & WhatsApp Overlays */}
       <CartDrawer />
       <CheckoutModal />
       <PaymentFeedbackModal />
       <Toast />
       <FloatingWhatsApp />
 
-      {/* 5. Footer */}
+      {/* 6. Footer */}
       <Footer />
     </div>
   );
@@ -75,59 +60,42 @@ const StoreFront: React.FC = () => {
 
 const NavigationRouter: React.FC = () => {
   const { isAuthenticated } = useStoreData();
-  const [currentRoute, setCurrentRoute] = useState<'store' | 'admin' | 'checkout' | 'checkout-cartao'>(() => {
-    const hash = window.location.hash.toLowerCase();
-    const path = window.location.pathname.toLowerCase();
-    if (hash.includes('/admin') || path.includes('/admin')) return 'admin';
-    if (hash.includes('/checkout/cartao') || hash.includes('/pagamento-cartao') || hash.includes('cartao')) return 'checkout-cartao';
-    if (hash.includes('/finalizar-compra') || hash.includes('/checkout') || path.includes('/finalizar-compra') || path.includes('/checkout')) return 'checkout';
-    return 'store';
-  });
-
-  useEffect(() => {
-    const handleLocationChange = () => {
-      const hash = window.location.hash.toLowerCase();
-      const path = window.location.pathname.toLowerCase();
-      if (hash.includes('/admin') || path.includes('/admin')) {
-        setCurrentRoute('admin');
-      } else if (hash.includes('/checkout/cartao') || hash.includes('/pagamento-cartao') || hash.includes('cartao')) {
-        setCurrentRoute('checkout-cartao');
-      } else if (hash.includes('/finalizar-compra') || hash.includes('/checkout') || path.includes('/finalizar-compra') || path.includes('/checkout')) {
-        setCurrentRoute('checkout');
-      } else {
-        setCurrentRoute('store');
-      }
-    };
-
-    window.addEventListener('hashchange', handleLocationChange);
-    window.addEventListener('popstate', handleLocationChange);
-    return () => {
-      window.removeEventListener('hashchange', handleLocationChange);
-      window.removeEventListener('popstate', handleLocationChange);
-    };
-  }, []);
+  const navigate = useNavigate();
 
   const handleBackToStore = () => {
     window.location.hash = '';
-    setCurrentRoute('store');
+    navigate('/');
   };
 
-  if (currentRoute === 'admin') {
-    if (!isAuthenticated) {
-      return <AdminLogin onBackToStore={handleBackToStore} />;
-    }
-    return <AdminLayout onBackToStore={handleBackToStore} />;
-  }
+  return (
+    <Routes>
+      {/* Rota Direta de Detalhes do Produto solicitada: <Route path="/produto/:id" element={<ProductDetails />} /> */}
+      <Route path="/produto/:id" element={<ProductDetails />} />
 
-  if (currentRoute === 'checkout-cartao') {
-    return <CreditCardCheckoutPage />;
-  }
+      {/* Rota de Checkout Pix */}
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/finalizar-compra" element={<CheckoutPage />} />
 
-  if (currentRoute === 'checkout') {
-    return <CheckoutPage />;
-  }
+      {/* Rota de Checkout Cartão */}
+      <Route path="/checkout/cartao" element={<CreditCardCheckoutPage />} />
+      <Route path="/pagamento-cartao" element={<CreditCardCheckoutPage />} />
 
-  return <StoreFront />;
+      {/* Rota Administrativa */}
+      <Route
+        path="/admin"
+        element={
+          isAuthenticated ? (
+            <AdminLayout onBackToStore={handleBackToStore} />
+          ) : (
+            <AdminLogin onBackToStore={handleBackToStore} />
+          )
+        }
+      />
+
+      {/* Rota Raiz da Loja */}
+      <Route path="/" element={<StoreFront />} />
+    </Routes>
+  );
 };
 
 export const App: React.FC = () => {
@@ -135,7 +103,9 @@ export const App: React.FC = () => {
     <StoreDataProvider>
       <CartProvider>
         <FilterProvider>
-          <NavigationRouter />
+          <BrowserRouter>
+            <NavigationRouter />
+          </BrowserRouter>
         </FilterProvider>
       </CartProvider>
     </StoreDataProvider>

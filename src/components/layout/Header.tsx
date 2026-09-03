@@ -43,9 +43,15 @@ export const Header: React.FC = () => {
 
           {/* CENTRO / LOGO: Logo Festivo Soumbolinho sem Fundo */}
           <a 
-            href="#" 
-            className="flex items-center group shrink min-w-0" 
-            onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            href="/" 
+            className="flex items-center group shrink min-w-0 cursor-pointer" 
+            onClick={(e) => { 
+              e.preventDefault(); 
+              window.location.hash = ''; 
+              window.history.pushState(null, '', '/'); 
+              window.dispatchEvent(new PopStateEvent('popstate'));
+              window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            }}
           >
             <SoumbolinhoLogo variant="light" size="md" />
           </a>

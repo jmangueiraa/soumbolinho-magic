@@ -11,7 +11,9 @@ import {
   Package, 
   Check, 
   X,
-  Filter
+  Filter,
+  Link2,
+  ExternalLink
 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -19,9 +21,11 @@ import { formatCurrency } from '../../utils/formatters';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ProductFormModal } from './ProductFormModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { copyProductLink, getProductShareUrl } from '../../utils/share';
 
 export const ProductsManager: React.FC = () => {
-  const { products, categories, deleteProduct, toggleProductStock, quickUpdatePrice } = useStoreData();
+  const { products, categories, deleteProduct, toggleProductStock, quickUpdatePrice, showNotification } = useStoreData();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -257,16 +261,41 @@ export const ProductsManager: React.FC = () => {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* Botão Copiar Link do Produto */}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const success = await copyProductLink(product.id);
+                            if (success) {
+                              setCopiedId(product.id);
+                              showNotification(`Link do produto "${product.name}" copiado!`, 'success');
+                              setTimeout(() => setCopiedId(null), 2000);
+                            }
+                          }}
+                          className={`p-2 rounded-xl transition-all cursor-pointer ${
+                            copiedId === product.id
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'text-slate-500 hover:text-black hover:bg-slate-100'
+                          }`}
+                          title={copiedId === product.id ? 'Link copiado!' : `Copiar link direto: ${getProductShareUrl(product.id)}`}
+                        >
+                          {copiedId === product.id ? (
+                            <Check className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Link2 className="w-4 h-4" />
+                          )}
+                        </button>
+
                         <button
                           onClick={() => handleOpenEdit(product)}
-                          className="p-2 text-slate-600 hover:text-black hover:bg-slate-100 rounded-xl transition-colors"
+                          className="p-2 text-slate-600 hover:text-black hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                           title="Editar dados completos"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setDeleteModalState({ isOpen: true, product })}
-                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
+                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                           title="Excluir produto"
                         >
                           <Trash2 className="w-4 h-4" />
