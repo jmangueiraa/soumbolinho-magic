@@ -24,10 +24,10 @@ export const BannerSlider: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 select-none">
+    <section className="relative w-full max-w-full mx-auto select-none overflow-hidden bg-white">
       <div 
         onClick={handleBannerClick}
-        className={`relative overflow-hidden rounded-3xl shadow-sm border border-slate-200 transition-all ${
+        className={`relative w-full overflow-hidden transition-all ${
           activeBanner.linkUrl ? 'cursor-pointer hover:opacity-95' : ''
         }`}
       >
@@ -35,12 +35,13 @@ export const BannerSlider: React.FC = () => {
           <img
             src={activeBanner.imageUrl}
             alt={activeBanner.altText || 'Banner Principal'}
-            className="w-full h-auto max-h-[360px] object-cover rounded-3xl block shadow-sm"
+            className="w-full h-auto max-h-[500px] object-cover block mx-auto"
+            loading="eager"
           />
         ) : (
-          <div className="w-full min-h-[140px] sm:min-h-[170px] bg-gradient-to-r from-[#FFD1EC] via-[#F3EAFF] to-[#FFD1EC] p-6 text-center flex flex-col items-center justify-center rounded-3xl">
+          <div className="w-full min-h-[140px] sm:min-h-[200px] bg-gradient-to-r from-[#FFD1EC] via-[#F3EAFF] to-[#FFD1EC] p-6 text-center flex flex-col items-center justify-center">
             {activeBanner.title && (
-              <h3 className="font-festive font-extrabold text-xl sm:text-2xl text-slate-900">
+              <h3 className="font-sans font-black text-xl sm:text-2xl text-slate-900">
                 {activeBanner.title}
               </h3>
             )}
