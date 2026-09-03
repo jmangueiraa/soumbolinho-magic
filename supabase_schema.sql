@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.banners (
 CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    slug TEXT UNIQUE,
     category TEXT NOT NULL,
     subcategory TEXT,
     price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
@@ -69,6 +70,10 @@ CREATE TABLE IF NOT EXISTS public.products (
     tags TEXT[],
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Garantir coluna slug e índice em banco existente
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS slug TEXT;
+CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products (slug);
 
 -- ==============================================================================
 -- 5. HABILITAR ROW LEVEL SECURITY (RLS) E POLÍTICAS DE ACESSO PÚBLICO / ADMIN

@@ -8,6 +8,7 @@ import { useParams, useNavigate } from '../../lib/router';
 import { fetchProductByIdOrSlug } from '../../services/productService';
 import { copyProductLink, getProductShareUrl } from '../../utils/share';
 import { getProductMedia } from '../../utils/media';
+import { slugify } from '../../utils/slug';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -20,43 +21,60 @@ interface ProductDetailsProps {
   onBack?: () => void;
 }
 
+const SYSTEM_ROUTES = ['admin', 'checkout', 'finalizar-compra', 'pagamento-cartao', 'cartao', 'login', 'api'];
+
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propId, onBack: propOnBack }) => {
-  const { id: routeId } = useParams<{ id?: string }>();
+  const { slug: routeSlug, id: routeId } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
   const { products, showNotification } = useStoreData();
   const { addToCart, openCart } = useCart();
 
-  const targetIdentifier = propId || routeId || '';
+  const targetIdentifier = (propId || routeSlug || routeId || '').trim();
+  const isSystemRoute = SYSTEM_ROUTES.includes(targetIdentifier.toLowerCase());
 
   const [product, setProduct] = useState<Product | null>(() => {
-    if (!targetIdentifier) return null;
-    return products.find((p) => p.id === targetIdentifier) || null;
+    if (!targetIdentifier || isSystemRoute) return null;
+    return (
+      products.find(
+        (p) =>
+          p.slug === targetIdentifier ||
+          p.id === targetIdentifier ||
+          slugify(p.name) === targetIdentifier ||
+          p.name.toLowerCase().trim() === targetIdentifier.toLowerCase().trim()
+      ) || null
+    );
   });
 
-  const [isLoading, setIsLoading] = useState<boolean>(!product);
+  const [isLoading, setIsLoading] = useState<boolean>(!product && !isSystemRoute);
   const [quantity, setQuantity] = useState<number>(1);
   const [mediaError, setMediaError] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [isAdding, setIsAdding] = useState<boolean>(false);
 
-  // Consulta o produto no Supabase pelo ID ou identificador
+  // Consulta o produto no Supabase pelo slug ou ID
   useEffect(() => {
-    if (!targetIdentifier) {
+    if (!targetIdentifier || isSystemRoute) {
       setIsLoading(false);
       return;
     }
 
-    // 1. Tenta encontrar nos produtos já em cache no contexto
-    const inMemory = products.find(
-      (p) => p.id === targetIdentifier || p.name.toLowerCase().trim() === targetIdentifier.toLowerCase().trim()
-    );
+    // 1. Tenta encontrar nos produtos já carregados
+    const inMemory = products.find((p) => {
+      const pSlug = p.slug || slugify(p.name);
+      return (
+        pSlug === targetIdentifier ||
+        p.id === targetIdentifier ||
+        pSlug === slugify(targetIdentifier) ||
+        p.name.toLowerCase().trim() === targetIdentifier.toLowerCase().trim()
+      );
+    });
 
     if (inMemory) {
       setProduct(inMemory);
       setIsLoading(false);
     }
 
-    // 2. Consulta diretamente no banco do Supabase para garantir dados mais recentes
+    // 2. Consulta diretamente no Supabase por slug / ID
     async function loadProductFromDb() {
       if (!inMemory) setIsLoading(true);
       const { data, error } = await fetchProductByIdOrSlug(targetIdentifier);
@@ -70,7 +88,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
     }
 
     loadProductFromDb();
-  }, [targetIdentifier, products]);
+  }, [targetIdentifier, products, isSystemRoute]);
 
   const handleBack = () => {
     if (propOnBack) {
@@ -82,13 +100,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Botão "Copiar Link do Produto"
+  // Botão "Copiar Link do Produto" (formato /:slug)
   const handleCopyLink = async () => {
     if (!product) return;
-    const success = await copyProductLink(product.id);
+    const success = await copyProductLink(product);
     if (success) {
       setCopied(true);
-      showNotification('Link do produto copiado com sucesso!', 'success');
+      showNotification('Link amigável do produto copiado!', 'success');
       setTimeout(() => setCopied(false), 2500);
     }
   };
@@ -190,7 +208,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
 
   const { url: mediaUrl, isVideo } = getProductMedia(product);
   const hasValidMedia = Boolean(mediaUrl && !mediaError);
-  const shareLink = getProductShareUrl(product.id);
+  const shareLink = getProductShareUrl(product);
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-white text-slate-900">

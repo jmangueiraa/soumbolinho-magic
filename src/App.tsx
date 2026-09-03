@@ -69,18 +69,10 @@ const NavigationRouter: React.FC = () => {
 
   return (
     <Routes>
-      {/* Rota Direta de Detalhes do Produto solicitada: <Route path="/produto/:id" element={<ProductDetails />} /> */}
-      <Route path="/produto/:id" element={<ProductDetails />} />
+      {/* 1. Rota Raiz da Loja */}
+      <Route path="/" element={<StoreFront />} />
 
-      {/* Rota de Checkout Pix */}
-      <Route path="/checkout" element={<CheckoutPage />} />
-      <Route path="/finalizar-compra" element={<CheckoutPage />} />
-
-      {/* Rota de Checkout Cartão */}
-      <Route path="/checkout/cartao" element={<CreditCardCheckoutPage />} />
-      <Route path="/pagamento-cartao" element={<CreditCardCheckoutPage />} />
-
-      {/* Rota Administrativa */}
+      {/* 2. Rotas Fixas Administrativas */}
       <Route
         path="/admin"
         element={
@@ -92,8 +84,17 @@ const NavigationRouter: React.FC = () => {
         }
       />
 
-      {/* Rota Raiz da Loja */}
-      <Route path="/" element={<StoreFront />} />
+      {/* 3. Rotas Fixas de Checkout */}
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/finalizar-compra" element={<CheckoutPage />} />
+      <Route path="/checkout/cartao" element={<CreditCardCheckoutPage />} />
+      <Route path="/pagamento-cartao" element={<CreditCardCheckoutPage />} />
+
+      {/* 4. Compatibilidade com rota antiga /produto/:id */}
+      <Route path="/produto/:id" element={<ProductDetails />} />
+
+      {/* 5. Rota Dinâmica Amigável na Raiz (/:slug) no Final da Lista */}
+      <Route path="/:slug" element={<ProductDetails />} />
     </Routes>
   );
 };

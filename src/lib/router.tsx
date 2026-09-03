@@ -76,6 +76,16 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
+const SYSTEM_ROUTES = [
+  'admin',
+  'checkout',
+  'finalizar-compra',
+  'pagamento-cartao',
+  'cartao',
+  'login',
+  'api'
+];
+
 export function useParams<T extends Record<string, string | undefined> = Record<string, string | undefined>>(): T {
   const { params } = useContext(RouterContext);
   
@@ -86,16 +96,32 @@ export function useParams<T extends Record<string, string | undefined> = Record<
     const path = window.location.pathname;
     const hash = window.location.hash;
     
-    // Check path /produto/:id
+    // 1. Check path /produto/:id
     const pathMatch = path.match(/\/produto\/([^/?#]+)/i);
     if (pathMatch && pathMatch[1]) {
-      return { id: decodeURIComponent(pathMatch[1]), ...params };
+      const decoded = decodeURIComponent(pathMatch[1]);
+      return { id: decoded, slug: decoded, ...params };
     }
 
-    // Check hash #/produto/:id
+    // 2. Check hash #/produto/:id
     const hashMatch = hash.match(/produto\/([^/?#]+)/i);
     if (hashMatch && hashMatch[1]) {
-      return { id: decodeURIComponent(hashMatch[1]), ...params };
+      const decoded = decodeURIComponent(hashMatch[1]);
+      return { id: decoded, slug: decoded, ...params };
+    }
+
+    // 3. Check root /:slug
+    const cleanPath = path.replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (cleanPath && !cleanPath.includes('/') && !SYSTEM_ROUTES.includes(cleanPath)) {
+      const decoded = decodeURIComponent(cleanPath);
+      return { slug: decoded, id: decoded, ...params };
+    }
+
+    // 4. Check root hash #/:slug
+    const cleanHash = hash.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
+    if (cleanHash && !cleanHash.includes('/') && !SYSTEM_ROUTES.includes(cleanHash)) {
+      const decoded = decodeURIComponent(cleanHash);
+      return { slug: decoded, id: decoded, ...params };
     }
 
     return params;
@@ -153,6 +179,9 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           paramNames.forEach((name, index) => {
             extractedParams[name] = decodeURIComponent(pathMatch[index + 1]);
           });
+          if (targetPath === '/:slug' && SYSTEM_ROUTES.includes(extractedParams['slug']?.toLowerCase())) {
+            continue;
+          }
           setParams(extractedParams);
           return element;
         }
@@ -165,6 +194,9 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           paramNames.forEach((name, index) => {
             extractedParams[name] = decodeURIComponent(hashMatch[index + 1]);
           });
+          if (targetPath === '/:slug' && SYSTEM_ROUTES.includes(extractedParams['slug']?.toLowerCase())) {
+            continue;
+          }
           setParams(extractedParams);
           return element;
         }

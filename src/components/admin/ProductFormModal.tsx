@@ -5,6 +5,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
+import { slugify } from '../../utils/slug';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -186,10 +187,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const rawPrice = String(formData.price).replace(',', '.');
       const numericPrice = Number(parseFloat(rawPrice)) || 0;
 
-      const isVideo = mediaType === 'video' || isVideoUrl(finalMediaUrl);
+      const cleanName = String(formData.name).trim();
+      const generatedSlug = slugify(cleanName);
 
       const payload: any = {
-        name: String(formData.name).trim(),
+        name: cleanName,
+        slug: generatedSlug,
         category: String(formData.category).trim(),
         subcategory: formData.subcategory ? String(formData.subcategory).trim() : undefined,
         price: numericPrice,

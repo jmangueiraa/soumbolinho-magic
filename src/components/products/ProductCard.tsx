@@ -6,6 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { getProductMedia } from '../../utils/media';
 import { copyProductLink, getProductShareUrl } from '../../utils/share';
+import { slugify } from '../../utils/slug';
 import { useNavigate } from '../../lib/router';
 
 interface ProductCardProps {
@@ -20,12 +21,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
   const [isAdding, setIsAdding] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Navega para a rota individual do produto: /produto/:id
+  const productSlug = product.slug || slugify(product.name) || product.id;
+
+  // Navega para a rota amigável individual do produto: /:slug
   const handleCardClick = () => {
     if (onSelectProduct) {
       onSelectProduct(product);
     }
-    navigate(`/produto/${product.id}`);
+    navigate(`/${productSlug}`);
   };
 
   const handleAddToCartClick = (e: React.MouseEvent) => {
@@ -38,10 +41,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
     }, 300);
   };
 
-  // Copiar link direto absoluto do produto
+  // Copiar link direto amigável do produto
   const handleCopyLinkClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const success = await copyProductLink(product.id);
+    const success = await copyProductLink(product);
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -50,7 +53,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
 
   const { url: mediaUrl, isVideo } = getProductMedia(product);
   const hasValidMedia = Boolean(mediaUrl && !imageError);
-  const shareUrl = getProductShareUrl(product.id);
+  const shareUrl = getProductShareUrl(product);
 
   return (
     <div

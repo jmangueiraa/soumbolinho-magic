@@ -265,10 +265,10 @@ export const ProductsManager: React.FC = () => {
                         <button
                           type="button"
                           onClick={async () => {
-                            const success = await copyProductLink(product.id);
+                            const success = await copyProductLink(product);
                             if (success) {
                               setCopiedId(product.id);
-                              showNotification(`Link do produto "${product.name}" copiado!`, 'success');
+                              showNotification(`Link amigável de "${product.name}" copiado!`, 'success');
                               setTimeout(() => setCopiedId(null), 2000);
                             }
                           }}
@@ -277,7 +277,7 @@ export const ProductsManager: React.FC = () => {
                               ? 'bg-emerald-100 text-emerald-800'
                               : 'text-slate-500 hover:text-black hover:bg-slate-100'
                           }`}
-                          title={copiedId === product.id ? 'Link copiado!' : `Copiar link direto: ${getProductShareUrl(product.id)}`}
+                          title={copiedId === product.id ? 'Link copiado!' : `Copiar link direto: ${getProductShareUrl(product)}`}
                         >
                           {copiedId === product.id ? (
                             <Check className="w-4 h-4 text-emerald-600" />

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Product } from '../types';
+import { slugify } from '../utils/slug';
 
 /**
  * Mapeia um registro bruto da tabela 'products' do Supabase para o modelo Product
@@ -15,9 +16,13 @@ export function mapSupabaseProduct(item: any): Product {
     ''
   ).trim();
 
+  const rawName = String(item.name || '').trim();
+  const rawSlug = (item.slug || slugify(rawName) || String(item.id)).trim();
+
   return {
     id: String(item.id),
-    name: String(item.name || '').trim(),
+    name: rawName,
+    slug: rawSlug,
     category: String(item.category || '').trim(),
     subcategory: item.subcategory || item.sub_category || undefined,
     price: Number(item.price) || 0,
@@ -82,10 +87,13 @@ export async function createProductInSupabase(
   const finalImg = (productData.imageUrl || productData.image_url || productData.image || '').trim();
   const numericPrice = Number(productData.price) || 0;
   const finalDeliveryUrl = (productData.delivery_url || productData.deliveryUrl || '').trim();
+  const rawName = String(productData.name || '').trim();
+  const generatedSlug = (productData.slug || slugify(rawName) || newId).trim();
 
   const dbPayload = {
     id: newId,
-    name: String(productData.name || '').trim(),
+    name: rawName,
+    slug: generatedSlug,
     category: String(productData.category || '').trim(),
     subcategory: productData.subcategory ? String(productData.subcategory).trim() : null,
     price: numericPrice,
@@ -134,7 +142,18 @@ export async function updateProductInSupabase(
     updated_at: new Date().toISOString()
   };
 
-  if (updates.name !== undefined) dbUpdatePayload.name = String(updates.name).trim();
+  if (updates.name !== undefined) {
+    const cleanName = String(updates.name).trim();
+    dbUpdatePayload.name = cleanName;
+    if (!updates.slug) {
+      dbUpdatePayload.slug = slugify(cleanName);
+    }
+  }
+
+  if (updates.slug !== undefined) {
+    dbUpdatePayload.slug = slugify(updates.slug);
+  }
+
   if (updates.category !== undefined) dbUpdatePayload.category = String(updates.category).trim();
   if (updates.subcategory !== undefined) dbUpdatePayload.subcategory = updates.subcategory ? String(updates.subcategory).trim() : null;
   if (numericPrice !== undefined) dbUpdatePayload.price = numericPrice;
@@ -212,16 +231,30 @@ export async function updateProductPriceInSupabase(
 }
 
 /**
- * 7. Consulta um único produto diretamente no Supabase por ID ou slug/nome
+ * 7. Consulta um único produto diretamente no Supabase por slug ou ID/nome
  */
 export async function fetchProductByIdOrSlug(
   identifier: string
 ): Promise<{ data: Product | null; error: string | null }> {
   try {
     const cleanId = decodeURIComponent(identifier).trim();
-    console.log('[productService] 🔍 Consultando produto no Supabase:', cleanId);
+    const cleanSlug = slugify(cleanId);
+    console.log('[productService] 🔍 Consultando produto no Supabase por slug/id:', cleanId, cleanSlug);
 
-    // 1. Tenta buscar pelo ID exato
+    // 1. Tenta buscar pelo slug exato (formato amigável /:slug)
+    if (cleanSlug) {
+      const { data: bySlug } = await supabase
+        .from('products')
+        .select('*')
+        .eq('slug', cleanSlug)
+        .maybeSingle();
+
+      if (bySlug) {
+        return { data: mapSupabaseProduct(bySlug), error: null };
+      }
+    }
+
+    // 2. Tenta buscar pelo ID exato
     const { data: byId, error: errId } = await supabase
       .from('products')
       .select('*')
@@ -232,7 +265,7 @@ export async function fetchProductByIdOrSlug(
       return { data: mapSupabaseProduct(byId), error: null };
     }
 
-    // 2. Tenta buscar por correspondência no nome / slug
+    // 3. Tenta buscar por correspondência no nome
     const normalizedQuery = cleanId.replace(/[-_]+/g, ' ');
     const { data: byName, error: errName } = await supabase
       .from('products')
