@@ -623,23 +623,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 Cancelar
               </button>
 
-            <button
-              type="submit"
-              disabled={isUploading || isSubmitting}
-              className="px-6 py-2.5 bg-black hover:bg-zinc-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
-            >
-              {isSubmitting || isUploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Enviando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 text-white" />
-                  <span>{product ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
-                </>
-              )}
-            </button>
+              <button
+                type="submit"
+                disabled={isUploading || isSubmitting}
+                className="px-6 py-2.5 bg-black hover:bg-zinc-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting || isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 text-white" />
+                    <span>{product ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
         </form>
