@@ -23,6 +23,7 @@ import { formatCurrency, formatPhone } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
 import { PixPaymentBox } from './PixPaymentBox';
+import { CartUpsellCard } from './CartUpsellCard';
 
 export const CheckoutModal: React.FC = () => {
   const { storeConfig } = useStoreData();
@@ -426,6 +427,11 @@ export const CheckoutModal: React.FC = () => {
                     {formattedMessage}
                   </pre>
                 )}
+              </div>
+
+              {/* Oferta de Upsell / Compre Junto (Order Bump) */}
+              <div className="pt-2">
+                <CartUpsellCard />
               </div>
 
               {/* Submit CTAs */}

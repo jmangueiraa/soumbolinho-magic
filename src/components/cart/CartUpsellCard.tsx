@@ -6,7 +6,11 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 
-export const CartUpsellCard: React.FC = () => {
+interface CartUpsellCardProps {
+  className?: string;
+}
+
+export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }) => {
   const { items, addToCart, removeFromCart } = useCart();
   const { products } = useStoreData();
 
@@ -99,7 +103,7 @@ export const CartUpsellCard: React.FC = () => {
       isAdded 
         ? 'bg-pink-100/90 border-black shadow-sm' 
         : 'bg-gradient-to-r from-pink-50/90 via-rose-50/50 to-pink-50/90 border-pink-500 hover:border-black shadow-xs'
-    }`}>
+    } ${className}`}>
       
       {/* Top Header Badge */}
       <div className="flex items-center justify-between gap-2 mb-2.5">

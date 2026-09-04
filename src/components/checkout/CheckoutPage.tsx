@@ -28,6 +28,7 @@ import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
+import { CartUpsellCard } from '../cart/CartUpsellCard';
 
 export const CheckoutPage: React.FC = () => {
   const { items, totalPrice, clearCart } = useCart();
@@ -776,16 +777,32 @@ export const CheckoutPage: React.FC = () => {
                     <span>Subtotal</span>
                   </div>
 
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-3 text-slate-700">
-                      <span className="font-medium pr-4">
-                        {item.product.name} <span className="text-slate-400">× {item.quantity}</span>
-                      </span>
-                      <span className="font-semibold text-slate-900 shrink-0">
-                        {formatCurrency(item.product.price * item.quantity)}
-                      </span>
-                    </div>
-                  ))}
+                  {items.map((item) => {
+                    const unitPrice = item.customPrice !== undefined ? item.customPrice : item.product.price;
+                    return (
+                      <div key={item.id} className="flex justify-between py-3 text-slate-700">
+                        <div className="pr-4">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium text-slate-900">{item.product.name}</span>
+                            <span className="text-slate-400 text-xs">× {item.quantity}</span>
+                            {item.isUpsell && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-pink-100 text-pink-700 border border-pink-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                ⚡ Compre Junto
+                              </span>
+                            )}
+                          </div>
+                          {item.customPrice !== undefined && item.customPrice < item.product.price && (
+                            <span className="text-[11px] text-slate-400 line-through block mt-0.5">
+                              De {formatCurrency(item.product.price * item.quantity)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-semibold text-slate-900 shrink-0">
+                          {formatCurrency(unitPrice * item.quantity)}
+                        </span>
+                      </div>
+                    );
+                  })}
 
                   {/* Subtotal */}
                   <div className="flex justify-between py-3 font-semibold text-slate-700">
@@ -807,6 +824,9 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Oferta de Upsell / Compre Junto Direto no Checkout (Order Bump) */}
+              <CartUpsellCard />
 
               {/* Card 2: Cupom de Desconto */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
@@ -946,7 +966,7 @@ export const CheckoutPage: React.FC = () => {
                       <span>Gerando Pix...</span>
                     </>
                   ) : (
-                    <span>Finalizar e Pagar com Pix</span>
+                    <span>Finalizar e Pagar com Pix • {formatCurrency(finalTotal)}</span>
                   )}
                 </button>
 
