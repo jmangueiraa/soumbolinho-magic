@@ -46,6 +46,10 @@ export function mapSupabaseProduct(item: any): Product {
     customizationPlaceholder: item.customizationPlaceholder || item.customization_placeholder || undefined,
     badge: item.badge || undefined,
     tags: item.tags || undefined,
+    upsell_product_id: item.upsell_product_id || item.upsellProductId || undefined,
+    upsellProductId: item.upsell_product_id || item.upsellProductId || undefined,
+    upsell_price: item.upsell_price !== null && item.upsell_price !== undefined ? Number(item.upsell_price) : undefined,
+    upsellPrice: item.upsell_price !== null && item.upsell_price !== undefined ? Number(item.upsell_price) : undefined,
   };
 }
 
@@ -103,6 +107,10 @@ export async function createProductInSupabase(
     badge: productData.badge || null,
     is_customizable: Boolean(productData.isCustomizable ?? true),
     customization_placeholder: productData.customizationPlaceholder || null,
+    upsell_product_id: (productData as any).upsell_product_id || (productData as any).upsellProductId || null,
+    upsell_price: (productData as any).upsell_price !== undefined && (productData as any).upsell_price !== null && (productData as any).upsell_price !== ''
+      ? Number((productData as any).upsell_price)
+      : ((productData as any).upsellPrice !== undefined && (productData as any).upsellPrice !== null && (productData as any).upsellPrice !== '' ? Number((productData as any).upsellPrice) : null),
   };
 
   console.log('[productService] 💾 Inserindo produto no Supabase com slug:', finalSlug, dbPayload);
@@ -110,11 +118,11 @@ export async function createProductInSupabase(
   try {
     let { data, error } = await supabase.from('products').insert([dbPayload]).select();
 
-    // Se o banco ainda não possuir a coluna 'slug' criada, faz fallback sem quebrar a operação
-    if (error && error.message && (error.message.includes('slug') || error.message.includes('column'))) {
-      console.warn('[productService] ⚠️ Coluna "slug" ausente no Supabase. Tentando gravar sem a coluna slug:', error.message);
-      const { slug, ...payloadWithoutSlug } = dbPayload;
-      const retry = await supabase.from('products').insert([payloadWithoutSlug]).select();
+    // Se o banco ainda não possuir as colunas 'slug' ou 'upsell' criadas, faz fallback sem quebrar a operação
+    if (error && error.message && (error.message.includes('slug') || error.message.includes('upsell') || error.message.includes('column'))) {
+      console.warn('[productService] ⚠️ Coluna ausente no Supabase. Tentando gravar sem colunas opcionais:', error.message);
+      const { slug, upsell_product_id, upsell_price, ...payloadClean } = dbPayload;
+      const retry = await supabase.from('products').insert([payloadClean]).select();
       if (!retry.error && retry.data) {
         data = retry.data;
         error = null;
@@ -184,10 +192,25 @@ export async function updateProductInSupabase(
   if (updates.isCustomizable !== undefined) dbUpdatePayload.is_customizable = Boolean(updates.isCustomizable);
   if (updates.customizationPlaceholder !== undefined) dbUpdatePayload.customization_placeholder = updates.customizationPlaceholder || null;
 
+  if ((updates as any).upsell_product_id !== undefined || (updates as any).upsellProductId !== undefined) {
+    dbUpdatePayload.upsell_product_id = (updates as any).upsell_product_id || (updates as any).upsellProductId || null;
+  }
+  if ((updates as any).upsell_price !== undefined || (updates as any).upsellPrice !== undefined) {
+    const rawVal = (updates as any).upsell_price ?? (updates as any).upsellPrice;
+    dbUpdatePayload.upsell_price = rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal)) ? Number(rawVal) : null;
+  }
+
   console.log('[productService] 📝 Atualizando produto no Supabase:', id, dbUpdatePayload);
 
   try {
-    const { error } = await supabase.from('products').update(dbUpdatePayload).eq('id', id);
+    let { error } = await supabase.from('products').update(dbUpdatePayload).eq('id', id);
+
+    if (error && error.message && (error.message.includes('upsell') || error.message.includes('column'))) {
+      console.warn('[productService] ⚠️ Colunas de upsell ausentes na atualização. Gravando sem upsell:', error.message);
+      const { upsell_product_id, upsell_price, ...cleanUpdate } = dbUpdatePayload;
+      const retry = await supabase.from('products').update(cleanUpdate).eq('id', id);
+      error = retry.error;
+    }
 
     if (error) {
       console.error('[productService] ❌ Erro ao atualizar produto no Supabase:', error);

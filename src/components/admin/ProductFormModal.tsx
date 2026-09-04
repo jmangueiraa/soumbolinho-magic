@@ -21,7 +21,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   productToEdit,
   onClose,
 }) => {
-  const { categories, addProduct, updateProduct, showNotification } = useStoreData();
+  const { products, categories, addProduct, updateProduct, showNotification } = useStoreData();
   const product = productProp || productToEdit || null;
 
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
@@ -37,6 +37,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     image: '',
     video_url: '',
     active: true,
+    upsell_product_id: '',
+    upsell_price: '',
   });
 
   const [isSlugManual, setIsSlugManual] = useState(false);
@@ -67,6 +69,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: existingImg,
         video_url: existingVideo,
         active: (product as any).active ?? product.inStock ?? true,
+        upsell_product_id: product.upsell_product_id || (product as any).upsellProductId || '',
+        upsell_price: product.upsell_price !== undefined && product.upsell_price !== null
+          ? String(product.upsell_price)
+          : ((product as any).upsellPrice !== undefined && (product as any).upsellPrice !== null ? String((product as any).upsellPrice) : ''),
       });
       setMediaPreview(isVideo ? (existingVideo || existingImg) : existingImg);
       setIsSlugManual(Boolean(product.slug));
@@ -84,6 +90,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: '',
         video_url: '',
         active: true,
+        upsell_product_id: '',
+        upsell_price: '',
       });
       setMediaPreview('');
       setIsSlugManual(false);
@@ -252,6 +260,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: formData.description ? String(formData.description).trim() : undefined,
         inStock: Boolean(formData.active),
         isCustomizable: true,
+        upsell_product_id: (formData.upsell_product_id || '').trim() || null,
+        upsell_price: formData.upsell_price && !isNaN(Number(formData.upsell_price.replace(',', '.')))
+          ? Number(formData.upsell_price.replace(',', '.'))
+          : null,
       };
 
       console.log('[ProductFormModal] 🚀 Enviando produto para o Supabase:', payload);
@@ -275,6 +287,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: '',
         video_url: '',
         active: true,
+        upsell_product_id: '',
+        upsell_price: '',
       });
       setIsSlugManual(false);
       setSelectedFile(null);
@@ -676,6 +690,60 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               placeholder="Ex: Arquivo 100% editável no Canva, temas prontos para impressão."
               className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black resize-none"
             />
+          </div>
+
+          {/* Oferta de Upsell / Compre Junto no Carrinho (Order Bump) */}
+          <div className="pt-3 border-t border-slate-200 bg-amber-50/60 p-4 rounded-2xl border border-amber-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>Oferta de Upsell / Compre Junto no Carrinho (Opcional)</span>
+              </label>
+              <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                Order Bump
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800">
+              Ofereça um produto complementar diretamente no carrinho antes do pagamento com valor promocional exclusivo.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                  Produto de Upsell Sugerido
+                </label>
+                <select
+                  value={formData.upsell_product_id}
+                  onChange={(e) => setFormData({ ...formData, upsell_product_id: e.target.value })}
+                  className="w-full text-xs px-3 py-2 bg-white border border-amber-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-slate-800"
+                >
+                  <option value="">Nenhum / Automático (menor valor)</option>
+                  {products
+                    .filter((p) => !product || p.id !== product.id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (R$ {Number(p.price).toFixed(2).replace('.', ',')})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                  Preço Promocional do Upsell (R$)
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-bold text-slate-500">R$</span>
+                  <input
+                    type="text"
+                    value={formData.upsell_price}
+                    onChange={(e) => setFormData({ ...formData, upsell_price: e.target.value })}
+                    placeholder="Ex: 4,90 (ou vazio p/ padrão)"
+                    className="w-full text-xs pl-9 pr-3 py-2 bg-white border border-amber-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Status Ativo / Em Estoque */}

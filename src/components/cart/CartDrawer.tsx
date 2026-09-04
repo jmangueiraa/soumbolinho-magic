@@ -3,6 +3,7 @@ import { X, ShoppingBag, Trash2, MessageCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency } from '../../utils/formatters';
 import { CartItemRow } from './CartItemRow';
+import { CartUpsellCard } from './CartUpsellCard';
 
 export const CartDrawer: React.FC = () => {
   const { 
@@ -91,8 +92,11 @@ export const CartDrawer: React.FC = () => {
 
         {/* Footer Summary & Checkout Action */}
         {items.length > 0 && (
-          <div className="bg-white p-5 border-t border-slate-200 shadow-lg space-y-3.5">
+          <div className="bg-white p-4 sm:p-5 border-t border-slate-200 shadow-lg space-y-3.5">
             
+            {/* Oferta de Upsell / Compre Junto (Order Bump) */}
+            <CartUpsellCard />
+
             {/* Subtotal & Total */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs text-slate-500">
@@ -100,7 +104,7 @@ export const CartDrawer: React.FC = () => {
                 <span className="font-semibold text-slate-700">{formatCurrency(totalPrice)}</span>
               </div>
               <div className="flex items-center justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-100">
-                <span>Total dos Itens</span>
+                <span>Total a Pagar</span>
                 <span className="text-xl font-black text-slate-900">{formatCurrency(totalPrice)}</span>
               </div>
             </div>

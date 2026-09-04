@@ -23,9 +23,11 @@ export function buildWhatsAppOrderMessage(
   }[customerInfo.paymentMethod] || customerInfo.paymentMethod;
 
   const itemsListText = items.map((item, index) => {
-    const itemTotal = item.product.price * item.quantity;
+    const unitPrice = item.customPrice !== undefined ? item.customPrice : item.product.price;
+    const itemTotal = unitPrice * item.quantity;
     const unitSuffix = item.product.unitSuffix || '/Un';
-    let text = `${index + 1}. *${item.quantity}x ${item.product.name}*\n   Valor: ${formatCurrency(item.product.price)} ${unitSuffix} ➜ *${formatCurrency(itemTotal)}*`;
+    const bumpTag = item.isUpsell ? ' *(Oferta Compre Junto)*' : '';
+    let text = `${index + 1}. *${item.quantity}x ${item.product.name}*${bumpTag}\n   Valor: ${formatCurrency(unitPrice)} ${unitSuffix} ➜ *${formatCurrency(itemTotal)}*`;
     
     if (item.observations && item.observations.trim()) {
       text += `\n   ↳ 🎀 _Obs/Personalização: ${item.observations.trim()}_`;

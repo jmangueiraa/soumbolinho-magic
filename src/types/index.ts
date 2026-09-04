@@ -24,6 +24,10 @@ export interface Product {
   badge?: 'Mais Vendido' | 'Lançamento' | 'Personalizado' | 'Destaque' | 'Pronta Entrega';
   tags?: string[];
   minQuantity?: number;
+  upsell_product_id?: string;
+  upsellProductId?: string;
+  upsell_price?: number;
+  upsellPrice?: number;
 }
 
 export interface Category {
@@ -56,6 +60,8 @@ export interface CartItem {
   product: Product;
   quantity: number;
   observations?: string; // ex: Nome do aniversariante, idade ou tema personalizado
+  customPrice?: number;
+  isUpsell?: boolean;
 }
 
 export interface OrderCustomerInfo {

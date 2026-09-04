@@ -23,6 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       delivery_url = '#',
       order_number = '790',
       order_date = new Date().toLocaleDateString('pt-BR'),
+      items = [],
     } = req.body || {};
 
     if (!customer_email) {
@@ -41,6 +42,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const resend = new Resend(apiKey);
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'Soumbolinho <onboarding@resend.dev>';
     const subject = 'Seu pedido da Soumbolinho | Produtos Digitais está a caminho!';
+
+    // Monta as linhas de download para cada produto adquirido
+    const downloadRowsHtml = Array.isArray(items) && items.length > 0
+      ? items.map((item: any) => {
+          const itemUrl = item.delivery_url || item.deliveryUrl || delivery_url;
+          const itemName = item.name || product_name;
+          return `
+            <tr style="border-bottom: 1px solid #f3f4f6;">
+              <td style="padding: 14px 0; font-size: 14px;">
+                <a href="${itemUrl}" style="color: #48bb78; text-decoration: none; font-weight: 600;">
+                  ${itemName}
+                </a>
+              </td>
+              <td style="padding: 14px 0; font-size: 14px; color: #4b5563;">
+                Nunca
+              </td>
+              <td align="right" style="padding: 14px 0; font-size: 14px;">
+                <a href="${itemUrl}" target="_blank" style="color: #48bb78; text-decoration: underline; font-weight: 600;">
+                  Baixar ${itemName}
+                </a>
+              </td>
+            </tr>`;
+        }).join('\n')
+      : `
+            <tr style="border-bottom: 1px solid #f3f4f6;">
+              <td style="padding: 14px 0; font-size: 14px;">
+                <a href="${delivery_url}" style="color: #48bb78; text-decoration: none; font-weight: 600;">
+                  ${product_name}
+                </a>
+              </td>
+              <td style="padding: 14px 0; font-size: 14px; color: #4b5563;">
+                Nunca
+              </td>
+              <td align="right" style="padding: 14px 0; font-size: 14px;">
+                <a href="${delivery_url}" target="_blank" style="color: #48bb78; text-decoration: underline; font-weight: 600;">
+                  Baixar ${product_name}
+                </a>
+              </td>
+            </tr>`;
 
     // Renderiza o HTML exato com as variáveis substituídas
     const htmlBody = `<!DOCTYPE html>
@@ -93,21 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom: 1px solid #f3f4f6;">
-              <td style="padding: 14px 0; font-size: 14px;">
-                <a href="${delivery_url}" style="color: #48bb78; text-decoration: none; font-weight: 600;">
-                  ${product_name}
-                </a>
-              </td>
-              <td style="padding: 14px 0; font-size: 14px; color: #4b5563;">
-                Nunca
-              </td>
-              <td align="right" style="padding: 14px 0; font-size: 14px;">
-                <a href="${delivery_url}" target="_blank" style="color: #48bb78; text-decoration: underline; font-weight: 600;">
-                  Baixar ${product_name}
-                </a>
-              </td>
-            </tr>
+${downloadRowsHtml}
           </tbody>
         </table>
 

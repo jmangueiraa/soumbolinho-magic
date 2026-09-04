@@ -53,6 +53,10 @@ export async function sendOrderConfirmationEmail(
           delivery_url: primaryDeliveryUrl,
           order_number: data.orderId,
           order_date: data.orderDate || new Date().toLocaleDateString('pt-BR'),
+          items: data.items.map((i) => ({
+            name: i.product.name,
+            delivery_url: i.product.delivery_url || i.product.deliveryUrl || i.product.imageUrl || '#'
+          })),
         }),
       });
 

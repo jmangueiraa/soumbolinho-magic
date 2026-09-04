@@ -6,7 +6,13 @@ interface CartContextType {
   isCartOpen: boolean;
   isCheckoutOpen: boolean;
   toastMessage: string | null;
-  addToCart: (product: Product, quantity?: number, observations?: string) => void;
+  addToCart: (
+    product: Product, 
+    quantity?: number, 
+    observations?: string, 
+    customPrice?: number, 
+    isUpsell?: boolean
+  ) => void;
   updateQuantity: (itemId: string, newQuantity: number) => void;
   updateObservations: (itemId: string, observations: string) => void;
   removeFromCart: (itemId: string) => void;
@@ -54,18 +60,29 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 2500);
   };
 
-  const addToCart = (product: Product, quantity: number = 1, observations: string = '') => {
+  const addToCart = (
+    product: Product, 
+    quantity: number = 1, 
+    observations: string = '', 
+    customPrice?: number, 
+    isUpsell?: boolean
+  ) => {
     setItems((prevItems) => {
-      // Se houver um item idêntico (mesmo produto e mesma observação/personalização), apenas soma a quantidade
+      // Se houver um item idêntico (mesmo produto, mesma observação e mesmo status de upsell)
       const existingItemIndex = prevItems.findIndex(
-        (item) => item.product.id === product.id && (item.observations || '').trim() === (observations || '').trim()
+        (item) =>
+          item.product.id === product.id &&
+          (item.observations || '').trim() === (observations || '').trim() &&
+          Boolean(item.isUpsell) === Boolean(isUpsell)
       );
 
       if (existingItemIndex > -1) {
         const updated = [...prevItems];
         updated[existingItemIndex] = {
           ...updated[existingItemIndex],
-          quantity: updated[existingItemIndex].quantity + quantity
+          quantity: updated[existingItemIndex].quantity + quantity,
+          customPrice: customPrice !== undefined ? customPrice : updated[existingItemIndex].customPrice,
+          isUpsell: isUpsell ?? updated[existingItemIndex].isUpsell,
         };
         return updated;
       }
@@ -75,12 +92,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `${product.id}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         product,
         quantity,
-        observations: observations.trim() || undefined
+        observations: observations.trim() || undefined,
+        customPrice,
+        isUpsell,
       };
       return [...prevItems, newItem];
     });
 
-    // Opção 1: Abre a barra lateral do carrinho direto no canto direito
+    // Abre a gaveta do carrinho direto
     setIsCartOpen(true);
     showToast(`"${product.name}" adicionado ao carrinho!`);
   };
@@ -121,7 +140,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const closeCheckout = () => setIsCheckoutOpen(false);
 
   const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const totalPrice = items.reduce((sum, item) => {
+    const unitPrice = item.customPrice !== undefined ? item.customPrice : item.product.price;
+    return sum + unitPrice * item.quantity;
+  }, 0);
 
   return (
     <CartContext.Provider

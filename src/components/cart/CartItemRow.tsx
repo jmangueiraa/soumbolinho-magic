@@ -20,7 +20,9 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
     setIsEditingNote(false);
   };
 
-  const itemTotal = item.product.price * item.quantity;
+  const unitPrice = item.customPrice !== undefined ? item.customPrice : item.product.price;
+  const itemTotal = unitPrice * item.quantity;
+  const isDiscounted = item.customPrice !== undefined && item.customPrice < item.product.price;
   const unitSuffix = item.product.unitSuffix || '/Un';
 
   const imageSrc = !imageError 
@@ -50,11 +52,26 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h4 className="font-sans font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 leading-snug">
-            {item.product.name}
-          </h4>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            {formatCurrency(item.product.price)} {unitSuffix}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <h4 className="font-sans font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 leading-snug">
+              {item.product.name}
+            </h4>
+            {item.isUpsell && (
+              <span className="inline-flex items-center text-[10px] font-extrabold text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-300">
+                ⚡ Compre Junto
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+            {isDiscounted && (
+              <span className="line-through text-slate-400">
+                {formatCurrency(item.product.price)}
+              </span>
+            )}
+            <span className={isDiscounted ? "font-bold text-emerald-600" : ""}>
+              {formatCurrency(unitPrice)}
+            </span>
+            <span>{unitSuffix}</span>
           </p>
 
           <div className="flex items-center justify-between mt-2">
