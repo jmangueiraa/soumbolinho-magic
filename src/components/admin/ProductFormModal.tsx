@@ -157,10 +157,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
       newErrors.price = 'Informe um preço válido maior que 0.';
     }
-    if (!formData.category) newErrors.category = 'Selecione uma categoria.';
+
+    // Se a categoria estiver vazia mas houver categorias disponíveis, seleciona a primeira automaticamente
+    if (!formData.category.trim()) {
+      if (categories && categories.length > 0) {
+        setFormData((prev) => ({ ...prev, category: categories[0].id }));
+      }
+    }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return !newErrors.name && !newErrors.price;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -193,16 +199,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const cleanName = String(formData.name).trim();
       const generatedSlug = generateUniqueSlug(cleanName);
+
+      // Verificação explícita do tipo de mídia (aba 'Foto' ou 'Vídeo')
       const isVideo = mediaType === 'video' || isVideoUrl(finalMediaUrl);
+      const mediaTypeResult: 'video' | 'image' = isVideo ? 'video' : 'image';
+
+      // Categoria garantida (se lista estiver vazia, usa 'geral')
+      const finalCategory = formData.category.trim() || (categories && categories.length > 0 ? categories[0].id : 'geral');
 
       const payload: any = {
         name: cleanName,
         slug: generatedSlug,
-        category: String(formData.category).trim(),
+        category: finalCategory,
+        category_id: finalCategory,
         subcategory: formData.subcategory ? String(formData.subcategory).trim() : undefined,
         price: numericPrice,
         unitSuffix: formData.unitSuffix ? String(formData.unitSuffix).trim() : '/Un',
-        mediaType: isVideo ? 'video' : 'image',
+        mediaType: mediaTypeResult,
+        media_type: mediaTypeResult,
         imageUrl: finalMediaUrl,
         image: finalMediaUrl,
         image_url: finalMediaUrl,
