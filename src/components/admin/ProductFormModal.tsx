@@ -201,7 +201,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const generatedSlug = generateUniqueSlug(cleanName);
 
       // Verificação explícita do tipo de mídia (aba 'Foto' ou 'Vídeo')
-      const isVideo = mediaType === 'video' || isVideoUrl(finalMediaUrl);
+      const isVideo = mediaType === 'video';
       const mediaTypeResult: 'video' | 'image' = isVideo ? 'video' : 'image';
 
       // Categoria garantida (se lista estiver vazia, usa 'geral')

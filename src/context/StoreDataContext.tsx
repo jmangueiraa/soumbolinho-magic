@@ -111,7 +111,12 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ]);
 
       if (prodsRes.data) setProducts(prodsRes.data);
-      if (catsRes.data) setCategories(catsRes.data);
+      if (catsRes.data && catsRes.data.length > 0) {
+        setCategories(catsRes.data);
+      } else {
+        console.log('[StoreDataContext] ℹ️ Categorias vazias no Supabase, aplicando categorias padrão (fallback).');
+        setCategories(INITIAL_CATEGORIES);
+      }
       if (configRes.data) setStoreConfig(configRes.data);
       if (bannersRes.data) setBanners(bannersRes.data);
       setIsLoading(false);
@@ -146,7 +151,11 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         async (payload) => {
           console.log('[StoreDataContext] ⚡ Realtime: Tabela categories atualizada:', payload);
           const { data } = await fetchAllCategories();
-          if (data) setCategories(data);
+          if (data && data.length > 0) {
+            setCategories(data);
+          } else {
+            setCategories(INITIAL_CATEGORIES);
+          }
         }
       )
       // Sincronização de Banners
