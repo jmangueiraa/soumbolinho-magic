@@ -26,6 +26,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [formData, setFormData] = useState({
     name: '',
+    slug: '',
     category: '',
     subcategory: '',
     price: '',
@@ -37,6 +38,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     active: true,
   });
 
+  const [isSlugManual, setIsSlugManual] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
@@ -54,6 +56,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setMediaType(isVideo ? 'video' : 'image');
       setFormData({
         name: product.name || '',
+        slug: product.slug || slugify(product.name) || '',
         category: product.category || '',
         subcategory: product.subcategory || '',
         price: product.price ? String(product.price) : '',
@@ -65,10 +68,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         active: (product as any).active ?? product.inStock ?? true,
       });
       setMediaPreview(isVideo ? (existingVideo || existingImg) : existingImg);
+      setIsSlugManual(Boolean(product.slug));
     } else {
       setMediaType('image');
       setFormData({
         name: '',
+        slug: '',
         category: '',
         subcategory: '',
         price: '',
@@ -80,6 +85,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         active: true,
       });
       setMediaPreview('');
+      setIsSlugManual(false);
     }
   }, [product, isOpen]);
 
@@ -198,7 +204,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const numericPrice = Number(parseFloat(rawPrice)) || 0;
 
       const cleanName = String(formData.name).trim();
-      const generatedSlug = generateUniqueSlug(cleanName);
+      const finalSlug = slugify(formData.slug || cleanName);
 
       // Verificação explícita do tipo de mídia (aba 'Foto' ou 'Vídeo')
       const isVideo = mediaType === 'video';
@@ -209,7 +215,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const payload: any = {
         name: cleanName,
-        slug: generatedSlug,
+        slug: finalSlug,
         category: finalCategory,
         category_id: finalCategory,
         subcategory: formData.subcategory ? String(formData.subcategory).trim() : undefined,
@@ -241,6 +247,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       // Limpa os campos após cadastro bem-sucedido
       setFormData({
         name: '',
+        slug: '',
         category: '',
         subcategory: '',
         price: '',
@@ -251,6 +258,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         video_url: '',
         active: true,
       });
+      setIsSlugManual(false);
       setSelectedFile(null);
       setMediaPreview('');
       setSubmitError(null);
@@ -320,13 +328,45 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               type="text"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => {
+                const newName = e.target.value;
+                setFormData((prev) => ({
+                  ...prev,
+                  name: newName,
+                  slug: isSlugManual ? prev.slug : slugify(newName),
+                }));
+              }}
               placeholder="Ex: Caixa Milk Personalizada com Laço"
               className={`w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all ${
                 errors.name ? 'border-rose-500' : 'border-slate-200'
               }`}
             />
             {errors.name && <span className="text-[11px] text-rose-500 mt-0.5 block">{errors.name}</span>}
+          </div>
+
+          {/* Slug / URL Amigável (Editável e estritamente sem sufixo numérico) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-800">
+                Slug / URL Amigável
+              </label>
+              <span className="text-[11px] text-slate-500 font-mono">
+                /{formData.slug || slugify(formData.name) || 'link-do-produto'}
+              </span>
+            </div>
+            <input
+              type="text"
+              value={formData.slug}
+              onChange={(e) => {
+                setIsSlugManual(true);
+                setFormData((prev) => ({ ...prev, slug: slugify(e.target.value) }));
+              }}
+              placeholder="ex: caixa-milk-personalizada-com-laco"
+              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black font-mono text-slate-700 transition-all"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              URL direta na raiz do site: <strong>https://www.editaveisdocanva.com.br/{formData.slug || slugify(formData.name) || 'seu-produto'}</strong> (estritamente sem números no final).
+            </p>
           </div>
 
           {/* Categoria e Subcategoria */}

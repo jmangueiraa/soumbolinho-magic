@@ -85,7 +85,7 @@ export async function createProductInSupabase(
   const numericPrice = Number(productData.price) || 0;
   const finalDeliveryUrl = (productData.delivery_url || productData.deliveryUrl || '').trim();
   const rawName = String(productData.name || '').trim();
-  const finalSlug = (productData.slug || generateUniqueSlug(rawName)).trim();
+  const finalSlug = slugify(productData.slug || rawName);
 
   const dbPayload: any = {
     id: newId,
