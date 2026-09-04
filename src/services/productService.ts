@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Product } from '../types';
 import { slugify, generateUniqueSlug } from '../utils/slug';
+import { isVideoUrl } from '../utils/media';
 
 /**
  * Mapeia um registro bruto da tabela 'products' do Supabase para o modelo Product
@@ -18,6 +19,8 @@ export function mapSupabaseProduct(item: any): Product {
 
   const rawName = String(item.name || '').trim();
   const rawSlug = (item.slug || slugify(rawName) || String(item.id)).trim();
+  const rawVideo = (item.video_url || item.videoUrl || (isVideoUrl(rawImg) ? rawImg : '')).trim();
+  const isVideo = item.media_type === 'video' || item.mediaType === 'video' || Boolean(rawVideo);
 
   return {
     id: String(item.id),
@@ -32,6 +35,9 @@ export function mapSupabaseProduct(item: any): Product {
     image: rawImg,
     image_url: rawImg,
     photo_url: rawImg,
+    videoUrl: rawVideo || undefined,
+    video_url: rawVideo || undefined,
+    mediaType: isVideo ? 'video' : 'image',
     description: item.description || undefined,
     delivery_url: item.delivery_url || item.deliveryUrl || undefined,
     deliveryUrl: item.delivery_url || item.deliveryUrl || undefined,

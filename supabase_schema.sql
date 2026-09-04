@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS public.products (
 
 -- Garantir coluna slug e índice em banco existente
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS video_url TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS media_type TEXT;
 CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products (slug);
 
 -- ==============================================================================

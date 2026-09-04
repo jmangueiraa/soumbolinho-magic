@@ -193,6 +193,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const cleanName = String(formData.name).trim();
       const generatedSlug = generateUniqueSlug(cleanName);
+      const isVideo = mediaType === 'video' || isVideoUrl(finalMediaUrl);
 
       const payload: any = {
         name: cleanName,
