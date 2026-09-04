@@ -125,7 +125,10 @@ export async function createProductInSupabase(
 
     if (error) {
       console.error('[productService] ❌ Erro detalhado ao inserir produto no Supabase:', error);
-      return { product: null, error: error.message || JSON.stringify(error) };
+      const errMsg = (error as any).code === '23505' 
+        ? '23505: Já existe um produto cadastrado com este nome ou slug.' 
+        : (error.message || JSON.stringify(error));
+      return { product: null, error: errMsg };
     }
 
     const createdProduct = data && data[0] ? mapSupabaseProduct(data[0]) : mapSupabaseProduct(dbPayload);
@@ -188,7 +191,10 @@ export async function updateProductInSupabase(
 
     if (error) {
       console.error('[productService] ❌ Erro ao atualizar produto no Supabase:', error);
-      return { success: false, error: error.message };
+      const errMsg = (error as any).code === '23505'
+        ? '23505: Já existe um produto cadastrado com este nome ou slug.'
+        : error.message;
+      return { success: false, error: errMsg };
     }
 
     console.log('[productService] ✅ Produto atualizado no Supabase:', id);

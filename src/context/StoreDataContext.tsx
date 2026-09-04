@@ -238,7 +238,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     if (!success) {
       showNotification(`Erro ao atualizar no Supabase: ${error}`, 'error');
-      return;
+      throw new Error(error || 'Falha ao atualizar produto no Supabase.');
     }
 
     setProducts((prev) =>

@@ -6,6 +6,7 @@ import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
 import { slugify, generateUniqueSlug } from '../../utils/slug';
+import { supabase } from '../../lib/supabase';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string; slug?: string }>({});
 
   useEffect(() => {
     if (product) {
@@ -182,6 +183,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setSubmitError(null);
     try {
       setIsSubmitting(true);
+      const cleanName = String(formData.name).trim();
+      const currentProductId = product?.id || '';
+
+      // Validação de Nome Duplicado (Frontend + Supabase)
+      const { data: existing, error: checkError } = await supabase
+        .from('products')
+        .select('id, name')
+        .ilike('name', cleanName)
+        .neq('id', currentProductId || '')
+        .maybeSingle();
+
+      if (existing) {
+        setErrors((prev) => ({ ...prev, name: 'Já existe um produto cadastrado com este nome.' }));
+        showNotification('Já existe um produto cadastrado com este nome.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
       let finalMediaUrl = (mediaType === 'video' ? formData.video_url || formData.image : formData.image).trim();
 
       // Se houver arquivo selecionado e upload pendente
@@ -203,7 +222,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const rawPrice = String(formData.price).replace(',', '.');
       const numericPrice = Number(parseFloat(rawPrice)) || 0;
 
-      const cleanName = String(formData.name).trim();
       const finalSlug = slugify(formData.slug || cleanName);
 
       // Verificação explícita do tipo de mídia (aba 'Foto' ou 'Vídeo')
@@ -266,9 +284,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('[ProductFormModal] ❌ Erro detalhado ao salvar produto no Supabase:', error);
-      const msg = error?.message || (typeof error === 'string' ? error : 'Falha ao salvar produto no Supabase.');
-      setSubmitError(msg);
-      showNotification(`Erro: ${msg}`, 'error');
+      const rawMsg = error?.message || (typeof error === 'string' ? error : 'Falha ao salvar produto no Supabase.');
+      
+      const isDuplicate = 
+        error?.code === '23505' || 
+        rawMsg.includes('23505') || 
+        rawMsg.toLowerCase().includes('duplicate key') || 
+        rawMsg.toLowerCase().includes('unique constraint') ||
+        rawMsg.toLowerCase().includes('already exists') ||
+        rawMsg.includes('Já existe um produto');
+
+      if (isDuplicate) {
+        setErrors((prev) => ({ ...prev, name: 'Já existe um produto cadastrado com este nome.' }));
+        const friendlyMsg = 'Já existe um produto cadastrado com este nome ou URL amigável.';
+        setSubmitError(friendlyMsg);
+        showNotification(friendlyMsg, 'error');
+      } else {
+        setSubmitError(rawMsg);
+        showNotification(`Erro: ${rawMsg}`, 'error');
+      }
       setIsSubmitting(false);
     }
   };
@@ -335,13 +369,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   name: newName,
                   slug: isSlugManual ? prev.slug : slugify(newName),
                 }));
+                if (errors.name) {
+                  setErrors((prev) => ({ ...prev, name: undefined }));
+                }
               }}
               placeholder="Ex: Caixa Milk Personalizada com Laço"
               className={`w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all ${
                 errors.name ? 'border-rose-500' : 'border-slate-200'
               }`}
             />
-            {errors.name && <span className="text-[11px] text-rose-500 mt-0.5 block">{errors.name}</span>}
+            {errors.name && <span className="text-[11px] text-rose-500 font-medium mt-1 block">{errors.name}</span>}
           </div>
 
           {/* Slug / URL Amigável (Editável e estritamente sem sufixo numérico) */}
@@ -358,12 +395,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               type="text"
               value={formData.slug}
               onChange={(e) => {
-                setIsSlugManual(true);
-                setFormData((prev) => ({ ...prev, slug: slugify(e.target.value) }));
+                const val = e.target.value;
+                if (!val.trim()) {
+                  setIsSlugManual(false);
+                  setFormData((prev) => ({ ...prev, slug: '' }));
+                } else {
+                  setIsSlugManual(true);
+                  setFormData((prev) => ({ ...prev, slug: slugify(val) }));
+                }
+                if (errors.slug) {
+                  setErrors((prev) => ({ ...prev, slug: undefined }));
+                }
               }}
               placeholder="ex: caixa-milk-personalizada-com-laco"
-              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black font-mono text-slate-700 transition-all"
+              className={`w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black font-mono text-slate-700 transition-all ${
+                errors.slug ? 'border-rose-500' : 'border-slate-200'
+              }`}
             />
+            {errors.slug && <span className="text-[11px] text-rose-500 font-medium mt-1 block">{errors.slug}</span>}
             <p className="text-[10px] text-slate-400 mt-1">
               URL direta na raiz do site: <strong>https://www.editaveisdocanva.com.br/{formData.slug || slugify(formData.name) || 'seu-produto'}</strong> (estritamente sem números no final).
             </p>
