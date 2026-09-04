@@ -38,6 +38,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     video_url: '',
     active: true,
     upsell_product_id: '',
+    upsell_discount_percent: '',
     upsell_price: '',
   });
 
@@ -70,6 +71,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         video_url: existingVideo,
         active: (product as any).active ?? product.inStock ?? true,
         upsell_product_id: product.upsell_product_id || (product as any).upsellProductId || '',
+        upsell_discount_percent: product.upsell_discount_percent !== undefined && product.upsell_discount_percent !== null
+          ? String(product.upsell_discount_percent)
+          : ((product as any).upsellDiscountPercent !== undefined && (product as any).upsellDiscountPercent !== null
+            ? String((product as any).upsellDiscountPercent)
+            : ''),
         upsell_price: product.upsell_price !== undefined && product.upsell_price !== null
           ? String(product.upsell_price)
           : ((product as any).upsellPrice !== undefined && (product as any).upsellPrice !== null ? String((product as any).upsellPrice) : ''),
@@ -91,6 +97,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         video_url: '',
         active: true,
         upsell_product_id: '',
+        upsell_discount_percent: '',
         upsell_price: '',
       });
       setMediaPreview('');
@@ -261,6 +268,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         inStock: Boolean(formData.active),
         isCustomizable: true,
         upsell_product_id: (formData.upsell_product_id || '').trim() || null,
+        upsell_discount_percent: formData.upsell_discount_percent && !isNaN(Number(formData.upsell_discount_percent.replace(',', '.')))
+          ? Number(formData.upsell_discount_percent.replace(',', '.'))
+          : null,
         upsell_price: formData.upsell_price && !isNaN(Number(formData.upsell_price.replace(',', '.')))
           ? Number(formData.upsell_price.replace(',', '.'))
           : null,
@@ -288,6 +298,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         video_url: '',
         active: true,
         upsell_product_id: '',
+        upsell_discount_percent: '',
         upsell_price: '',
       });
       setIsSlugManual(false);
@@ -730,16 +741,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                  Preço Promocional do Upsell (R$)
+                  Porcentagem de Desconto do Upsell (%)
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-bold text-pink-500">R$</span>
+                  <span className="absolute left-3 text-xs font-black text-pink-500">%</span>
                   <input
                     type="text"
-                    value={formData.upsell_price}
-                    onChange={(e) => setFormData({ ...formData, upsell_price: e.target.value })}
-                    placeholder="Ex: 4,90 (ou vazio p/ padrão)"
-                    className="w-full text-xs pl-9 pr-3 py-2 bg-white border border-pink-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-800"
+                    value={formData.upsell_discount_percent}
+                    onChange={(e) => setFormData({ ...formData, upsell_discount_percent: e.target.value.replace(/[^0-9.,]/g, '') })}
+                    placeholder="Ex: 50 (para 50% de desconto)"
+                    className="w-full text-xs pl-8 pr-3 py-2 bg-white border border-pink-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-800"
                   />
                 </div>
               </div>

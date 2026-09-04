@@ -50,6 +50,8 @@ export function mapSupabaseProduct(item: any): Product {
     upsellProductId: item.upsell_product_id || item.upsellProductId || undefined,
     upsell_price: item.upsell_price !== null && item.upsell_price !== undefined ? Number(item.upsell_price) : undefined,
     upsellPrice: item.upsell_price !== null && item.upsell_price !== undefined ? Number(item.upsell_price) : undefined,
+    upsell_discount_percent: item.upsell_discount_percent !== null && item.upsell_discount_percent !== undefined ? Number(item.upsell_discount_percent) : undefined,
+    upsellDiscountPercent: item.upsell_discount_percent !== null && item.upsell_discount_percent !== undefined ? Number(item.upsell_discount_percent) : undefined,
   };
 }
 
@@ -111,6 +113,9 @@ export async function createProductInSupabase(
     upsell_price: (productData as any).upsell_price !== undefined && (productData as any).upsell_price !== null && (productData as any).upsell_price !== ''
       ? Number((productData as any).upsell_price)
       : ((productData as any).upsellPrice !== undefined && (productData as any).upsellPrice !== null && (productData as any).upsellPrice !== '' ? Number((productData as any).upsellPrice) : null),
+    upsell_discount_percent: (productData as any).upsell_discount_percent !== undefined && (productData as any).upsell_discount_percent !== null && (productData as any).upsell_discount_percent !== ''
+      ? Number((productData as any).upsell_discount_percent)
+      : ((productData as any).upsellDiscountPercent !== undefined && (productData as any).upsellDiscountPercent !== null && (productData as any).upsellDiscountPercent !== '' ? Number((productData as any).upsellDiscountPercent) : null),
   };
 
   console.log('[productService] 💾 Inserindo produto no Supabase com slug:', finalSlug, dbPayload);
@@ -121,7 +126,7 @@ export async function createProductInSupabase(
     // Se o banco ainda não possuir as colunas 'slug' ou 'upsell' criadas, faz fallback sem quebrar a operação
     if (error && error.message && (error.message.includes('slug') || error.message.includes('upsell') || error.message.includes('column'))) {
       console.warn('[productService] ⚠️ Coluna ausente no Supabase. Tentando gravar sem colunas opcionais:', error.message);
-      const { slug, upsell_product_id, upsell_price, ...payloadClean } = dbPayload;
+      const { slug, upsell_product_id, upsell_price, upsell_discount_percent, ...payloadClean } = dbPayload;
       const retry = await supabase.from('products').insert([payloadClean]).select();
       if (!retry.error && retry.data) {
         data = retry.data;
@@ -199,6 +204,10 @@ export async function updateProductInSupabase(
     const rawVal = (updates as any).upsell_price ?? (updates as any).upsellPrice;
     dbUpdatePayload.upsell_price = rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal)) ? Number(rawVal) : null;
   }
+  if ((updates as any).upsell_discount_percent !== undefined || (updates as any).upsellDiscountPercent !== undefined) {
+    const rawPct = (updates as any).upsell_discount_percent ?? (updates as any).upsellDiscountPercent;
+    dbUpdatePayload.upsell_discount_percent = rawPct !== null && rawPct !== '' && !isNaN(Number(rawPct)) ? Number(rawPct) : null;
+  }
 
   console.log('[productService] 📝 Atualizando produto no Supabase:', id, dbUpdatePayload);
 
@@ -207,7 +216,7 @@ export async function updateProductInSupabase(
 
     if (error && error.message && (error.message.includes('upsell') || error.message.includes('column'))) {
       console.warn('[productService] ⚠️ Colunas de upsell ausentes na atualização. Gravando sem upsell:', error.message);
-      const { upsell_product_id, upsell_price, ...cleanUpdate } = dbUpdatePayload;
+      const { upsell_product_id, upsell_price, upsell_discount_percent, ...cleanUpdate } = dbUpdatePayload;
       const retry = await supabase.from('products').update(cleanUpdate).eq('id', id);
       error = retry.error;
     }

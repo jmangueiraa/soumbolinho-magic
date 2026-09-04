@@ -21,6 +21,7 @@ export const CartUpsellCard: React.FC = () => {
   // 2. Determinar o produto e os preços de upsell
   let targetProduct: Product | null = null;
   let promoPrice: number | undefined = undefined;
+  let configuredDiscountPercent: number | undefined = undefined;
 
   if (upsellCartItem) {
     targetProduct = upsellCartItem.product;
@@ -33,6 +34,7 @@ export const CartUpsellCard: React.FC = () => {
         const found = products.find((p) => p.id === configuredId && p.inStock);
         if (found) {
           targetProduct = found;
+          configuredDiscountPercent = item.product.upsell_discount_percent ?? (item.product as any).upsellDiscountPercent ?? found.upsell_discount_percent;
           promoPrice = item.product.upsell_price ?? found.upsell_price;
           break;
         }
@@ -47,6 +49,7 @@ export const CartUpsellCard: React.FC = () => {
       if (available.length > 0) {
         const sorted = [...available].sort((a, b) => Number(a.price) - Number(b.price));
         targetProduct = sorted[0];
+        configuredDiscountPercent = targetProduct.upsell_discount_percent;
         promoPrice = targetProduct.upsell_price;
       }
     }
@@ -55,20 +58,25 @@ export const CartUpsellCard: React.FC = () => {
   // Se nenhum produto elegível for encontrado, não renderiza nada
   if (!targetProduct) return null;
 
-  // 3. Cálculo de valores (De R$ ... por apenas R$ ...)
+  // 3. Cálculo de valores com base na porcentagem de desconto
   const regularPrice = Number(targetProduct.price) || 10;
-  const effectivePromoPrice = (promoPrice !== undefined && promoPrice !== null && promoPrice > 0)
-    ? Number(promoPrice)
-    : Math.max(1.90, Math.round(regularPrice * 0.5 * 100) / 100);
+  let discountPercent = 50;
+  let effectivePromoPrice = 0;
+
+  if (configuredDiscountPercent !== undefined && configuredDiscountPercent !== null && configuredDiscountPercent > 0) {
+    discountPercent = Math.min(95, Math.max(5, Math.round(configuredDiscountPercent)));
+    effectivePromoPrice = Math.max(0.50, Math.round(regularPrice * (1 - discountPercent / 100) * 100) / 100);
+  } else if (promoPrice !== undefined && promoPrice !== null && promoPrice > 0) {
+    effectivePromoPrice = Number(promoPrice);
+    discountPercent = Math.max(5, Math.round(((regularPrice - effectivePromoPrice) / regularPrice) * 100));
+  } else {
+    discountPercent = 50;
+    effectivePromoPrice = Math.max(0.50, Math.round(regularPrice * 0.5 * 100) / 100);
+  }
 
   const effectiveOriginalPrice = targetProduct.originalPrice && targetProduct.originalPrice > effectivePromoPrice
     ? targetProduct.originalPrice
-    : (regularPrice > effectivePromoPrice ? regularPrice : Math.round(effectivePromoPrice * 1.8 * 100) / 100);
-
-  const discountPercent = Math.max(
-    10,
-    Math.round(((effectiveOriginalPrice - effectivePromoPrice) / effectiveOriginalPrice) * 100)
-  );
+    : regularPrice;
 
   const imageSrc = (
     targetProduct.image || 

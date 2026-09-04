@@ -28,6 +28,8 @@ export interface Product {
   upsellProductId?: string;
   upsell_price?: number;
   upsellPrice?: number;
+  upsell_discount_percent?: number;
+  upsellDiscountPercent?: number;
 }
 
 export interface Category {
