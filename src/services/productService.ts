@@ -221,13 +221,42 @@ export async function deleteProductFromSupabase(id: string): Promise<{ success: 
 }
 
 /**
- * 5. Alterna o status de estoque do produto no Supabase
+ * 5. Alterna o status de disponibilidade/estoque do produto no Supabase
  */
 export async function toggleProductStockInSupabase(
   id: string,
   newStockStatus: boolean
 ): Promise<{ success: boolean; error: string | null }> {
-  return updateProductInSupabase(id, { inStock: newStockStatus });
+  try {
+    console.log(`[productService] 🔄 Alternando status do produto "${id}" para:`, newStockStatus);
+    
+    // Envia is_active e in_stock para sincronizar qualquer padrão de coluna
+    let { error } = await supabase
+      .from('products')
+      .update({ in_stock: newStockStatus, is_active: newStockStatus })
+      .eq('id', id);
+
+    // Se o banco não tiver a coluna is_active, atualiza apenas in_stock
+    if (error && error.message && error.message.includes('is_active')) {
+      console.warn('[productService] ⚠️ Coluna is_active ausente, atualizando via in_stock...');
+      const retry = await supabase
+        .from('products')
+        .update({ in_stock: newStockStatus })
+        .eq('id', id);
+      error = retry.error;
+    }
+
+    if (error) {
+      console.error('[productService] ❌ Erro ao alterar status no Supabase:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`[productService] ✅ Status do produto "${id}" salvo com sucesso no Supabase.`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('[productService] ❌ Exceção ao alterar status:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 /**

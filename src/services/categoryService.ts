@@ -24,6 +24,7 @@ export function mapSupabaseCategory(item: any): Category {
 
 /**
  * 1. Busca todas as categorias do Supabase
+ * Nunca reverte para a lista padrão se o usuário tiver deletado categorias.
  */
 export async function fetchAllCategories(): Promise<{ data: Category[]; error: string | null }> {
   try {
@@ -35,15 +36,18 @@ export async function fetchAllCategories(): Promise<{ data: Category[]; error: s
 
     if (error) {
       console.warn('[categoryService] Tabela categories não encontrada ou erro no Supabase:', error.message);
-      return { data: INITIAL_CATEGORIES, error: null };
+      // Se a tabela ainda não foi criada no banco, usa as categorias iniciais como fallback de primeiro acesso
+      return { data: INITIAL_CATEGORIES, error: error.message };
     }
 
     const mapped = (data || []).map(mapSupabaseCategory);
-    console.log(`[categoryService] ✅ ${mapped.length} categorias carregadas do Supabase.`);
-    return { data: mapped.length > 0 ? mapped : INITIAL_CATEGORIES, error: null };
+    console.log(`[categoryService] ✅ ${mapped.length} categorias carregadas diretamente do Supabase.`);
+    
+    // Retorna exatamente os registros do Supabase sem ressuscitar categorias excluídas
+    return { data: mapped, error: null };
   } catch (err: any) {
     console.error('[categoryService] ❌ Exceção ao buscar categorias:', err);
-    return { data: INITIAL_CATEGORIES, error: null };
+    return { data: [], error: err.message };
   }
 }
 
@@ -68,13 +72,13 @@ export async function createCategoryInSupabase(category: Category): Promise<{ ca
 
     if (error) {
       console.error('[categoryService] ❌ Erro ao salvar categoria no Supabase:', error);
-      return { category, error: error.message };
+      return { category: null, error: error.message };
     }
 
     return { category: mapSupabaseCategory(data), error: null };
   } catch (err: any) {
     console.error('[categoryService] ❌ Exceção ao salvar categoria:', err);
-    return { category, error: err.message };
+    return { category: null, error: err.message };
   }
 }
 
@@ -125,6 +129,7 @@ export async function deleteCategoryFromSupabase(id: string): Promise<{ success:
       return { success: false, error: error.message };
     }
 
+    console.log(`[categoryService] ✅ Categoria "${id}" excluída com sucesso do Supabase.`);
     return { success: true, error: null };
   } catch (err: any) {
     console.error('[categoryService] ❌ Exceção ao excluir categoria:', err);

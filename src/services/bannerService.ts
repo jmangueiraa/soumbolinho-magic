@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
 import { BannerSlide } from '../types';
-import { INITIAL_BANNERS } from '../data/banners';
 
 export function mapSupabaseBanner(item: any): BannerSlide {
   return {
@@ -14,40 +13,37 @@ export function mapSupabaseBanner(item: any): BannerSlide {
     highlightText: item.highlight_text || item.highlightText || undefined,
     themeColor: item.theme_color || item.themeColor || 'pink',
     linkUrl: item.link_url || item.linkUrl || undefined,
-    order: Number(item.order ?? item.display_order ?? 0),
+    order: Number(item.order_index ?? item.order ?? item.display_order ?? 0),
     isActive: item.is_active !== false && item.isActive !== false,
   };
 }
 
 /**
  * 1. Busca todos os banners cadastrados no Supabase
+ * NUNCA recarrega imagens mock/demo se a tabela estiver vazia (0 registros).
  */
 export async function fetchAllBanners(): Promise<{ data: BannerSlide[]; error: string | null }> {
   try {
     console.log('[bannerService] 🌐 Buscando banners da tabela "banners" no Supabase...');
     const { data, error } = await supabase
       .from('banners')
-      .select('*')
-      .order('order', { ascending: true });
+      .select('*');
 
     if (error) {
-      console.warn('[bannerService] Aviso ao buscar banners:', error.message);
-      // Tentar sem ordenação específica caso a coluna tenha outro nome
-      const fallback = await supabase.from('banners').select('*');
-      if (fallback.error) {
-        console.warn('[bannerService] Tabela banners não encontrada ou vazia no Supabase.');
-        return { data: INITIAL_BANNERS, error: null };
-      }
-      const mapped = (fallback.data || []).map(mapSupabaseBanner);
-      return { data: mapped.length > 0 ? mapped : INITIAL_BANNERS, error: null };
+      console.warn('[bannerService] Erro ao buscar banners no Supabase:', error.message);
+      return { data: [], error: error.message };
     }
 
-    const mapped = (data || []).map(mapSupabaseBanner);
+    const mapped = (data || [])
+      .map(mapSupabaseBanner)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
     console.log(`[bannerService] ✅ ${mapped.length} banner(s) carregado(s) do Supabase.`);
-    return { data: mapped.length > 0 ? mapped : INITIAL_BANNERS, error: null };
+    // Se a tabela estiver vazia (0 registros), PERMANECE VAZIA!
+    return { data: mapped, error: null };
   } catch (err: any) {
     console.error('[bannerService] ❌ Exceção ao consultar banners:', err);
-    return { data: INITIAL_BANNERS, error: null };
+    return { data: [], error: err.message || 'Falha de conexão com o Supabase' };
   }
 }
 
@@ -59,7 +55,7 @@ export async function createBannerInSupabase(
 ): Promise<{ banner: BannerSlide | null; error: string | null }> {
   const newId = `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   
-  const payload = {
+  const payload: any = {
     id: newId,
     type: bannerData.type || 'image',
     image_url: bannerData.imageUrl || null,
@@ -84,20 +80,13 @@ export async function createBannerInSupabase(
 
     if (error) {
       console.error('[bannerService] ❌ Erro ao inserir banner no Supabase:', error);
-      // Retorna objeto local para não quebrar a interface
-      return {
-        banner: { ...bannerData, id: newId },
-        error: error.message
-      };
+      return { banner: null, error: error.message };
     }
 
     return { banner: mapSupabaseBanner(data), error: null };
   } catch (err: any) {
     console.error('[bannerService] ❌ Exceção ao criar banner:', err);
-    return {
-      banner: { ...bannerData, id: newId },
-      error: err.message
-    };
+    return { banner: null, error: err.message };
   }
 }
 
@@ -145,7 +134,7 @@ export async function updateBannerInSupabase(
  */
 export async function deleteBannerFromSupabase(id: string): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log(`[bannerService] 🗑️ Excluindo banner "${id}" do Supabase...`);
+    console.log(`[bannerService] 🗑️ Excluindo banner "${id}" diretamente no Supabase...`);
     const { error } = await supabase
       .from('banners')
       .delete()
@@ -156,6 +145,7 @@ export async function deleteBannerFromSupabase(id: string): Promise<{ success: b
       return { success: false, error: error.message };
     }
 
+    console.log(`[bannerService] ✅ Banner "${id}" excluído com sucesso do Supabase.`);
     return { success: true, error: null };
   } catch (err: any) {
     console.error('[bannerService] ❌ Exceção ao excluir banner:', err);

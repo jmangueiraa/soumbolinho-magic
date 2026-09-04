@@ -72,11 +72,11 @@ interface StoreDataContextType {
 const StoreDataContext = createContext<StoreDataContextType | undefined>(undefined);
 
 export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Estados 100% Supabase em Memória Viva (Sem LocalStorage para dados)
+  // Estados 100% Supabase em Memória Viva (Sem LocalStorage e Sem Mocks Fantasmas)
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [storeConfig, setStoreConfig] = useState<StoreConfig>(INITIAL_STORE_CONFIG);
-  const [banners, setBanners] = useState<BannerSlide[]>(INITIAL_BANNERS);
+  const [banners, setBanners] = useState<BannerSlide[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Autenticação Admin de Sessão
@@ -111,12 +111,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ]);
 
       if (prodsRes.data) setProducts(prodsRes.data);
-      if (catsRes.data && catsRes.data.length > 0) {
-        setCategories(catsRes.data);
-      } else {
-        console.log('[StoreDataContext] ℹ️ Categorias vazias no Supabase, aplicando categorias padrão (fallback).');
-        setCategories(INITIAL_CATEGORIES);
-      }
+      if (catsRes.data) setCategories(catsRes.data);
       if (configRes.data) setStoreConfig(configRes.data);
       if (bannersRes.data) setBanners(bannersRes.data);
       setIsLoading(false);
@@ -257,12 +252,13 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const { success, error } = await deleteProductFromSupabase(id);
 
     if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao excluir produto no Supabase:', error);
       showNotification(`Erro ao excluir no Supabase: ${error}`, 'error');
       return;
     }
 
     setProducts((prev) => prev.filter((item) => item.id !== id));
-    showNotification(`Produto "${prod?.name || ''}" excluído do Supabase!`, 'info');
+    showNotification(`Produto "${prod?.name || ''}" excluído com sucesso do Supabase!`, 'success');
   };
 
   const toggleProductStock = async (id: string): Promise<void> => {
@@ -273,14 +269,15 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const { success, error } = await toggleProductStockInSupabase(id, nextStock);
 
     if (!success) {
-      showNotification(`Erro ao alterar status: ${error}`, 'error');
+      console.error('[StoreDataContext] ❌ Erro ao alterar status no Supabase:', error);
+      showNotification(`Erro ao alterar status no Supabase: ${error}`, 'error');
       return;
     }
 
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, inStock: nextStock } : p))
     );
-    showNotification(`Status alterado para: ${nextStock ? 'Disponível' : 'Indisponível'}`, 'info');
+    showNotification(`Status alterado para: ${nextStock ? 'Ativo' : 'Inativo'} no Supabase!`, 'success');
   };
 
   const quickUpdatePrice = async (id: string, newPrice: number): Promise<void> => {
@@ -289,6 +286,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const { success, error } = await updateProductPriceInSupabase(id, newPrice);
 
     if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao atualizar preço no Supabase:', error);
       showNotification(`Erro ao atualizar preço: ${error}`, 'error');
       return;
     }
@@ -296,19 +294,14 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, price: newPrice } : p))
     );
-    showNotification('Preço atualizado no Supabase!', 'success');
+    showNotification('Preço atualizado com sucesso no Supabase!', 'success');
   };
 
   // -------------------------------------------------------------
   // 5. AÇÕES DE CATEGORIAS NO SUPABASE
   // -------------------------------------------------------------
   const addCategory = async (name: string, icon = 'Gift'): Promise<Category> => {
-    const slug = name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const slug = slugify(name);
 
     const newCategory: Category = {
       id: slug || `cat-${Date.now()}`,
@@ -317,33 +310,44 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       subcategories: []
     };
 
-    setCategories((prev) => [...prev.filter((c) => c.id !== newCategory.id), newCategory]);
-    const { error } = await createCategoryInSupabase(newCategory);
+    const { category, error } = await createCategoryInSupabase(newCategory);
     
-    if (error) {
-      showNotification(`Aviso: salvo em memória (${error})`, 'info');
-    } else {
-      showNotification(`Categoria "${name}" salva no Supabase!`, 'success');
+    if (error || !category) {
+      console.error('[StoreDataContext] ❌ Erro ao salvar categoria no Supabase:', error);
+      showNotification(`Erro ao salvar categoria no Supabase: ${error}`, 'error');
+      throw new Error(error || 'Falha ao salvar categoria no Supabase.');
     }
 
-    return newCategory;
+    setCategories((prev) => [...prev.filter((c) => c.id !== category.id), category]);
+    showNotification(`Categoria "${category.name}" salva com sucesso no Supabase!`, 'success');
+    return category;
   };
 
   const updateCategory = async (id: string, updates: Partial<Category>): Promise<void> => {
+    const { success, error } = await updateCategoryInSupabase(id, updates);
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao atualizar categoria no Supabase:', error);
+      showNotification(`Erro ao atualizar categoria: ${error}`, 'error');
+      return;
+    }
+
     setCategories((prev) =>
       prev.map((cat) => (cat.id === id ? { ...cat, ...updates } : cat))
     );
-    const { error } = await updateCategoryInSupabase(id, updates);
-    if (!error) {
-      showNotification('Categoria atualizada no Supabase!', 'success');
-    }
+    showNotification('Categoria atualizada com sucesso no Supabase!', 'success');
   };
 
   const deleteCategory = async (id: string): Promise<void> => {
     const cat = categories.find((c) => c.id === id);
+    const { success, error } = await deleteCategoryFromSupabase(id);
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao excluir categoria no Supabase:', error);
+      showNotification(`Erro ao excluir categoria: ${error}`, 'error');
+      return;
+    }
+
     setCategories((prev) => prev.filter((c) => c.id !== id));
-    await deleteCategoryFromSupabase(id);
-    showNotification(`Categoria "${cat?.name || ''}" excluída do Supabase!`, 'info');
+    showNotification(`Categoria "${cat?.name || ''}" excluída com sucesso do Supabase!`, 'success');
   };
 
   const addSubcategory = async (categoryId: string, subcategoryName: string): Promise<void> => {
@@ -357,12 +361,17 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ? targetCat.subcategories
       : [...targetCat.subcategories, trimmed];
 
+    const { success, error } = await updateCategoryInSupabase(categoryId, { subcategories: updatedSubcategories });
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao salvar subcategoria no Supabase:', error);
+      showNotification(`Erro ao salvar subcategoria: ${error}`, 'error');
+      return;
+    }
+
     setCategories((prev) =>
       prev.map((cat) => (cat.id === categoryId ? { ...cat, subcategories: updatedSubcategories } : cat))
     );
-
-    await updateCategoryInSupabase(categoryId, { subcategories: updatedSubcategories });
-    showNotification(`Subcategoria "${trimmed}" salva no Supabase!`, 'success');
+    showNotification(`Subcategoria "${trimmed}" salva com sucesso no Supabase!`, 'success');
   };
 
   const deleteSubcategory = async (categoryId: string, subcategoryName: string): Promise<void> => {
@@ -371,12 +380,17 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const updatedSubcategories = targetCat.subcategories.filter((s) => s !== subcategoryName);
 
+    const { success, error } = await updateCategoryInSupabase(categoryId, { subcategories: updatedSubcategories });
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao remover subcategoria no Supabase:', error);
+      showNotification(`Erro ao remover subcategoria: ${error}`, 'error');
+      return;
+    }
+
     setCategories((prev) =>
       prev.map((cat) => (cat.id === categoryId ? { ...cat, subcategories: updatedSubcategories } : cat))
     );
-
-    await updateCategoryInSupabase(categoryId, { subcategories: updatedSubcategories });
-    showNotification(`Subcategoria "${subcategoryName}" removida do Supabase!`, 'info');
+    showNotification(`Subcategoria "${subcategoryName}" removida com sucesso do Supabase!`, 'success');
   };
 
   // -------------------------------------------------------------
@@ -384,35 +398,44 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // -------------------------------------------------------------
   const addBanner = async (bannerData: Omit<BannerSlide, 'id'>): Promise<BannerSlide> => {
     const { banner, error } = await createBannerInSupabase(bannerData);
-    const finalBanner = banner || { ...bannerData, id: `banner_${Date.now()}` };
-
-    setBanners((prev) => [...prev.filter((b) => b.id !== finalBanner.id), finalBanner].sort((a, b) => a.order - b.order));
     
-    if (error) {
-      showNotification(`Aviso ao salvar banner: ${error}`, 'info');
-    } else {
-      showNotification('Banner salvo no Supabase com sucesso!', 'success');
+    if (error || !banner) {
+      console.error('[StoreDataContext] ❌ Erro ao salvar banner no Supabase:', error);
+      showNotification(`Erro ao salvar banner no Supabase: ${error || 'Falha no banco'}`, 'error');
+      throw new Error(error || 'Falha ao salvar banner no Supabase.');
     }
 
-    return finalBanner;
+    setBanners((prev) => [...prev.filter((b) => b.id !== banner.id), banner].sort((a, b) => a.order - b.order));
+    showNotification('Banner salvo com sucesso no Supabase!', 'success');
+    return banner;
   };
 
   const updateBanner = async (id: string, updates: Partial<BannerSlide>): Promise<void> => {
+    const { success, error } = await updateBannerInSupabase(id, updates);
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao atualizar banner no Supabase:', error);
+      showNotification(`Erro ao atualizar banner: ${error}`, 'error');
+      return;
+    }
+
     setBanners((prev) =>
       prev
         .map((b) => (b.id === id ? { ...b, ...updates } : b))
         .sort((a, b) => a.order - b.order)
     );
-    const { error } = await updateBannerInSupabase(id, updates);
-    if (!error) {
-      showNotification('Banner atualizado no Supabase!', 'success');
-    }
+    showNotification('Banner atualizado com sucesso no Supabase!', 'success');
   };
 
   const deleteBanner = async (id: string): Promise<void> => {
+    const { success, error } = await deleteBannerFromSupabase(id);
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao excluir banner no Supabase:', error);
+      showNotification(`Erro ao excluir banner: ${error}`, 'error');
+      return;
+    }
+
     setBanners((prev) => prev.filter((b) => b.id !== id));
-    await deleteBannerFromSupabase(id);
-    showNotification('Banner excluído do Supabase!', 'info');
+    showNotification('Banner excluído com sucesso do Supabase!', 'success');
   };
 
   const toggleBannerStatus = async (id: string): Promise<void> => {
@@ -420,20 +443,31 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!target) return;
 
     const nextStatus = !target.isActive;
+    const { success, error } = await updateBannerInSupabase(id, { isActive: nextStatus });
+    if (!success) {
+      console.error('[StoreDataContext] ❌ Erro ao alterar status do banner no Supabase:', error);
+      showNotification(`Erro ao alterar status do banner: ${error}`, 'error');
+      return;
+    }
+
     setBanners((prev) =>
       prev.map((b) => (b.id === id ? { ...b, isActive: nextStatus } : b))
     );
-
-    await updateBannerInSupabase(id, { isActive: nextStatus });
-    showNotification('Status do banner atualizado no Supabase!', 'info');
+    showNotification(`Banner ${nextStatus ? 'ativado' : 'pausado'} no Supabase!`, 'success');
   };
 
   const reorderBanners = async (orderedBanners: BannerSlide[]): Promise<void> => {
-    setBanners(orderedBanners);
-    await Promise.all(
+    const results = await Promise.all(
       orderedBanners.map((b, idx) => updateBannerInSupabase(b.id, { order: idx }))
     );
-    showNotification('Ordem dos banners atualizada no Supabase!', 'success');
+    const hasError = results.some((r) => !r.success);
+    if (hasError) {
+      showNotification('Erro ao reordenar banners no Supabase', 'error');
+      return;
+    }
+
+    setBanners(orderedBanners);
+    showNotification('Ordem dos banners atualizada com sucesso no Supabase!', 'success');
   };
 
   // -------------------------------------------------------------

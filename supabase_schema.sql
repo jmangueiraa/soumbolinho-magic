@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS public.products (
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS slug TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS video_url TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS media_type TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products (slug);
 
 -- ==============================================================================
