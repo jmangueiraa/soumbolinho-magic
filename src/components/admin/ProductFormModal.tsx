@@ -693,17 +693,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
 
           {/* Oferta de Upsell / Compre Junto no Carrinho (Order Bump) */}
-          <div className="pt-3 border-t border-slate-200 bg-amber-50/60 p-4 rounded-2xl border border-amber-200 space-y-3">
+          <div className="pt-3 border-t border-slate-200 bg-pink-50/60 p-4 rounded-2xl border border-pink-200 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-600" />
+              <label className="block text-xs font-bold text-black flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-pink-500" />
                 <span>Oferta de Upsell / Compre Junto no Carrinho (Opcional)</span>
               </label>
-              <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+              <span className="text-[10px] bg-black text-pink-300 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
                 Order Bump
               </span>
             </div>
-            <p className="text-[11px] text-amber-800">
+            <p className="text-[11px] text-slate-700">
               Ofereça um produto complementar diretamente no carrinho antes do pagamento com valor promocional exclusivo.
             </p>
 
@@ -715,7 +715,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <select
                   value={formData.upsell_product_id}
                   onChange={(e) => setFormData({ ...formData, upsell_product_id: e.target.value })}
-                  className="w-full text-xs px-3 py-2 bg-white border border-amber-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer text-slate-800"
+                  className="w-full text-xs px-3 py-2 bg-white border border-pink-300 rounded-xl outline-none focus:ring-2 focus:ring-black cursor-pointer text-slate-800"
                 >
                   <option value="">Nenhum / Automático (menor valor)</option>
                   {products
@@ -733,13 +733,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   Preço Promocional do Upsell (R$)
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-bold text-slate-500">R$</span>
+                  <span className="absolute left-3 text-xs font-bold text-pink-500">R$</span>
                   <input
                     type="text"
                     value={formData.upsell_price}
                     onChange={(e) => setFormData({ ...formData, upsell_price: e.target.value })}
                     placeholder="Ex: 4,90 (ou vazio p/ padrão)"
-                    className="w-full text-xs pl-9 pr-3 py-2 bg-white border border-amber-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 font-bold text-slate-800"
+                    className="w-full text-xs pl-9 pr-3 py-2 bg-white border border-pink-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-800"
                   />
                 </div>
               </div>

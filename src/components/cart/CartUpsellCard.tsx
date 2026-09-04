@@ -89,27 +89,27 @@ export const CartUpsellCard: React.FC = () => {
   return (
     <div className={`p-3.5 sm:p-4 rounded-2xl border-2 border-dashed transition-all duration-200 ${
       isAdded 
-        ? 'bg-emerald-50/80 border-emerald-400 shadow-2xs' 
-        : 'bg-amber-50/70 border-amber-400 hover:border-amber-500 shadow-xs'
+        ? 'bg-pink-100/90 border-black shadow-sm' 
+        : 'bg-gradient-to-r from-pink-50/90 via-rose-50/50 to-pink-50/90 border-pink-500 hover:border-black shadow-xs'
     }`}>
       
       {/* Top Header Badge */}
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-center gap-1.5">
           {isAdded ? (
-            <span className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-300">
-              <Check className="w-3.5 h-3.5 stroke-[3]" />
-              Oferta Adicionada
+            <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white bg-black px-2.5 py-1 rounded-lg shadow-xs">
+              <Check className="w-3.5 h-3.5 text-pink-400 stroke-[3]" />
+              <span>Oferta Adicionada!</span>
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md border border-amber-300">
-              <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-500 animate-pulse" />
-              Oferta Relâmpago • Compre Junto
+            <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white bg-black px-2.5 py-1 rounded-lg shadow-xs">
+              <Zap className="w-3.5 h-3.5 text-pink-400 fill-pink-400 animate-pulse" />
+              <span>Oferta Relâmpago • Compre Junto</span>
             </span>
           )}
         </div>
 
-        <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100/90 px-2 py-0.5 rounded-full border border-orange-200">
+        <span className="text-[10px] font-black text-white bg-pink-600 px-2.5 py-0.5 rounded-full shadow-2xs">
           -{discountPercent}% OFF
         </span>
       </div>
@@ -117,7 +117,7 @@ export const CartUpsellCard: React.FC = () => {
       {/* Product Information Card */}
       <div className="flex items-center gap-3">
         {/* Thumbnail */}
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white shrink-0 border border-slate-200 shadow-2xs flex items-center justify-center">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white shrink-0 border border-pink-200 shadow-2xs flex items-center justify-center">
           {imageSrc ? (
             <img
               src={imageSrc}
@@ -126,7 +126,7 @@ export const CartUpsellCard: React.FC = () => {
             />
           ) : (
             <ProductImagePlaceholder 
-              iconClassName="w-5 h-5 text-amber-400" 
+              iconClassName="w-5 h-5 text-pink-300" 
               showText={false} 
               className="p-1"
             />
@@ -135,35 +135,35 @@ export const CartUpsellCard: React.FC = () => {
 
         {/* Title and Pricing */}
         <div className="flex-1 min-w-0">
-          <h4 className="font-sans font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 leading-tight">
+          <h4 className="font-sans font-bold text-black text-xs sm:text-sm line-clamp-1 leading-tight">
             {targetProduct.name}
           </h4>
           <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
             <span className="text-[11px] text-slate-400 line-through font-medium">
               De {formatCurrency(effectiveOriginalPrice)}
             </span>
-            <span className="text-xs sm:text-sm font-black text-amber-800">
-              por apenas <span className="text-emerald-700 text-sm sm:text-base font-black">{formatCurrency(effectivePromoPrice)}</span>
+            <span className="text-xs sm:text-sm font-bold text-slate-800">
+              por apenas <span className="text-pink-600 text-sm sm:text-base font-black">{formatCurrency(effectivePromoPrice)}</span>
             </span>
           </div>
         </div>
       </div>
 
       {/* 1-Click Checkbox Button */}
-      <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between">
+      <div className="mt-3 pt-2.5 border-t border-pink-200/80 flex items-center justify-between">
         <label 
           onClick={handleToggleUpsell}
           className="flex items-center gap-2.5 cursor-pointer select-none w-full"
         >
-          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
             isAdded
-              ? 'bg-emerald-600 border-emerald-600 text-white shadow-2xs'
-              : 'bg-white border-amber-400 hover:border-amber-600 text-transparent'
+              ? 'bg-black border-black text-pink-400 shadow-2xs'
+              : 'bg-white border-black hover:border-pink-600 text-transparent'
           }`}>
-            <Check className={`w-3.5 h-3.5 stroke-[3] ${isAdded ? 'text-white' : 'text-transparent'}`} />
+            <Check className={`w-3.5 h-3.5 stroke-[3] ${isAdded ? 'text-pink-400' : 'text-transparent'}`} />
           </div>
           <span className={`text-xs font-bold transition-colors ${
-            isAdded ? 'text-emerald-800' : 'text-slate-800 hover:text-black'
+            isAdded ? 'text-black font-extrabold' : 'text-slate-900 hover:text-pink-600'
           }`}>
             {isAdded 
               ? '✓ Adicionado à compra com desconto!' 

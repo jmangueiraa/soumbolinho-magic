@@ -57,8 +57,8 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
               {item.product.name}
             </h4>
             {item.isUpsell && (
-              <span className="inline-flex items-center text-[10px] font-extrabold text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-300">
-                ⚡ Compre Junto
+              <span className="inline-flex items-center text-[10px] font-black text-white bg-black px-2 py-0.5 rounded-md border border-black shadow-2xs">
+                <span className="text-pink-400 mr-1">⚡</span> Compre Junto
               </span>
             )}
           </div>
@@ -68,7 +68,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
                 {formatCurrency(item.product.price)}
               </span>
             )}
-            <span className={isDiscounted ? "font-bold text-emerald-600" : ""}>
+            <span className={isDiscounted ? "font-bold text-pink-600" : ""}>
               {formatCurrency(unitPrice)}
             </span>
             <span>{unitSuffix}</span>
