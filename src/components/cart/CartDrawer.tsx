@@ -32,7 +32,7 @@ export const CartDrawer: React.FC = () => {
         {/* Header */}
         <div className="bg-white px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[#ff3399] text-white flex items-center justify-center font-bold shadow-xs">
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
@@ -82,7 +82,7 @@ export const CartDrawer: React.FC = () => {
               </p>
               <button
                 onClick={closeCart}
-                className="px-5 py-2.5 bg-black hover:bg-zinc-800 text-white text-xs font-bold rounded-lg shadow-md transition-all cursor-pointer"
+                className="px-5 py-2.5 bg-[#ff3399] hover:bg-[#e61e80] text-white text-xs font-bold rounded-lg shadow-md shadow-pink-500/20 transition-all cursor-pointer"
               >
                 Ver Catálogo de Produtos
               </button>
@@ -119,7 +119,7 @@ export const CartDrawer: React.FC = () => {
                   window.location.hash = '#/checkout';
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="w-full py-3.5 px-4 bg-[#65bc45] hover:bg-[#5aa83d] text-white font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+                className="w-full py-3.5 px-4 bg-[#ff3399] hover:bg-[#e61e80] text-white font-bold text-xs sm:text-sm rounded-lg shadow-md shadow-pink-500/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
               >
                 <span>❖ Pagar com Pix (Aprovação Imediata)</span>
               </button>

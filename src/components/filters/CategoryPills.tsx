@@ -24,11 +24,11 @@ export const CategoryPills: React.FC = () => {
               onClick={() => setSelectedCategory(null)}
               className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs ${
                 filters.selectedCategory === null
-                  ? 'bg-black text-white shadow-md'
-                  : 'bg-white text-slate-700 hover:bg-pastel-pink-light border border-slate-200'
+                  ? 'bg-[#ff3399] text-white shadow-md shadow-pink-500/25'
+                  : 'bg-white text-slate-700 hover:bg-pink-50 border border-slate-200 hover:border-pink-200'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#F8A4D8]" />
+              <Sparkles className={`w-3.5 h-3.5 ${filters.selectedCategory === null ? 'text-white' : 'text-[#ff3399]'}`} />
               Todos os Produtos
             </button>
 
@@ -36,7 +36,7 @@ export const CategoryPills: React.FC = () => {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className="px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-700 hover:bg-pastel-pink-light/70 hover:text-slate-900 border border-[#D8B4F8]/40 transition-all shadow-xs"
+                className="px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-700 hover:bg-pink-50 hover:text-[#ff3399] border border-slate-200 hover:border-pink-200 transition-all shadow-xs"
               >
                 {cat.name}
               </button>
@@ -49,11 +49,11 @@ export const CategoryPills: React.FC = () => {
               onClick={() => setSelectedSubcategory(null)}
               className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs ${
                 filters.selectedSubcategory === null
-                  ? 'bg-black text-white shadow-md'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  ? 'bg-[#ff3399] text-white shadow-md shadow-pink-500/25'
+                  : 'bg-white text-slate-700 hover:bg-pink-50 border border-slate-200 hover:border-pink-200'
               }`}
             >
-              <Layers className="w-3.5 h-3.5 text-[#F8A4D8]" />
+              <Layers className={`w-3.5 h-3.5 ${filters.selectedSubcategory === null ? 'text-white' : 'text-[#ff3399]'}`} />
               Todos em {currentCategory.name}
             </button>
 
@@ -65,8 +65,8 @@ export const CategoryPills: React.FC = () => {
                   onClick={() => setSelectedSubcategory(isSelected ? null : subcat)}
                   className={`px-4 py-2 rounded-full text-xs font-semibold transition-all border shadow-xs ${
                     isSelected
-                      ? 'bg-gradient-to-r from-[#F8A4D8] to-[#D8B4F8] text-slate-900 font-bold border-white shadow-md'
-                      : 'bg-white text-slate-700 hover:bg-pastel-pink-light/60 hover:text-slate-900 border-[#D8B4F8]/40'
+                      ? 'bg-gradient-to-r from-[#ff3399] to-[#e61e80] text-white font-bold border-transparent shadow-md shadow-pink-500/20'
+                      : 'bg-white text-slate-700 hover:bg-pink-50 hover:text-[#ff3399] border-slate-200 hover:border-pink-200'
                   }`}
                 >
                   {subcat}

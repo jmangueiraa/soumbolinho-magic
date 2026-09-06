@@ -497,8 +497,8 @@ export const CheckoutModal: React.FC = () => {
                       disabled={isLoadingMP}
                       className={`w-full py-4 px-6 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl flex items-center justify-center gap-3 active:scale-98 transition-all cursor-pointer disabled:opacity-60 ${
                         customerInfo.paymentMethod === 'pix'
-                          ? 'bg-teal-600 hover:bg-teal-700 shadow-teal-600/25'
-                          : 'bg-[#009EE3] hover:bg-[#0082BD] shadow-[#009EE3]/25'
+                          ? 'bg-[#ff3399] hover:bg-[#e61e80] shadow-pink-500/25'
+                          : 'bg-[#00a8e8] hover:bg-[#0096c7] shadow-turquesa-500/25'
                       }`}
                     >
                       {isLoadingMP ? (

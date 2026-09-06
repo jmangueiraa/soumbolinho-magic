@@ -101,7 +101,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
           <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
             SOUM
           </span>
-          <span className="font-sans text-lg sm:text-2xl font-black text-[#65bc45] ml-0.5">
+          <span className="font-sans text-lg sm:text-2xl font-black text-[#ff3399] ml-0.5">
             BOLINHO
           </span>
         </div>

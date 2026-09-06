@@ -47,16 +47,22 @@ export const SidebarFilters: React.FC = () => {
     if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
   };
 
+  const handleAllCategoriesClick = () => {
+    setSelectedCategory(null);
+    setSelectedSubcategory(null);
+    if (isMobileFiltersOpen) setIsMobileFiltersOpen(false);
+  };
+
   const content = (
     <div className="space-y-6 select-none">
       
-      {/* 1. Título "Todas as Categorias" */}
-      <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
+      {/* 1. Header do Filtro: Todas as Categorias + Botão Limpar */}
+      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200">
         <button
-          onClick={() => setSelectedCategory(null)}
-          className={`text-left group transition-all flex items-center gap-1.5 ${
-            filters.selectedCategory === null
-              ? 'scale-102'
+          onClick={handleAllCategoriesClick}
+          className={`flex items-center gap-1.5 text-left transition-all cursor-pointer group ${
+            filters.selectedCategory === null 
+              ? 'opacity-100' 
               : 'opacity-90 hover:opacity-100'
           }`}
           title="Exibir todos os produtos"
@@ -65,14 +71,14 @@ export const SidebarFilters: React.FC = () => {
             Todas as Categorias
           </span>
           {filters.selectedCategory === null && (
-            <span className="w-2 h-2 rounded-full bg-black animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-[#ff3399] animate-pulse"></span>
           )}
         </button>
 
         {hasActiveFilters && (
           <button
             onClick={resetFilters}
-            className="text-[11px] font-bold text-slate-500 hover:text-black flex items-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md shadow-2xs transition-all cursor-pointer"
+            className="text-[11px] font-bold text-slate-500 hover:text-[#ff3399] flex items-center gap-1 bg-white hover:bg-pink-50 border border-slate-200 px-2.5 py-1 rounded-md shadow-2xs transition-all cursor-pointer"
             title="Limpar todos os filtros"
           >
             <RotateCcw className="w-3 h-3" />
@@ -96,14 +102,14 @@ export const SidebarFilters: React.FC = () => {
                 onClick={() => handleCategoryClick(category.id)}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-150 group cursor-pointer ${
                   isCatSelected && !filters.selectedSubcategory
-                    ? 'bg-black text-white shadow-xs'
+                    ? 'bg-[#ff3399] text-white shadow-xs shadow-pink-500/20'
                     : isCatSelected
-                    ? 'text-black font-bold bg-slate-100'
-                    : 'text-slate-700 hover:text-black hover:bg-slate-100'
+                    ? 'text-[#ff3399] font-bold bg-pink-50'
+                    : 'text-slate-700 hover:text-[#ff3399] hover:bg-pink-50/60'
                 }`}
               >
                 <span className={`text-base leading-none ${
-                  isCatSelected && !filters.selectedSubcategory ? 'text-white' : 'text-slate-400 group-hover:text-black'
+                  isCatSelected && !filters.selectedSubcategory ? 'text-white' : 'text-[#ff3399] group-hover:text-[#ff3399]'
                 }`}>
                   •
                 </span>
@@ -124,12 +130,12 @@ export const SidebarFilters: React.FC = () => {
                         onClick={(e) => handleSubcategoryClick(category.id, subcat, e)}
                         className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-all duration-150 group cursor-pointer ${
                           isSubSelected
-                            ? 'bg-zinc-900 text-white font-bold shadow-2xs'
-                            : 'text-slate-600 hover:text-black hover:bg-slate-100'
+                            ? 'bg-gradient-to-r from-[#ff3399] to-[#e61e80] text-white font-bold shadow-2xs'
+                            : 'text-slate-600 hover:text-[#ff3399] hover:bg-pink-50/50'
                         }`}
                       >
                         <span className={`text-sm leading-none font-bold ${
-                          isSubSelected ? 'text-white' : 'text-slate-400 group-hover:text-black'
+                          isSubSelected ? 'text-white' : 'text-slate-400 group-hover:text-[#ff3399]'
                         }`}>
                           °
                         </span>
@@ -164,7 +170,7 @@ export const SidebarFilters: React.FC = () => {
               placeholder="0,00"
               value={minPriceInput}
               onChange={(e) => setMinPriceInput(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black text-slate-900 shadow-2xs"
+              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#ff3399] text-slate-900 shadow-2xs"
             />
           </div>
           <div>
@@ -176,14 +182,14 @@ export const SidebarFilters: React.FC = () => {
               placeholder="100,00"
               value={maxPriceInput}
               onChange={(e) => setMaxPriceInput(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-black text-slate-900 shadow-2xs"
+              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#ff3399] text-slate-900 shadow-2xs"
             />
           </div>
         </div>
 
         <button
           onClick={applyPriceFilter}
-          className="w-full py-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold rounded-lg shadow-xs transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
+          className="w-full py-2 bg-[#ff3399] hover:bg-[#e61e80] text-white text-xs font-bold rounded-lg shadow-xs shadow-pink-500/20 transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Filter className="w-3.5 h-3.5 text-white" />
           Aplicar Filtro
@@ -192,12 +198,12 @@ export const SidebarFilters: React.FC = () => {
 
       {/* 4. Filtro de Estoque */}
       <div className="pt-2 border-t border-slate-200">
-        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none hover:text-black transition-colors">
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none hover:text-[#ff3399] transition-colors">
           <input
             type="checkbox"
             checked={filters.inStockOnly}
             onChange={(e) => setInStockOnly(e.target.checked)}
-            className="w-4 h-4 rounded text-black focus:ring-black border-slate-300 cursor-pointer accent-black"
+            className="w-4 h-4 rounded text-[#ff3399] focus:ring-[#ff3399] border-slate-300 cursor-pointer accent-[#ff3399]"
           />
           <span>Apenas pronta entrega / estoque</span>
         </label>

@@ -48,7 +48,7 @@ export const StoreHighlights: React.FC = () => {
 
       {/* 2. Barra Azul Cyan "Toda loja com Download imediato!" */}
       <div className="max-w-xl mx-auto">
-        <div className="w-full py-3.5 sm:py-4 px-6 bg-[#38bdf8] text-white font-bold text-base sm:text-xl rounded-2xl shadow-xs text-center tracking-tight flex items-center justify-center">
+        <div className="w-full py-3.5 sm:py-4 px-6 bg-[#00a8e8] text-white font-bold text-base sm:text-xl rounded-2xl shadow-md shadow-turquesa-500/20 text-center tracking-tight flex items-center justify-center">
           <span>Toda loja com <strong className="font-extrabold">Download</strong> imediato!</span>
         </div>
       </div>
@@ -61,9 +61,9 @@ export const StoreHighlights: React.FC = () => {
         </h2>
 
         <div className="relative flex items-center justify-center">
-          <div className="w-full border-t border-dotted border-slate-300" />
-          <div className="absolute bg-white px-3 text-slate-400">
-            <Star className="w-4 h-4 fill-slate-200 text-slate-400" />
+          <div className="w-full border-t border-dotted border-pink-200" />
+          <div className="absolute bg-white px-3 text-[#ff3399]">
+            <Star className="w-4 h-4 fill-pink-100 text-[#ff3399]" />
           </div>
         </div>
       </div>

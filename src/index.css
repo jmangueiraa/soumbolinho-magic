@@ -42,12 +42,18 @@ html, body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #fdf2f8;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #f472b6;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #ff3399;
+}
+
+/* Seleção de texto temática */
+::selection {
+  background-color: #ff3399;
+  color: #ffffff;
 }

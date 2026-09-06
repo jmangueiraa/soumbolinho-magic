@@ -542,9 +542,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 {isCurrentMediaVideo ? (
-                  <VideoIcon className="w-4 h-4 text-[#65bc45]" />
+                  <VideoIcon className="w-4 h-4 text-[#ff3399]" />
                 ) : (
-                  <ImageIcon className="w-4 h-4 text-[#65bc45]" />
+                  <ImageIcon className="w-4 h-4 text-[#ff3399]" />
                 )}
                 <span>Mídia do Produto (Foto ou Vídeo)</span>
               </label>
@@ -639,7 +639,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <Upload className="w-4 h-4 text-[#65bc45]" />
+                      <Upload className="w-4 h-4 text-[#ff3399]" />
                       <span>
                         {mediaType === 'video' ? 'Fazer upload de Vídeo (MP4, MOV, WebM)' : 'Fazer upload de Foto (PNG, JPG, WebP)'}
                       </span>

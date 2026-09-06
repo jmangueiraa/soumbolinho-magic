@@ -367,23 +367,23 @@ export const CreditCardCheckoutPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans flex items-center gap-2">
-              <CreditCard className="w-7 h-7 text-emerald-600" />
+              <CreditCard className="w-7 h-7 text-[#ff3399]" />
               <span>Finalização de Compra • Cartão de Crédito</span>
             </h1>
 
             {/* Alternar para Pix */}
             <a
               href="#/checkout"
-              className="text-xs font-bold text-slate-600 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 px-3.5 py-2 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5"
+              className="text-xs font-bold text-slate-600 hover:text-[#ff3399] bg-slate-100 hover:bg-pink-50 px-3.5 py-2 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5"
             >
               <span>❖ Pagar com Pix</span>
             </a>
           </div>
 
           <div className="relative flex items-center justify-center">
-            <div className="w-full border-t border-dotted border-slate-300" />
-            <div className="absolute bg-white px-3 text-slate-400">
-              <Star className="w-4 h-4 fill-slate-100 text-slate-400" />
+            <div className="w-full border-t border-dotted border-pink-200" />
+            <div className="absolute bg-white px-3 text-[#ff3399]">
+              <Star className="w-4 h-4 fill-pink-100 text-[#ff3399]" />
             </div>
           </div>
         </div>
@@ -458,7 +458,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
                           href={downloadUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-5 py-3.5 bg-[#4CAF50] hover:bg-[#43A047] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition-all active:scale-95 shrink-0 cursor-pointer"
+                          className="px-5 py-3.5 bg-[#00a8e8] hover:bg-[#0096c7] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-turquesa-500/25 transition-all active:scale-95 shrink-0 cursor-pointer"
                         >
                           <Download className="w-4 h-4 stroke-[2.5]" />
                           <span>Baixar Arquivo Agora</span>
@@ -768,7 +768,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
                   type="button"
                   onClick={handleProcessPayment}
                   disabled={isLoading}
-                  className="w-full py-4 px-6 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold text-sm sm:text-base rounded-xl shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="w-full py-4 px-6 bg-[#ff3399] hover:bg-[#e61e80] text-white font-bold text-sm sm:text-base rounded-xl shadow-md shadow-pink-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>

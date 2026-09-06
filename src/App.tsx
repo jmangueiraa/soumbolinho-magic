@@ -24,7 +24,7 @@ const StoreFront: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-white text-slate-900">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-[#FFFBFD] text-slate-900 selection:bg-[#ff3399] selection:text-white">
       {/* 1. Header */}
       <Header />
 

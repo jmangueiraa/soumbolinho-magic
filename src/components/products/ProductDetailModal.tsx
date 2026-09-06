@@ -108,24 +108,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                 max="99"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full h-12 text-center text-sm font-bold border border-slate-300 text-slate-900 focus:outline-none focus:ring-1 focus:ring-black rounded-none shadow-2xs"
+                className="w-full h-12 text-center text-sm font-bold border border-slate-300 text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#ff3399] rounded-none shadow-2xs"
               />
             </div>
 
-            {/* Botão Preto Retangular Preenchido */}
+            {/* Botão Rosa Chiclete "Adicionar Ao Carrinho" */}
             <button
               type="button"
               onClick={handleAddToCart}
-              className={`flex-1 h-12 bg-black hover:bg-zinc-800 text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider rounded-none flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-98 ${
-                addedAnimation ? 'bg-emerald-600' : ''
+              className={`flex-1 h-12 bg-[#ff3399] hover:bg-[#e61e80] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider rounded-none flex items-center justify-center transition-all cursor-pointer shadow-md shadow-pink-500/20 active:scale-98 ${
+                addedAnimation ? 'bg-pink-700' : ''
               }`}
             >
               <span>{addedAnimation ? 'Adicionado!' : 'Adicionar Ao Carrinho'}</span>
             </button>
           </div>
 
-          {/* Banner Verde "Seu produto com Download imediato!" */}
-          <div className="w-full py-3.5 px-4 bg-[#65bc45] text-white font-bold text-center text-xs sm:text-sm rounded-none shadow-xs mt-3 tracking-tight">
+          {/* Banner Azul Turquesa "Seu produto com Download imediato!" */}
+          <div className="w-full py-3.5 px-4 bg-[#00a8e8] text-white font-bold text-center text-xs sm:text-sm rounded-none shadow-md shadow-turquesa-500/20 mt-3 tracking-tight">
             Seu produto com Download imediato!
           </div>
 

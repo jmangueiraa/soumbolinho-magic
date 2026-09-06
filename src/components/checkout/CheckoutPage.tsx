@@ -730,7 +730,7 @@ export const CheckoutPage: React.FC = () => {
                             href={downloadUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-5 py-3.5 bg-[#4CAF50] hover:bg-[#43A047] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition-all active:scale-95 shrink-0 cursor-pointer"
+                            className="px-5 py-3.5 bg-[#00a8e8] hover:bg-[#0096c7] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-turquesa-500/25 transition-all active:scale-95 shrink-0 cursor-pointer"
                           >
                             <Download className="w-4 h-4 stroke-[2.5]" />
                             <span>Baixar Arquivo Agora</span>
@@ -866,8 +866,8 @@ export const CheckoutPage: React.FC = () => {
                           onClick={handleCopyPix}
                           className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 ${
                             copied
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95'
+                              ? 'bg-[#ff3399] text-white'
+                              : 'bg-[#00a8e8] hover:bg-[#0096c7] text-white active:scale-95'
                           }`}
                         >
                           {copied ? (
@@ -1103,7 +1103,7 @@ export const CheckoutPage: React.FC = () => {
                     onClick={() => handleSelectPaymentMethod('pix')}
                     className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
                       customerInfo.paymentMethod === 'pix' 
-                        ? 'border-emerald-500 bg-emerald-50/20 shadow-xs' 
+                        ? 'border-[#ff3399] bg-pink-50/20 shadow-xs' 
                         : 'border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1113,15 +1113,15 @@ export const CheckoutPage: React.FC = () => {
                         name="payment"
                         checked={customerInfo.paymentMethod === 'pix'}
                         onChange={() => handleSelectPaymentMethod('pix')}
-                        className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                        className="w-4 h-4 text-[#ff3399] focus:ring-[#ff3399]"
                       />
                       <span className="text-xs sm:text-sm font-bold text-slate-900">Pix</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-pink-100 text-[#ff3399]">
                         Aprovação Imediata
                       </span>
-                      <span className="text-teal-600 font-extrabold text-sm">❖</span>
+                      <span className="text-[#ff3399] font-extrabold text-sm">❖</span>
                     </div>
                   </label>
 
@@ -1147,7 +1147,7 @@ export const CheckoutPage: React.FC = () => {
                       </p>
 
                       <p className="text-[10px] text-slate-400 pt-1">
-                        Ao continuar, você concorda com nossos <span className="text-emerald-600 font-semibold cursor-pointer hover:underline">Termos e condições</span>
+                        Ao continuar, você concorda com nossos <span className="text-[#ff3399] font-semibold cursor-pointer hover:underline">Termos e condições</span>
                       </p>
                     </div>
                   )}
@@ -1157,7 +1157,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="space-y-3">
                   <a 
                     href="#/checkout/cartao"
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/20 transition-all cursor-pointer"
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-[#ff3399] hover:bg-pink-50/20 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
                       <CreditCard className="w-5 h-5 text-slate-500" />
@@ -1166,13 +1166,13 @@ export const CheckoutPage: React.FC = () => {
                         <span className="text-[10px] text-slate-400">Clique para abrir a página de pagamento com cartão</span>
                       </div>
                     </div>
-                    <span className="text-xs text-emerald-700 font-bold">Abrir &rarr;</span>
+                    <span className="text-xs text-[#ff3399] font-bold">Abrir &rarr;</span>
                   </a>
                 </div>
 
                 {/* Termos e Política de Privacidade */}
                 <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                  Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-emerald-600 font-semibold cursor-pointer hover:underline">política de privacidade</span>.
+                  Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-[#ff3399] font-semibold cursor-pointer hover:underline">política de privacidade</span>.
                 </p>
 
                 {/* Alerta de Erro */}
@@ -1191,7 +1191,7 @@ export const CheckoutPage: React.FC = () => {
                   type="button"
                   onClick={handleFinalizeOrder}
                   disabled={isLoading}
-                  className="w-full py-4 px-6 bg-[#4CAF50] hover:bg-[#43A047] text-white font-bold text-sm sm:text-base rounded-xl shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="w-full py-4 px-6 bg-[#ff3399] hover:bg-[#e61e80] text-white font-bold text-sm sm:text-base rounded-xl shadow-md shadow-pink-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>

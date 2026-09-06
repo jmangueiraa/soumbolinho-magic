@@ -38,7 +38,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ onSelectProduct }) => 
       {/* 2. Category Title and Sort Dropdown */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="font-sans text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-          <span className="text-lg sm:text-xl font-bold text-slate-400">{marker}</span>
+          <span className="text-lg sm:text-xl font-bold text-[#ff3399]">{marker}</span>
           <span>{activeTitle}</span>
         </h1>
 
@@ -63,11 +63,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ onSelectProduct }) => 
         </div>
       ) : (
         /* Empty State */
-        <div className="bg-white/80 rounded-3xl p-8 sm:p-12 text-center border border-dashed border-[#FFA6DF] shadow-xs max-w-md mx-auto my-6">
-          <div className="w-14 h-14 rounded-2xl bg-pastel-pink-light text-[#FF1493] flex items-center justify-center mx-auto mb-3">
+        <div className="bg-white/80 rounded-3xl p-8 sm:p-12 text-center border border-dashed border-[#ff3399]/40 shadow-xs max-w-md mx-auto my-6">
+          <div className="w-14 h-14 rounded-2xl bg-pink-50 text-[#ff3399] flex items-center justify-center mx-auto mb-3">
             <PackageSearch className="w-7 h-7" />
           </div>
-          <h3 className="font-festive text-base font-bold text-[#2B3A8C] mb-1">
+          <h3 className="font-sans text-base font-bold text-slate-900 mb-1">
             Nenhum produto encontrado
           </h3>
           <p className="text-xs text-slate-500 mb-5 leading-relaxed">
@@ -76,9 +76,9 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ onSelectProduct }) => 
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#ff3399] hover:bg-[#e61e80] text-white text-xs font-bold rounded-full shadow-sm shadow-pink-500/20 transition-all active:scale-95 cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-[#FFD1EC]" />
+              <RotateCcw className="w-3.5 h-3.5 text-white" />
               Limpar filtros
             </button>
           )}

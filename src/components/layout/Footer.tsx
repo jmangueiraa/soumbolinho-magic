@@ -15,8 +15,8 @@ export const Footer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0">
-                <Heart className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-[#ff3399] flex items-center justify-center shrink-0">
+                <Heart className="w-5 h-5 fill-[#ff3399]/20" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-white">Arquivos Digitais</h4>
@@ -25,7 +25,7 @@ export const Footer: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-[#00a8e8] flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
@@ -35,7 +35,7 @@ export const Footer: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-[#00a8e8] flex items-center justify-center shrink-0">
                 <Truck className="w-5 h-5" />
               </div>
               <div>
@@ -45,8 +45,8 @@ export const Footer: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-emerald-400 flex items-center justify-center shrink-0">
-                <MessageCircle className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-zinc-800 text-[#25D366] flex items-center justify-center shrink-0">
+                <MessageCircle className="w-5 h-5 fill-[#25D366]/20" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-white">Atendimento WhatsApp</h4>
@@ -106,7 +106,7 @@ export const Footer: React.FC = () => {
                       setSelectedCategory(category.id);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="hover:text-white transition-colors cursor-pointer"
+                    className="hover:text-[#ff3399] transition-colors cursor-pointer"
                   >
                     {category.name}
                   </button>

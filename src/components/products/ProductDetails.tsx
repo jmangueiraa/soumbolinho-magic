@@ -242,14 +242,14 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
             onClick={handleCopyLink}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs ${
               copied
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                ? 'bg-pink-50 border-pink-300 text-[#ff3399]'
                 : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-black'
             }`}
             title={`Copiar link: ${shareLink}`}
           >
             {copied ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="w-3.5 h-3.5 text-[#ff3399]" />
                 <span>Link Copiado!</span>
               </>
             ) : (
@@ -325,7 +325,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
                 max="99"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full h-11 text-center text-sm font-bold border border-slate-300 text-slate-900 focus:outline-none focus:ring-1 focus:ring-black rounded-none shadow-2xs"
+                className="w-full h-11 text-center text-sm font-bold border border-slate-300 text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#ff3399] rounded-none shadow-2xs"
               />
             </div>
           </div>
@@ -336,7 +336,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
             <button
               type="button"
               onClick={handleBuyNowPix}
-              className="w-full h-13 bg-[#65bc45] hover:bg-[#5aa83d] text-white font-black text-sm uppercase tracking-wider rounded-none flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-98"
+              className="w-full h-13 bg-[#ff3399] hover:bg-[#e61e80] text-white font-black text-sm uppercase tracking-wider rounded-none flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-pink-500/25 active:scale-98"
             >
               <span>❖ Comprar Agora / Pagar com Pix</span>
             </button>
@@ -346,7 +346,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
               type="button"
               onClick={handleAddToCart}
               className={`w-full h-11 bg-black hover:bg-zinc-800 text-white font-bold text-xs uppercase tracking-wider rounded-none flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98 ${
-                isAdding ? 'bg-emerald-700' : ''
+                isAdding ? 'bg-pink-800' : ''
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -354,8 +354,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ productId: propI
             </button>
           </div>
 
-          {/* Banner Verde "Seu produto com Download imediato!" */}
-          <div className="w-full py-3.5 sm:py-4 px-4 bg-[#65bc45] text-white font-bold text-center text-sm sm:text-base rounded-none shadow-xs mt-4 tracking-tight">
+          {/* Banner Ciano "Seu produto com Download imediato!" */}
+          <div className="w-full py-3.5 sm:py-4 px-4 bg-[#00a8e8] text-white font-bold text-center text-sm sm:text-base rounded-none shadow-md shadow-turquesa-500/20 mt-4 tracking-tight">
             Seu produto com Download imediato!
           </div>
 
