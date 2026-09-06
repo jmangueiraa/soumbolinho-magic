@@ -14,6 +14,8 @@ export function mapSupabaseConfig(item: any): StoreConfig {
     workingHours: item.working_hours || item.workingHours || INITIAL_STORE_CONFIG.workingHours,
     minOrderValue: Number(item.min_order_value ?? item.minOrderValue ?? INITIAL_STORE_CONFIG.minOrderValue),
     mpAccessToken: item.mp_access_token || item.mpAccessToken || undefined,
+    telegramBotToken: item.telegram_bot_token || item.telegramBotToken || undefined,
+    telegramChatId: item.telegram_chat_id || item.telegramChatId || undefined,
   };
 }
 
@@ -77,6 +79,8 @@ export async function saveStoreConfigInSupabase(
     working_hours: config.workingHours,
     min_order_value: config.minOrderValue,
     mp_access_token: config.mpAccessToken || null,
+    telegram_bot_token: config.telegramBotToken || null,
+    telegram_chat_id: config.telegramChatId || null,
     updated_at: new Date().toISOString(),
   };
 
@@ -88,7 +92,15 @@ export async function saveStoreConfigInSupabase(
       .from('store_config')
       .upsert([payload], { onConflict: 'id' });
 
-    // 2. Se falhar, tenta na tabela site_settings
+    // Fallback caso as novas colunas do Telegram ainda não existam no Supabase
+    if (error && (error.message.includes('column') || error.message.includes('telegram'))) {
+      console.warn('[storeConfigService] ⚠️ Coluna de telegram ausente em store_config, tentando salvar sem elas:', error.message);
+      const { telegram_bot_token, telegram_chat_id, ...cleanPayload } = payload;
+      const retry = await supabase.from('store_config').upsert([cleanPayload], { onConflict: 'id' });
+      error = retry.error;
+    }
+
+    // 2. Se falhar por outro motivo, tenta na tabela site_settings
     if (error) {
       console.warn('[storeConfigService] Tentando tabela site_settings...', error.message);
       const res = await supabase

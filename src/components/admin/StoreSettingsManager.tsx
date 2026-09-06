@@ -7,7 +7,11 @@ import {
   Clock, 
   Save, 
   RotateCcw,
-  ShieldAlert
+  ShieldAlert,
+  Send,
+  Check,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -26,9 +30,13 @@ export const StoreSettingsManager: React.FC = () => {
     workingHours: storeConfig.workingHours,
     minOrderValue: storeConfig.minOrderValue.toString().replace('.', ','),
     mpAccessToken: localStorage.getItem('encantando_festa_mp_access_token') || import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '',
+    telegramBotToken: storeConfig.telegramBotToken || '',
+    telegramChatId: storeConfig.telegramChatId || '',
   });
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [testTelegramLoading, setTestTelegramLoading] = useState(false);
+  const [testTelegramStatus, setTestTelegramStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +54,54 @@ export const StoreSettingsManager: React.FC = () => {
       workingHours: formData.workingHours.trim(),
       minOrderValue: numMin,
       mpAccessToken: formData.mpAccessToken?.trim() || '',
+      telegramBotToken: formData.telegramBotToken?.trim() || '',
+      telegramChatId: formData.telegramChatId?.trim() || '',
     });
+  };
+
+  const handleTestTelegram = async () => {
+    if (!formData.telegramBotToken.trim() || !formData.telegramChatId.trim()) {
+      setTestTelegramStatus({
+        success: false,
+        message: 'Preencha o Token do Bot e o Chat ID antes de testar.',
+      });
+      return;
+    }
+
+    setTestTelegramLoading(true);
+    setTestTelegramStatus(null);
+
+    try {
+      const res = await fetch('/api/notify-abandoned-cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action_type: 'test',
+          telegram_bot_token: formData.telegramBotToken.trim(),
+          telegram_chat_id: formData.telegramChatId.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestTelegramStatus({
+          success: true,
+          message: 'Mensagem de teste enviada com sucesso! Verifique seu Telegram.',
+        });
+      } else {
+        setTestTelegramStatus({
+          success: false,
+          message: data.error || data.warning || 'Não foi possível conectar ao Telegram.',
+        });
+      }
+    } catch (err: any) {
+      setTestTelegramStatus({
+        success: false,
+        message: err.message || 'Erro ao tentar enviar notificação para o Telegram.',
+      });
+    } finally {
+      setTestTelegramLoading(false);
+    }
   };
 
   const handleResetDefaults = () => {
@@ -63,6 +118,9 @@ export const StoreSettingsManager: React.FC = () => {
       city: 'Rio de Janeiro - RJ',
       workingHours: 'Segunda a Sábado das 09h às 18h',
       minOrderValue: '20,00',
+      mpAccessToken: '',
+      telegramBotToken: '',
+      telegramChatId: '',
     });
   };
 
@@ -237,6 +295,97 @@ export const StoreSettingsManager: React.FC = () => {
             <p className="text-[11px] text-slate-500 mt-1">
               Obtenha suas credenciais de produção ou teste no painel de desenvolvedores: <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-[#009EE3] underline font-semibold">mercadopago.com.br/developers</a>
             </p>
+          </div>
+        </div>
+
+        {/* 5. Integração Telegram (Alertas de Carrinho Abandonado em Tempo Real) */}
+        <div className="p-4 sm:p-5 bg-sky-50/50 rounded-3xl border border-sky-300 space-y-4 shadow-2xs">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
+              <div className="w-6 h-6 rounded-full bg-[#229ED9] text-white flex items-center justify-center text-xs shadow-xs">
+                <Send className="w-3.5 h-3.5 fill-white" />
+              </div>
+              <span>Bot do Telegram (Alertas de Carrinho Abandonado em Tempo Real)</span>
+            </div>
+            <span className="text-[10px] bg-[#229ED9]/15 text-[#229ED9] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+              Recuperação Ativa
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Receba uma notificação instantânea no seu Telegram com o <b>Nome</b>, <b>WhatsApp clicável</b> e os <b>Produtos do Carrinho</b> assim que um cliente preencher o checkout e sair sem pagar.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                Token do Bot (via @BotFather)
+              </label>
+              <input
+                type="text"
+                value={formData.telegramBotToken}
+                onChange={(e) => setFormData({ ...formData, telegramBotToken: e.target.value })}
+                placeholder="Ex: 7123456789:AAFl..."
+                className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Crie seu bot conversando com o <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@BotFather</a> no Telegram.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                Seu Chat ID (ou ID do Grupo/Canal)
+              </label>
+              <input
+                type="text"
+                value={formData.telegramChatId}
+                onChange={(e) => setFormData({ ...formData, telegramChatId: e.target.value })}
+                placeholder="Ex: 123456789 ou -100123456789"
+                className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Descubra seu Chat ID enviando mensagem para <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@userinfobot</a> no Telegram.
+              </span>
+            </div>
+          </div>
+
+          {/* Feedback de Teste */}
+          {testTelegramStatus && (
+            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in ${
+              testTelegramStatus.success
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}>
+              {testTelegramStatus.success ? (
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span className="font-medium">{testTelegramStatus.message}</span>
+            </div>
+          )}
+
+          {/* Botão de Teste */}
+          <div className="pt-1 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={handleTestTelegram}
+              disabled={testTelegramLoading}
+              className="px-4 py-2.5 bg-white hover:bg-[#229ED9]/10 text-[#229ED9] border border-[#229ED9] text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              {testTelegramLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Enviando teste...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Testar Notificação no Telegram</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

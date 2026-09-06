@@ -14,7 +14,8 @@ import {
   Truck,
   Loader2,
   Zap,
-  Banknote
+  Banknote,
+  Phone
 } from 'lucide-react';
 import { OrderCustomerInfo } from '../../types';
 import { useCart } from '../../context/CartContext';
@@ -39,6 +40,7 @@ export const CheckoutModal: React.FC = () => {
   const [customerInfo, setCustomerInfo] = useState<OrderCustomerInfo>({
     name: '',
     email: '',
+    phone: '',
     deliveryType: 'retirada',
     address: '',
     neighborhood: '',
@@ -48,17 +50,34 @@ export const CheckoutModal: React.FC = () => {
   });
 
   const [showPreview, setShowPreview] = useState(false);
-  const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; address?: string }>({});
+  const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; phone?: string; address?: string }>({});
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoadingMP, setIsLoadingMP] = useState(false);
+
+  // Formata o WhatsApp no padrão brasileiro (XX) XXXXX-XXXX
+  const formatPhoneNumber = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 11);
+    if (!clean) return '';
+    if (clean.length <= 2) return `(${clean}`;
+    if (clean.length <= 6) return `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+    if (clean.length <= 10) return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+  };
 
   if (!isCheckoutOpen) return null;
 
   const hasMercadoPago = isMercadoPagoConfigured(storeConfig);
 
   const validateForm = () => {
-    const errors: { name?: string; email?: string; address?: string } = {};
+    const errors: { name?: string; email?: string; phone?: string; address?: string } = {};
     if (!customerInfo.name.trim()) errors.name = 'Por favor, informe seu nome completo.';
+
+    const cleanPhone = (customerInfo.phone || '').replace(/\D/g, '');
+    if (!cleanPhone) {
+      errors.phone = 'Por favor, informe seu WhatsApp com DDD.';
+    } else if (cleanPhone.length < 10) {
+      errors.phone = 'Informe um WhatsApp válido com DDD (mínimo 10 dígitos).';
+    }
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!customerInfo.email.trim()) {
@@ -208,6 +227,25 @@ export const CheckoutModal: React.FC = () => {
                     />
                     {formErrors.name && (
                       <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.name}</span>
+                    )}
+                  </div>
+
+                  {/* WhatsApp * */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-slate-500" />
+                      WhatsApp com DDD *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={customerInfo.phone || ''}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, phone: formatPhoneNumber(e.target.value) })}
+                      placeholder="(21) 99999-9999"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-[#F8A4D8] transition-all font-medium"
+                    />
+                    {formErrors.phone && (
+                      <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.phone}</span>
                     )}
                   </div>
 

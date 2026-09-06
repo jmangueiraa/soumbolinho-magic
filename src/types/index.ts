@@ -103,4 +103,6 @@ export interface StoreConfig {
   workingHours: string;
   minOrderValue: number;
   mpAccessToken?: string;
+  telegramBotToken?: string;
+  telegramChatId?: string;
 }

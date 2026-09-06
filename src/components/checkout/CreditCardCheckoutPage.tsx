@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CreditCard, 
   Lock, 
@@ -8,6 +8,7 @@ import {
   ShoppingBag, 
   Star, 
   Loader2,
+  Phone,
   X
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
@@ -28,6 +29,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     email: '',
+    phone: '',
   });
 
   const [cardInfo, setCardInfo] = useState({
@@ -46,6 +48,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     email?: string;
+    phone?: string;
     cardNumber?: string;
     cardholderName?: string;
     expirationDate?: string;
@@ -83,12 +86,126 @@ export const CreditCardCheckoutPage: React.FC = () => {
     return `${clean.slice(0, 2)}/${clean.slice(2)}`;
   };
 
+  // Formata o WhatsApp no padrão brasileiro (XX) XXXXX-XXXX
+  const formatPhoneNumber = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 11);
+    if (!clean) return '';
+    if (clean.length <= 2) return `(${clean}`;
+    if (clean.length <= 6) return `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+    if (clean.length <= 10) return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+  };
+
+  // --- LÓGICA DE CAPTURA DE CARRINHO ABANDONADO & TELEGRAM BOT ---
+  const isOrderCompletedRef = useRef(false);
+  const hasSentAbandonedRef = useRef(false);
+  const abandonTimerRef = useRef<any>(null);
+  const leadDataRef = useRef({
+    name: customerInfo.name,
+    email: customerInfo.email,
+    phone: customerInfo.phone,
+    items,
+    totalAmount: totalPrice,
+  });
+
   const finalTotal = Math.max(0, totalPrice - discount);
+
+  useEffect(() => {
+    leadDataRef.current = {
+      name: customerInfo.name,
+      email: customerInfo.email,
+      phone: customerInfo.phone,
+      items,
+      totalAmount: finalTotal,
+    };
+  }, [customerInfo, items, finalTotal]);
+
+  const sendAbandonedNotification = (source: string) => {
+    if (isOrderCompletedRef.current || hasSentAbandonedRef.current) return;
+
+    const currentLead = leadDataRef.current;
+    const cleanPhone = (currentLead.phone || '').replace(/\D/g, '');
+
+    if (!currentLead.name.trim() || cleanPhone.length < 10 || currentLead.items.length === 0) {
+      return;
+    }
+
+    hasSentAbandonedRef.current = true;
+    console.log(`[CreditCardCheckout] 🚨 Disparando alerta de carrinho abandonado (${source})...`, currentLead);
+
+    const payload = JSON.stringify({
+      customer_name: currentLead.name.trim(),
+      customer_phone: currentLead.phone.trim(),
+      customer_email: currentLead.email.trim(),
+      items: currentLead.items,
+      total_amount: currentLead.totalAmount,
+      action_type: 'abandoned_cart',
+      telegram_bot_token: storeConfig.telegramBotToken,
+      telegram_chat_id: storeConfig.telegramChatId,
+    });
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon('/api/notify-abandoned-cart', blob);
+      } else {
+        fetch('/api/notify-abandoned-cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch((e) => console.warn('[CreditCardCheckout] Erro ao notificar:', e));
+      }
+    } catch (e) {
+      console.warn('[CreditCardCheckout] Erro beacon:', e);
+    }
+  };
+
+  useEffect(() => {
+    const cleanPhone = (customerInfo.phone || '').replace(/\D/g, '');
+    if (customerInfo.name.trim() && cleanPhone.length >= 10 && !hasSentAbandonedRef.current && !isOrderCompletedRef.current) {
+      if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+      abandonTimerRef.current = setTimeout(() => {
+        sendAbandonedNotification('tempo_inatividade_2min');
+      }, 2 * 60 * 1000);
+    }
+
+    return () => {
+      if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+    };
+  }, [customerInfo.phone, customerInfo.name]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        sendAbandonedNotification('saida_pagina_visibilitychange');
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      sendAbandonedNotification('saida_pagina_beforeunload');
+    };
+
+    const handlePageHide = () => {
+      sendAbandonedNotification('saida_pagina_pagehide');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, []);
 
   const validateForm = () => {
     const errors: {
       name?: string;
       email?: string;
+      phone?: string;
       cardNumber?: string;
       cardholderName?: string;
       expirationDate?: string;
@@ -96,6 +213,13 @@ export const CreditCardCheckoutPage: React.FC = () => {
     } = {};
 
     if (!customerInfo.name.trim()) errors.name = 'Informe o seu nome completo.';
+
+    const cleanPhone = (customerInfo.phone || '').replace(/\D/g, '');
+    if (!cleanPhone) {
+      errors.phone = 'Informe o seu WhatsApp com DDD.';
+    } else if (cleanPhone.length < 10) {
+      errors.phone = 'Informe um WhatsApp válido com DDD (mínimo 10 dígitos).';
+    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!customerInfo.email.trim()) {
@@ -156,14 +280,18 @@ export const CreditCardCheckoutPage: React.FC = () => {
       totalAmount: finalTotal,
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
+      customerPhone: customerInfo.phone,
       items: [...items],
     };
+
+    isOrderCompletedRef.current = true;
 
     // 1. Salvar no Supabase como aprovado
     await createOrderInSupabase({
       orderId: generatedOrderId,
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
+      customerPhone: customerInfo.phone,
       items: [...items],
       totalAmount: finalTotal,
       paymentId: generatedOrderId,
@@ -356,6 +484,30 @@ export const CreditCardCheckoutPage: React.FC = () => {
                     />
                     {formErrors.name && (
                       <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.name}</span>
+                    )}
+                  </div>
+
+                  {/* WhatsApp com DDD * */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                      <span>
+                        WhatsApp com DDD <span className="text-rose-600">*</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Para suporte e notificações</span>
+                    </label>
+                    <div className="relative flex items-center">
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                      <input
+                        type="tel"
+                        required
+                        value={customerInfo.phone}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, phone: formatPhoneNumber(e.target.value) })}
+                        placeholder="(21) 99999-9999"
+                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 transition-all font-medium text-slate-800"
+                      />
+                    </div>
+                    {formErrors.phone && (
+                      <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.phone}</span>
                     )}
                   </div>
 

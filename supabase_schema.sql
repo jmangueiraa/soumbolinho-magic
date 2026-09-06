@@ -85,8 +85,30 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_discount_percent NUM
 ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products (slug);
 
+-- 5. TABELA DE PEDIDOS (orders)
+CREATE TABLE IF NOT EXISTS public.orders (
+    id TEXT PRIMARY KEY,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_phone TEXT,
+    product_id TEXT,
+    product_name TEXT,
+    delivery_url TEXT,
+    amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    payment_id TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Garantir coluna customer_phone na tabela orders
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+
+-- Garantir colunas de Telegram no store_config
+ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
+ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+
 -- ==============================================================================
--- 5. HABILITAR ROW LEVEL SECURITY (RLS) E POLÍTICAS DE ACESSO PÚBLICO / ADMIN
+-- 6. HABILITAR ROW LEVEL SECURITY (RLS) E POLÍTICAS DE ACESSO PÚBLICO / ADMIN
 -- ==============================================================================
 
 -- A) store_config
@@ -117,8 +139,15 @@ CREATE POLICY "Public read products" ON public.products FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Public write products" ON public.products;
 CREATE POLICY "Public write products" ON public.products FOR ALL USING (true) WITH CHECK (true);
 
+-- E) orders
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read orders" ON public.orders;
+CREATE POLICY "Public read orders" ON public.orders FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public write orders" ON public.orders;
+CREATE POLICY "Public write orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+
 -- ==============================================================================
--- 6. HABILITAR SUPABASE REALTIME PARA TODAS AS TABELAS
+-- 7. HABILITAR SUPABASE REALTIME PARA TODAS AS TABELAS
 -- ==============================================================================
 DO $$
 BEGIN
@@ -136,6 +165,10 @@ BEGIN
     END;
     BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
     EXCEPTION WHEN OTHERS THEN NULL;
     END;
 END $$;

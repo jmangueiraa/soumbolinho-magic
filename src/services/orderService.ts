@@ -45,7 +45,18 @@ export async function createOrderInSupabase(
 
     console.log('[orderService] 💾 Salvando registro de pedido no Supabase (orders):', orderRow);
 
-    const { data, error } = await supabase.from('orders').insert([orderRow]).select();
+    let { data, error } = await supabase.from('orders').insert([orderRow]).select();
+
+    // Fallback caso a coluna customer_phone ainda não exista no Supabase
+    if (error && (error.message.includes('customer_phone') || error.message.includes('column'))) {
+      console.warn('[orderService] ⚠️ Coluna customer_phone ausente em orders, tentando salvar sem ela:', error.message);
+      const { customer_phone, ...cleanRow } = orderRow;
+      const retry = await supabase.from('orders').insert([cleanRow]).select();
+      if (!retry.error && retry.data) {
+        data = retry.data;
+        error = null;
+      }
+    }
 
     if (error) {
       console.warn('[orderService] ⚠️ Aviso ao salvar pedido no Supabase (verifique se a tabela orders existe):', error.message);
