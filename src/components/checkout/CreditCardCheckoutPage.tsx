@@ -16,6 +16,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { createOrderInSupabase } from '../../services/orderService';
+import { notifyTelegram } from '../../services/telegramNotificationService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -26,10 +27,25 @@ export const CreditCardCheckoutPage: React.FC = () => {
   const { items, totalPrice, clearCart } = useCart();
   const { storeConfig } = useStoreData();
 
-  const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
+  const [customerInfo, setCustomerInfo] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('last_checkout_customer') : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.name || '',
+          email: parsed.email || '',
+          phone: parsed.phone || '',
+        };
+      }
+    } catch (e) {
+      // ignora
+    }
+    return {
+      name: '',
+      email: '',
+      phone: '',
+    };
   });
 
   const [cardInfo, setCardInfo] = useState({
@@ -99,6 +115,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
   // --- LÓGICA DE CAPTURA DE CARRINHO ABANDONADO & TELEGRAM BOT ---
   const isOrderCompletedRef = useRef(false);
   const hasSentAbandonedRef = useRef(false);
+  const hasSentApprovedRef = useRef(false);
   const abandonTimerRef = useRef<any>(null);
   const leadDataRef = useRef({
     name: customerInfo.name,
@@ -133,32 +150,17 @@ export const CreditCardCheckoutPage: React.FC = () => {
     hasSentAbandonedRef.current = true;
     console.log(`[CreditCardCheckout] 🚨 Disparando alerta de carrinho abandonado (${source})...`, currentLead);
 
-    const payload = JSON.stringify({
+    notifyTelegram({
+      action_type: 'abandoned_cart',
       customer_name: currentLead.name.trim(),
       customer_phone: currentLead.phone.trim(),
       customer_email: currentLead.email.trim(),
       items: currentLead.items,
       total_amount: currentLead.totalAmount,
-      action_type: 'abandoned_cart',
       telegram_bot_token: storeConfig.telegramBotToken,
       telegram_chat_id: storeConfig.telegramChatId,
+      isBeacon: true,
     });
-
-    try {
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        const blob = new Blob([payload], { type: 'application/json' });
-        navigator.sendBeacon('/api/notify-abandoned-cart', blob);
-      } else {
-        fetch('/api/notify-abandoned-cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true,
-        }).catch((e) => console.warn('[CreditCardCheckout] Erro ao notificar:', e));
-      }
-    } catch (e) {
-      console.warn('[CreditCardCheckout] Erro beacon:', e);
-    }
   };
 
   useEffect(() => {
@@ -284,35 +286,74 @@ export const CreditCardCheckoutPage: React.FC = () => {
       items: [...items],
     };
 
-    isOrderCompletedRef.current = true;
+    try {
+      isOrderCompletedRef.current = true;
 
-    // 1. Salvar no Supabase como aprovado
-    await createOrderInSupabase({
-      orderId: generatedOrderId,
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      items: [...items],
-      totalAmount: finalTotal,
-      paymentId: generatedOrderId,
-      status: 'approved',
-    });
+      // 1. Salvar no Supabase como aprovado
+      await createOrderInSupabase({
+        orderId: generatedOrderId,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        items: [...items],
+        totalAmount: finalTotal,
+        paymentId: generatedOrderId,
+        status: 'approved',
+      });
 
-    // 2. Disparar e-mail de entrega imediata
-    await sendOrderConfirmationEmail({
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      orderId: generatedOrderId,
-      orderDate: currentDate,
-      items: [...items],
-      totalAmount: finalTotal,
-      storeConfig,
-    });
+      // 2. Disparar e-mail de entrega imediata
+      await sendOrderConfirmationEmail({
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        orderId: generatedOrderId,
+        orderDate: currentDate,
+        items: [...items],
+        totalAmount: finalTotal,
+        storeConfig,
+      });
 
-    setOrderSuccess(successData);
-    clearCart();
-    setIsLoading(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      // 3. Disparar notificação de Pagamento Aprovado no Telegram
+      if (!hasSentApprovedRef.current) {
+        hasSentApprovedRef.current = true;
+        await notifyTelegram({
+          action_type: 'payment_approved',
+          customer_name: customerInfo.name,
+          customer_email: customerInfo.email,
+          customer_phone: customerInfo.phone,
+          items: [...items],
+          total_amount: finalTotal,
+          order_id: generatedOrderId,
+          payment_method: 'Cartão de crédito',
+          telegram_bot_token: storeConfig.telegramBotToken,
+          telegram_chat_id: storeConfig.telegramChatId,
+        });
+      }
+
+      setOrderSuccess(successData);
+      clearCart();
+      setIsLoading(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      console.error('[CreditCardCheckout] ❌ Erro ao processar pagamento:', err);
+      setIsLoading(false);
+
+      // Notificar Pagamento Reprovado no Telegram
+      await notifyTelegram({
+        action_type: 'payment_rejected',
+        customer_name: customerInfo.name,
+        customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone,
+        items: [...items],
+        total_amount: finalTotal,
+        order_id: generatedOrderId,
+        payment_method: 'Cartão de crédito',
+        error_message: err.message || 'Falha na autorização do cartão de crédito.',
+        telegram_bot_token: storeConfig.telegramBotToken,
+        telegram_chat_id: storeConfig.telegramChatId,
+      });
+
+      alert('Não foi possível processar o pagamento com cartão: ' + (err.message || 'Verifique os dados digitados e tente novamente.'));
+    }
   };
 
   return (

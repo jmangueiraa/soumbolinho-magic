@@ -25,6 +25,7 @@ import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsa
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { createOrderInSupabase, updateOrderStatusInSupabase } from '../../services/orderService';
 import { createMercadoPagoPixPayment, isMercadoPagoConfigured, checkMercadoPagoPaymentStatus } from '../../lib/mercadopago';
+import { notifyTelegram } from '../../services/telegramNotificationService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -35,11 +36,27 @@ export const CheckoutPage: React.FC = () => {
   const { items, totalPrice, clearCart } = useCart();
   const { storeConfig } = useStoreData();
 
-  const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    paymentMethod: 'pix' as 'pix' | 'cartao',
+  const [customerInfo, setCustomerInfo] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('last_checkout_customer') : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          name: parsed.name || '',
+          email: parsed.email || '',
+          phone: parsed.phone || '',
+          paymentMethod: 'pix' as 'pix' | 'cartao',
+        };
+      }
+    } catch (e) {
+      // ignora
+    }
+    return {
+      name: '',
+      email: '',
+      phone: '',
+      paymentMethod: 'pix' as 'pix' | 'cartao',
+    };
   });
 
   const [cardInfo, setCardInfo] = useState({
@@ -95,6 +112,7 @@ export const CheckoutPage: React.FC = () => {
   // --- LÓGICA DE CAPTURA DE CARRINHO ABANDONADO & TELEGRAM BOT ---
   const isOrderCompletedRef = useRef(false);
   const hasSentAbandonedRef = useRef(false);
+  const hasSentApprovedRef = useRef(false);
   const abandonTimerRef = useRef<any>(null);
   const leadDataRef = useRef({
     name: customerInfo.name,
@@ -130,32 +148,17 @@ export const CheckoutPage: React.FC = () => {
     hasSentAbandonedRef.current = true;
     console.log(`[CheckoutPage] 🚨 Enviando alerta de carrinho abandonado ao Telegram (${source})...`, currentLead);
 
-    const payload = JSON.stringify({
+    notifyTelegram({
+      action_type: 'abandoned_cart',
       customer_name: currentLead.name.trim(),
       customer_phone: currentLead.phone.trim(),
       customer_email: currentLead.email.trim(),
       items: currentLead.items,
       total_amount: currentLead.totalAmount,
-      action_type: 'abandoned_cart',
       telegram_bot_token: storeConfig.telegramBotToken,
       telegram_chat_id: storeConfig.telegramChatId,
+      isBeacon: true,
     });
-
-    try {
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        const blob = new Blob([payload], { type: 'application/json' });
-        navigator.sendBeacon('/api/notify-abandoned-cart', blob);
-      } else {
-        fetch('/api/notify-abandoned-cart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true,
-        }).catch((e) => console.warn('[CheckoutPage] Aviso ao notificar abandono:', e));
-      }
-    } catch (e) {
-      console.warn('[CheckoutPage] Erro ao disparar beacon de abandono:', e);
-    }
   };
 
   // Temporizador de inatividade: se preencheu os dados e ficou 2 minutos parado sem finalizar
@@ -230,6 +233,7 @@ export const CheckoutPage: React.FC = () => {
     paymentMethod: string;
     customerName: string;
     customerEmail: string;
+    customerPhone: string;
     items: typeof items;
     pixCode: string;
     qrCodeUrl: string;
@@ -257,6 +261,7 @@ export const CheckoutPage: React.FC = () => {
           console.log(`[Pix Polling] 🎉 Pagamento #${paymentId} APROVADO COM SUCESSO!`);
           clearInterval(intervalId);
           setIsPaymentApproved(true);
+          isOrderCompletedRef.current = true;
 
           // 1. Atualizar status na tabela 'orders' do Supabase
           console.log(`[Pix Polling] 📝 Atualizando pedido no Supabase para status = 'approved'...`);
@@ -274,6 +279,41 @@ export const CheckoutPage: React.FC = () => {
             storeConfig,
           });
           console.log(`[Pix Polling] ✅ E-mail de entrega enviado com sucesso!`);
+
+          // 3. Disparar notificação de Pagamento Aprovado no Telegram
+          if (!hasSentApprovedRef.current) {
+            hasSentApprovedRef.current = true;
+            await notifyTelegram({
+              action_type: 'payment_approved',
+              customer_name: orderReceived.customerName,
+              customer_email: orderReceived.customerEmail,
+              customer_phone: orderReceived.customerPhone,
+              items: orderReceived.items,
+              total_amount: orderReceived.totalAmount,
+              order_id: paymentId,
+              payment_method: 'Pix',
+              telegram_bot_token: storeConfig.telegramBotToken,
+              telegram_chat_id: storeConfig.telegramChatId,
+            });
+          }
+        } else if (result.success && (result.status === 'rejected' || result.status === 'cancelled')) {
+          console.log(`[Pix Polling] ❌ Pagamento #${paymentId} REPROVADO OU CANCELADO!`);
+          clearInterval(intervalId);
+          await updateOrderStatusInSupabase(paymentId, 'rejected');
+
+          await notifyTelegram({
+            action_type: 'payment_rejected',
+            customer_name: orderReceived.customerName,
+            customer_email: orderReceived.customerEmail,
+            customer_phone: orderReceived.customerPhone,
+            items: orderReceived.items,
+            total_amount: orderReceived.totalAmount,
+            order_id: paymentId,
+            payment_method: 'Pix',
+            error_message: result.statusDetail || `Pagamento Pix ${result.status === 'rejected' ? 'rejeitado' : 'cancelado'} pelo gateway.`,
+            telegram_bot_token: storeConfig.telegramBotToken,
+            telegram_chat_id: storeConfig.telegramChatId,
+          });
         }
       } catch (err) {
         console.warn('[Pix Polling] ❌ Erro ao consultar status:', err);
@@ -413,6 +453,23 @@ export const CheckoutPage: React.FC = () => {
         storeConfig,
       });
 
+      // 3. Disparar notificação de Pagamento Aprovado no Telegram
+      if (!hasSentApprovedRef.current) {
+        hasSentApprovedRef.current = true;
+        await notifyTelegram({
+          action_type: 'payment_approved',
+          customer_name: customerInfo.name,
+          customer_email: customerInfo.email,
+          customer_phone: customerInfo.phone,
+          items: [...items],
+          total_amount: finalTotal,
+          order_id: generatedOrderId,
+          payment_method: 'Cartão de crédito',
+          telegram_bot_token: storeConfig.telegramBotToken,
+          telegram_chat_id: storeConfig.telegramChatId,
+        });
+      }
+
       setIsPaymentApproved(true);
       setOrderReceived(orderData);
       clearCart();
@@ -452,6 +509,21 @@ export const CheckoutPage: React.FC = () => {
       console.error('[CheckoutPage] ❌ Erro detalhado do Mercado Pago Pix:', mpErr);
       setMpError(mpErr.message || 'Erro ao comunicar com o Mercado Pago.');
       setIsLoading(false);
+
+      // Notificar Pagamento Reprovado / Falha no Gateway no Telegram
+      await notifyTelegram({
+        action_type: 'payment_rejected',
+        customer_name: customerInfo.name,
+        customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone,
+        items: [...items],
+        total_amount: finalTotal,
+        order_id: generatedOrderId,
+        payment_method: 'Pix',
+        error_message: mpErr.message || 'Erro ao comunicar com o Mercado Pago Pix.',
+        telegram_bot_token: storeConfig.telegramBotToken,
+        telegram_chat_id: storeConfig.telegramChatId,
+      });
       return;
     }
 

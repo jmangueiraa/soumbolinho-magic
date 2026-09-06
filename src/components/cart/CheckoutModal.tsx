@@ -112,6 +112,15 @@ export const CheckoutModal: React.FC = () => {
 
   const handlePayWithMercadoPago = () => {
     if (!validateForm()) return;
+    try {
+      sessionStorage.setItem('last_checkout_customer', JSON.stringify({
+        name: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone
+      }));
+    } catch (e) {
+      console.warn(e);
+    }
     closeCheckout();
     if (customerInfo.paymentMethod === 'cartao') {
       window.location.hash = '#/checkout/cartao';

@@ -324,22 +324,28 @@ export const StoreSettingsManager: React.FC = () => {
           </div>
         </div>
 
-        {/* 5. Integração Telegram (Alertas de Carrinho Abandonado em Tempo Real) */}
+        {/* 5. Integração Telegram (Notificações em Tempo Real do Checkout) */}
         <div className="p-4 sm:p-5 bg-sky-50/50 rounded-3xl border border-sky-300 space-y-4 shadow-2xs">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
               <div className="w-6 h-6 rounded-full bg-[#229ED9] text-white flex items-center justify-center text-xs shadow-xs">
                 <Send className="w-3.5 h-3.5 fill-white" />
               </div>
-              <span>Bot do Telegram (Alertas de Carrinho Abandonado em Tempo Real)</span>
+              <span>Bot do Telegram (Notificações do Checkout em Tempo Real)</span>
             </div>
             <span className="text-[10px] bg-[#229ED9]/15 text-[#229ED9] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
-              Recuperação Ativa
+              3 Alertas Ativos
             </span>
           </div>
 
           <p className="text-xs text-slate-600 leading-relaxed">
-            Receba uma notificação instantânea no seu Telegram com o <b>Nome</b>, <b>WhatsApp clicável</b> e os <b>Produtos do Carrinho</b> assim que um cliente preencher o checkout e sair sem pagar.
+            Receba alertas instantâneos no seu Telegram com <b>Nome</b>, <b>E-mail</b>, <b>WhatsApp clicável</b>, <b>Produtos</b> e <b>Valor Total</b> para os 3 eventos vitais do checkout:
+            <br />
+            • 🚨 <b>Carrinho Abandonado:</b> Quando o cliente preenche os dados e sai sem concluir o pagamento.
+            <br />
+            • ✅ <b>Pagamento Aprovado:</b> Assim que o Pix ou Cartão é confirmado com sucesso pelo gateway.
+            <br />
+            • ❌ <b>Pagamento Reprovado / Recusado:</b> Alerta imediato em caso de transação negada ou falha para auxílio rápido ao cliente.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
