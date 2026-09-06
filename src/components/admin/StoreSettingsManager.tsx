@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Store, 
   MessageCircle, 
@@ -29,10 +29,29 @@ export const StoreSettingsManager: React.FC = () => {
     city: storeConfig.city,
     workingHours: storeConfig.workingHours,
     minOrderValue: storeConfig.minOrderValue.toString().replace('.', ','),
-    mpAccessToken: localStorage.getItem('encantando_festa_mp_access_token') || import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '',
-    telegramBotToken: storeConfig.telegramBotToken || '',
-    telegramChatId: storeConfig.telegramChatId || '',
+    mpAccessToken: storeConfig.mpAccessToken || localStorage.getItem('encantando_festa_mp_access_token') || import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '',
+    telegramBotToken: storeConfig.telegramBotToken || localStorage.getItem('encantando_festa_telegram_bot_token') || '',
+    telegramChatId: storeConfig.telegramChatId || localStorage.getItem('encantando_festa_telegram_chat_id') || '',
   });
+
+  // Sincroniza o formulário sempre que storeConfig for carregado do Supabase
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      storeName: storeConfig.storeName || prev.storeName,
+      slogan: storeConfig.slogan || prev.slogan,
+      whatsappNumber: storeConfig.whatsappNumber || prev.whatsappNumber,
+      whatsappDisplay: storeConfig.whatsappDisplay || prev.whatsappDisplay,
+      instagram: storeConfig.instagram || prev.instagram,
+      address: storeConfig.address || prev.address,
+      city: storeConfig.city || prev.city,
+      workingHours: storeConfig.workingHours || prev.workingHours,
+      minOrderValue: storeConfig.minOrderValue ? storeConfig.minOrderValue.toString().replace('.', ',') : prev.minOrderValue,
+      mpAccessToken: storeConfig.mpAccessToken || localStorage.getItem('encantando_festa_mp_access_token') || prev.mpAccessToken,
+      telegramBotToken: storeConfig.telegramBotToken || localStorage.getItem('encantando_festa_telegram_bot_token') || prev.telegramBotToken,
+      telegramChatId: storeConfig.telegramChatId || localStorage.getItem('encantando_festa_telegram_chat_id') || prev.telegramChatId,
+    }));
+  }, [storeConfig]);
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [testTelegramLoading, setTestTelegramLoading] = useState(false);
@@ -42,6 +61,13 @@ export const StoreSettingsManager: React.FC = () => {
     e.preventDefault();
     const cleanWhatsApp = formData.whatsappNumber.replace(/\D/g, '');
     const numMin = parseFloat(formData.minOrderValue.replace(',', '.')) || 0;
+
+    try {
+      localStorage.setItem('encantando_festa_telegram_bot_token', formData.telegramBotToken.trim());
+      localStorage.setItem('encantando_festa_telegram_chat_id', formData.telegramChatId.trim());
+    } catch (e) {
+      console.warn(e);
+    }
 
     updateStoreConfig({
       storeName: formData.storeName.trim(),

@@ -26,14 +26,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       telegram_chat_id,
     } = req.body || {};
 
-    const botToken = (process.env.TELEGRAM_BOT_TOKEN || telegram_bot_token || '').trim();
-    const chatId = (process.env.TELEGRAM_CHAT_ID || telegram_chat_id || '').trim();
+    let botToken = (process.env.TELEGRAM_BOT_TOKEN || telegram_bot_token || '').trim();
+    let chatId = (process.env.TELEGRAM_CHAT_ID || telegram_chat_id || '').trim();
+
+    // Se ainda não temos token ou chat_id, busca diretamente da tabela store_config no Supabase
+    if (!botToken || !chatId) {
+      try {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbwxubnwaeywstnmlrqg.supabase.co';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_HuPfQyg25rtcXPQhDN5OHw_NbYRnpvq';
+        const resConfig = await fetch(`${supabaseUrl}/rest/v1/store_config?select=telegram_bot_token,telegram_chat_id&limit=1`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        });
+        if (resConfig.ok) {
+          const configRows = await resConfig.json();
+          if (Array.isArray(configRows) && configRows.length > 0) {
+            if (!botToken && configRows[0].telegram_bot_token) {
+              botToken = String(configRows[0].telegram_bot_token).trim();
+            }
+            if (!chatId && configRows[0].telegram_chat_id) {
+              chatId = String(configRows[0].telegram_chat_id).trim();
+            }
+          }
+        }
+      } catch (dbErr) {
+        console.warn('[notify-abandoned-cart] Aviso ao consultar credenciais no Supabase:', dbErr);
+      }
+    }
 
     if (!botToken || !chatId) {
       console.warn('[notify-abandoned-cart] ⚠️ Token ou Chat ID do Telegram ausentes.');
       return res.status(200).json({
         success: false,
-        warning: 'Telegram não configurado. Defina TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID na Vercel ou no painel admin.',
+        warning: 'Telegram não configurado. Defina o Token do Bot e Chat ID no painel /admin ou variáveis de ambiente na Vercel.',
       });
     }
 
