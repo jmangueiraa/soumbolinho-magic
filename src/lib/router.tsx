@@ -11,7 +11,8 @@ export const RESERVED_ROUTES = [
   'cartao',
   'login',
   'produtos',
-  'produto'
+  'produto',
+  'arquivos'
 ];
 
 interface RouterContextType {

@@ -19,6 +19,7 @@ import { AdminLogin } from './components/admin/AdminLogin';
 import { CheckoutPage } from './components/checkout/CheckoutPage';
 import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckoutPage';
 import { StoreHighlights } from './components/home/StoreHighlights';
+import { ArquivosPage } from './components/pages/ArquivosPage';
 
 const StoreFront: React.FC = () => {
   const navigate = useNavigate();
@@ -90,10 +91,13 @@ const NavigationRouter: React.FC = () => {
       <Route path="/checkout/cartao" element={<CreditCardCheckoutPage />} />
       <Route path="/pagamento-cartao" element={<CreditCardCheckoutPage />} />
 
-      {/* 4. Compatibilidade com rota antiga /produto/:id */}
+      {/* 4. Rota Interna de Arquivos */}
+      <Route path="/arquivos" element={<ArquivosPage />} />
+
+      {/* 5. Compatibilidade com rota antiga /produto/:id */}
       <Route path="/produto/:id" element={<ProductDetails />} />
 
-      {/* 5. Rota Dinâmica Amigável na Raiz (/:slug) no Final da Lista */}
+      {/* 6. Rota Dinâmica Amigável na Raiz (/:slug) no Final da Lista */}
       <Route path="/:slug" element={<ProductDetails />} />
     </Routes>
   );
