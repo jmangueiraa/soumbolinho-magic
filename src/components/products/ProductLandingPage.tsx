@@ -252,7 +252,21 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
   // Bônus exclusivos (configurados no produto pelo lojista ou os 3 bônus poderosos padrão)
   const productBonuses = useMemo(() => {
-    const raw = product?.bonuses;
+    let raw = product?.bonuses;
+
+    // Se o produto ainda não retornou a coluna do Supabase, verifica o backup no localStorage
+    if ((!raw || (Array.isArray(raw) && raw.length === 0)) && typeof window !== 'undefined' && window.localStorage && product?.id) {
+      try {
+        const cached = localStorage.getItem(`soumbolinho_bonuses_${product.id}`);
+        if (cached) {
+          const parsedCached = JSON.parse(cached);
+          if (Array.isArray(parsedCached) && parsedCached.length > 0) {
+            raw = parsedCached;
+          }
+        }
+      } catch {}
+    }
+
     if (raw) {
       if (Array.isArray(raw) && raw.length > 0) {
         return raw.map((b: any, idx: number) => ({

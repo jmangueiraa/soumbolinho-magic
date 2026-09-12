@@ -93,9 +93,36 @@ export function mapSupabaseProduct(item: any): Product {
     }
   }
 
-  // Normalização de bônus exclusivos
+  // Normalização de bônus exclusivos com suporte a envelope de metadados e localStorage
   let bonusesList: any[] = [];
-  const rawBonuses = item.bonuses || item.bonus;
+  let rawBonuses = item.bonuses || item.bonus;
+
+  // 1. Se a coluna bonuses/bonus não veio ou veio vazia, busca no customization_placeholder (envelope de metadados)
+  let extractedPlaceholder = item.customizationPlaceholder || item.customization_placeholder || undefined;
+  if (typeof extractedPlaceholder === 'string' && extractedPlaceholder.trim().startsWith('{')) {
+    try {
+      const meta = JSON.parse(extractedPlaceholder);
+      if (meta && typeof meta === 'object') {
+        if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && meta.bonuses) {
+          rawBonuses = meta.bonuses;
+        }
+        if (meta.__meta__) {
+          extractedPlaceholder = meta.placeholder || undefined;
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Se ainda assim não encontrar, busca no backup do localStorage do navegador
+  if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && typeof window !== 'undefined' && window.localStorage && item.id) {
+    try {
+      const cached = localStorage.getItem(`soumbolinho_bonuses_${item.id}`);
+      if (cached) {
+        rawBonuses = JSON.parse(cached);
+      }
+    } catch {}
+  }
+
   if (Array.isArray(rawBonuses)) {
     bonusesList = rawBonuses;
   } else if (typeof rawBonuses === 'string' && rawBonuses.trim()) {
@@ -158,7 +185,7 @@ export function mapSupabaseProduct(item: any): Product {
     deliveryUrl: item.delivery_url || item.deliveryUrl || undefined,
     inStock: item.inStock !== false && item.in_stock !== false && item.active !== false,
     isCustomizable: item.isCustomizable ?? item.is_customizable ?? true,
-    customizationPlaceholder: item.customizationPlaceholder || item.customization_placeholder || undefined,
+    customizationPlaceholder: extractedPlaceholder,
     badge: item.badge || undefined,
     tags: item.tags || undefined,
     upsell_product_id: item.upsell_product_id || item.upsellProductId || undefined,
@@ -330,7 +357,23 @@ export async function createProductInSupabase(
     in_stock: Boolean(productData.inStock ?? true),
     badge: productData.badge || null,
     is_customizable: Boolean(productData.isCustomizable ?? true),
-    customization_placeholder: productData.customizationPlaceholder || null,
+    customization_placeholder: (() => {
+      const rawBonusesToSave = (productData as any).bonuses || null;
+      let placeholderVal = productData.customizationPlaceholder || null;
+      if (rawBonusesToSave && (Array.isArray(rawBonusesToSave) ? rawBonusesToSave.length > 0 : true)) {
+        try {
+          placeholderVal = JSON.stringify({
+            __meta__: true,
+            bonuses: rawBonusesToSave,
+            placeholder: productData.customizationPlaceholder || null,
+          });
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(`soumbolinho_bonuses_${newId}`, JSON.stringify(rawBonusesToSave));
+          }
+        } catch {}
+      }
+      return placeholderVal;
+    })(),
     upsell_product_id: (productData as any).upsell_product_id || (productData as any).upsellProductId || null,
     upsell_price: (productData as any).upsell_price !== undefined && (productData as any).upsell_price !== null && (productData as any).upsell_price !== ''
       ? Number((productData as any).upsell_price)
@@ -479,12 +522,35 @@ export async function updateProductInSupabase(
     dbUpdatePayload.guarantee_days = (updates as any).guarantee_days !== null ? Number((updates as any).guarantee_days) : 7;
   }
   if ((updates as any).bonuses !== undefined) {
-    dbUpdatePayload.bonuses = (updates as any).bonuses || null;
+    const rawBonusesToSave = (updates as any).bonuses;
+    dbUpdatePayload.bonuses = rawBonusesToSave || null;
+
+    // Atualiza o backup no localStorage para sincronização imediata no cliente
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        if (rawBonusesToSave && (Array.isArray(rawBonusesToSave) ? rawBonusesToSave.length > 0 : true)) {
+          localStorage.setItem(`soumbolinho_bonuses_${id}`, JSON.stringify(rawBonusesToSave));
+        } else {
+          localStorage.removeItem(`soumbolinho_bonuses_${id}`);
+        }
+      } catch {}
+    }
+
+    // Envelope de persistência resiliente em customization_placeholder
+    try {
+      const existingPlaceholder = updates.customizationPlaceholder !== undefined 
+        ? updates.customizationPlaceholder 
+        : (dbUpdatePayload.customization_placeholder || null);
+      
+      dbUpdatePayload.customization_placeholder = JSON.stringify({
+        __meta__: true,
+        bonuses: rawBonusesToSave || [],
+        placeholder: existingPlaceholder,
+      });
+    } catch {}
+  } else if (updates.customizationPlaceholder !== undefined) {
+    dbUpdatePayload.customization_placeholder = updates.customizationPlaceholder || null;
   }
-  if (updates.inStock !== undefined) dbUpdatePayload.in_stock = Boolean(updates.inStock);
-  if (updates.badge !== undefined) dbUpdatePayload.badge = updates.badge || null;
-  if (updates.isCustomizable !== undefined) dbUpdatePayload.is_customizable = Boolean(updates.isCustomizable);
-  if (updates.customizationPlaceholder !== undefined) dbUpdatePayload.customization_placeholder = updates.customizationPlaceholder || null;
 
   if ((updates as any).upsell_product_id !== undefined || (updates as any).upsellProductId !== undefined) {
     dbUpdatePayload.upsell_product_id = (updates as any).upsell_product_id || (updates as any).upsellProductId || null;

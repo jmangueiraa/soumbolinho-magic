@@ -3,12 +3,39 @@
 -- Execute no SQL Editor do Supabase (https://supabase.com/dashboard)
 -- =========================================================
 
--- 1. Garante as colunas de produto digital na tabela products
+-- 1. Garante as colunas de produto digital e bônus na tabela products
 ALTER TABLE public.products 
 ADD COLUMN IF NOT EXISTS delivery_url TEXT;
 
 ALTER TABLE public.products 
 ADD COLUMN IF NOT EXISTS is_digital BOOLEAN DEFAULT false;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS bonuses JSONB;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS bonus JSONB;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS detailed_description TEXT;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS benefits JSONB;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS testimonials JSONB;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS faq JSONB;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS guarantee_days INTEGER DEFAULT 7;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS gallery_images JSONB;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS checkout_url TEXT;
 
 -- 2. Cria a tabela orders (caso ainda não exista)
 CREATE TABLE IF NOT EXISTS public.orders (

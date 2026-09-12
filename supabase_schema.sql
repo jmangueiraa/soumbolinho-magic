@@ -246,6 +246,15 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_digital BOOLEAN DEFAULT 
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_product_id TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_price NUMERIC(10,2);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_discount_percent NUMERIC(5,2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS bonuses JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS bonus JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS detailed_description TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS benefits JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS testimonials JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS faq JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS guarantee_days INTEGER DEFAULT 7;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS gallery_images JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS checkout_url TEXT;
 UPDATE public.products SET store_id = 'store_default' WHERE store_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products (slug);

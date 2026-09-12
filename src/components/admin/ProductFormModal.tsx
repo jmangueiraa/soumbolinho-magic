@@ -92,7 +92,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         testimonialsStr = rawTestimonials;
       }
 
-      const rawBonuses = (product as any).bonuses || (product as any).bonus;
+      let rawBonuses = (product as any).bonuses || (product as any).bonus;
+      if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && typeof window !== 'undefined' && window.localStorage && product?.id) {
+        try {
+          const cached = localStorage.getItem(`soumbolinho_bonuses_${product.id}`);
+          if (cached) {
+            const parsedCached = JSON.parse(cached);
+            if (Array.isArray(parsedCached) && parsedCached.length > 0) {
+              rawBonuses = parsedCached;
+            }
+          }
+        } catch {}
+      }
       let bonusesStr = '';
       if (Array.isArray(rawBonuses)) {
         bonusesStr = rawBonuses
@@ -357,10 +368,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         });
 
       // Processamento de bônus exclusivos
-      const parsedBonuses = (formData.bonuses || '')
+      const rawBonusesInput = (formData.bonuses || '').trim();
+      const parsedBonuses = rawBonusesInput
         .split('\n')
         .map((line) => line.trim())
-        .filter((line) => line.length > 3)
+        .filter((line) => line.length > 2)
         .map((line) => {
           const parts = line.split('|').map((p) => p.trim());
           return {
@@ -399,7 +411,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         galleryImages: parsedGallery.length > 0 ? parsedGallery : undefined,
         benefits: parsedBenefits.length > 0 ? parsedBenefits : undefined,
         testimonials: parsedTestimonials.length > 0 ? parsedTestimonials : undefined,
-        bonuses: parsedBonuses.length > 0 ? parsedBonuses : undefined,
+        bonuses: parsedBonuses.length > 0 ? parsedBonuses : [],
         checkout_url: formData.checkout_url.trim() || undefined,
         checkoutUrl: formData.checkout_url.trim() || undefined,
         guarantee_days: Number(formData.guarantee_days) || 7,
