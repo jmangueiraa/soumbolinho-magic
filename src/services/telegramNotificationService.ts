@@ -58,9 +58,77 @@ export async function notifyTelegram(payload: TelegramNotificationPayload): Prom
     }
 
     console.warn(`[telegramNotificationService] ⚠️ Resposta da API [${bodyData.action_type}]:`, data);
+
+    // Fallback Direto: se o endpoint serverless falhar ou estiver em preview estático (ex: Lovable),
+    // envia direto para a API do Telegram caso o token e chat ID estejam configurados
+    if (bodyData.telegram_bot_token && bodyData.telegram_chat_id) {
+      const directSuccess = await sendDirectTelegramMessage(bodyData);
+      if (directSuccess) {
+        return { success: true };
+      }
+    }
+
     return { success: false, error: data.error || data.warning || 'Erro ao notificar Telegram.' };
   } catch (err: any) {
     console.warn(`[telegramNotificationService] ❌ Erro ao disparar notificação [${payload.action_type}]:`, err);
+
+    if (payload.telegram_bot_token && payload.telegram_chat_id) {
+      const directSuccess = await sendDirectTelegramMessage(payload);
+      if (directSuccess) {
+        return { success: true };
+      }
+    }
+
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Fallback direto para a API oficial do Telegram (para ambientes estáticos ou offline)
+ */
+async function sendDirectTelegramMessage(payload: TelegramNotificationPayload): Promise<boolean> {
+  try {
+    const token = (payload.telegram_bot_token || '').trim();
+    const chatId = (payload.telegram_chat_id || '').trim();
+    if (!token || !chatId) return false;
+
+    const actionTitle = payload.action_type === 'payment_approved'
+      ? '✅ PAGAMENTO APROVADO'
+      : payload.action_type === 'payment_rejected'
+      ? '❌ PAGAMENTO RECUSADO'
+      : payload.action_type === 'test'
+      ? '🔔 TESTE TELEGRAM'
+      : '🚨 CARRINHO ABANDONADO';
+
+    const itemsSummary = Array.isArray(payload.items) && payload.items.length > 0
+      ? payload.items.map((it: any) => `• ${it.quantity || 1}x ${it.product?.name || it.name || 'Produto'}`).join('\n')
+      : '• Produto digital';
+
+    const text = `${actionTitle}\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `👤 Cliente: ${payload.customer_name || 'Não informado'}\n` +
+      `📱 WhatsApp: ${payload.customer_phone || 'Não informado'}\n` +
+      `✉️ E-mail: ${payload.customer_email || 'Não informado'}\n` +
+      `💰 Total: R$ ${Number(payload.total_amount || 0).toFixed(2).replace('.', ',')}\n\n` +
+      `📦 Itens:\n${itemsSummary}`;
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+      }),
+    });
+
+    const resData = await res.json().catch(() => ({}));
+    if (res.ok && resData.ok) {
+      console.log(`[telegramNotificationService] 🚀 Notificação enviada via fallback direto ao Telegram.`);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error('[telegramNotificationService] Erro no fallback direto ao Telegram:', e);
+    return false;
   }
 }

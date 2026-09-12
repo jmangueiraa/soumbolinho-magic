@@ -89,7 +89,7 @@ export const ScarcityCountdownBanner: React.FC<ScarcityCountdownBannerProps> = (
     <aside
       role="banner"
       aria-label="Aviso de escassez e tempo restante da oferta"
-      className={`sticky top-0 z-50 w-full bg-[#e11d48] text-white shadow-md border-b border-rose-700/60 transition-all ${className}`}
+      className={`sticky top-0 z-50 w-full bg-[#dc2626] text-white shadow-md border-b border-red-700/80 transition-all ${className}`}
     >
       <div className="max-w-7xl mx-auto py-2 px-3 sm:px-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-center">
         {/* Ícone de Alerta e Frase Dinâmica */}

@@ -26,6 +26,7 @@ import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckout
 import { StoreHighlights } from './components/home/StoreHighlights';
 import { ArquivosPage } from './components/pages/ArquivosPage';
 import { CategoryPills } from './components/filters/CategoryPills';
+import { TestimonialsSection } from './components/common/TestimonialsSection';
 import { applyThemeToDocument } from './utils/theme';
 import { ThemeLayoutType, ColorPaletteType } from './types';
 
@@ -188,6 +189,9 @@ export const StoreFront: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* 4.1. Seção de Provas Sociais / Depoimentos de Clientes Reais */}
+      <TestimonialsSection />
 
       {/* 5. Modals, Drawers & WhatsApp Overlays */}
       <CartDrawer />
