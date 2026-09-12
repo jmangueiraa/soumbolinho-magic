@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, MessageSquare } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, MessageSquare, Gift } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -8,6 +8,8 @@ import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
 import { slugify, generateSlug, generateUniqueSlug } from '../../utils/slug';
 import { supabase } from '../../lib/supabase';
+import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
+import { getAutomaticTestimonials } from '../../utils/automaticProductContent';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -42,6 +44,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     gallery_images: '',
     benefits: '',
     testimonials: '',
+    bonuses: '',
     checkout_url: '',
     guarantee_days: 7,
     is_digital: false,
@@ -89,6 +92,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         testimonialsStr = rawTestimonials;
       }
 
+      const rawBonuses = (product as any).bonuses || (product as any).bonus;
+      let bonusesStr = '';
+      if (Array.isArray(rawBonuses)) {
+        bonusesStr = rawBonuses
+          .map((b: any) => `${b.title || ''} | ${b.description || ''}${b.originalPrice !== undefined ? ' | ' + b.originalPrice : ''}${b.imageUrl ? ' | ' + b.imageUrl : ''}`)
+          .join('\n');
+      } else if (typeof rawBonuses === 'string') {
+        bonusesStr = rawBonuses;
+      }
+
       setMediaType(isVideo ? 'video' : 'image');
       setFormData({
         name: product.name || '',
@@ -102,6 +115,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         gallery_images: galleryStr,
         benefits: benefitsStr,
         testimonials: testimonialsStr,
+        bonuses: bonusesStr,
         checkout_url: product.checkout_url || product.checkoutUrl || '',
         guarantee_days: product.guarantee_days || 7,
         is_digital: isDigital,
@@ -135,6 +149,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         gallery_images: '',
         benefits: '',
         testimonials: '',
+        bonuses: '',
         checkout_url: '',
         guarantee_days: 7,
         is_digital: false,
@@ -341,6 +356,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           };
         });
 
+      // Processamento de bônus exclusivos
+      const parsedBonuses = (formData.bonuses || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 3)
+        .map((line) => {
+          const parts = line.split('|').map((p) => p.trim());
+          return {
+            title: parts[0] || 'Bônus Especial',
+            description: parts[1] || 'Incluso gratuitamente',
+            originalPrice: parts[2] ? parseFloat(parts[2].replace(/[^0-9.,]/g, '').replace(',', '.')) : 29.9,
+            imageUrl: parts[3] || '',
+          };
+        });
+
       const payload: any = {
         store_id: currentStoreId,
         name: cleanName,
@@ -369,6 +399,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         galleryImages: parsedGallery.length > 0 ? parsedGallery : undefined,
         benefits: parsedBenefits.length > 0 ? parsedBenefits : undefined,
         testimonials: parsedTestimonials.length > 0 ? parsedTestimonials : undefined,
+        bonuses: parsedBonuses.length > 0 ? parsedBonuses : undefined,
         checkout_url: formData.checkout_url.trim() || undefined,
         checkoutUrl: formData.checkout_url.trim() || undefined,
         guarantee_days: Number(formData.guarantee_days) || 7,
@@ -588,9 +619,23 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               }`}
             />
             {errors.slug && <span className="text-[11px] text-rose-500 font-medium mt-1 block">{errors.slug}</span>}
-            <p className="text-[10px] text-slate-400 mt-1">
-              URL direta na raiz do site: <strong>{typeof window !== 'undefined' ? window.location.origin : 'https://www.editaveisdocanva.com.br'}/{formData.slug || slugify(formData.name) || 'seu-produto'}</strong> (estritamente sem números no final).
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-500 mt-1.5">
+              <span>
+                Link da Landing Page: <strong className="text-slate-800 font-mono">/produto/{formData.slug || slugify(formData.name) || 'seu-produto'}</strong>
+              </span>
+              {(formData.slug || formData.name) && (
+                <a
+                  href={`/produto/${formData.slug || slugify(formData.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-theme-primary font-bold hover:underline"
+                  title="Testar Landing Page em nova aba"
+                >
+                  <span>Testar link</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Categoria e Subcategoria */}
@@ -1015,30 +1060,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             )}
           </div>
 
-          {/* 1. Link de Checkout Próprio */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <label className="block text-xs font-bold text-slate-900 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Link2 className="w-4 h-4 text-theme-primary" />
-                Link de Checkout Próprio (Kiwify, Hotmart, Eduzz, etc.)
-              </span>
-              <span className="text-[10px] text-slate-500 font-normal">
-                Opcional
-              </span>
-            </label>
-            <input
-              type="url"
-              value={formData.checkout_url}
-              onChange={(e) => setFormData({ ...formData, checkout_url: e.target.value })}
-              placeholder="https://pay.kiwify.com.br/... ou deixe em branco para checkout transparente"
-              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 transition-all"
-            />
-            <p className="text-[11px] text-slate-500">
-              💡 Se informado, o botão <strong>"QUERO COMPRAR AGORA"</strong> da página de vendas redirecionará para seu checkout externo. Se deixado em branco, a página usará o checkout transparente integrado com Pix e Cartão.
-            </p>
-          </div>
-
-          {/* 2. Galeria de Fotos Extras */}
+          {/* 1. Galeria de Fotos Extras */}
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -1124,28 +1146,182 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
-          {/* 5. Depoimentos de Clientes (Prova Social) */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
+          {/* 5. Depoimentos de Clientes (Prova Social - Sempre 6 Cards) */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <MessageSquare className="w-4 h-4 text-theme-primary" />
-                Depoimentos Personalizados (Prova Social)
+                <span>Depoimentos de Clientes (Prova Social — Sempre 6 Cards)</span>
               </label>
-              <span className="text-[10px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
+              <span className="text-[10px] bg-pink-100/80 text-pink-700 font-bold px-2 py-0.5 rounded-md">
                 {(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length > 0 
-                  ? `${(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length} depoimento(s) personalizado(s)`
+                  ? `${(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length} de 6 cards personalizados`
                   : 'Padrão da loja (6 depoimentos com foto)'}
               </span>
             </div>
+
+            {/* Ações rápidas para carregar ou gerar 6 depoimentos */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultLines = DEFAULT_TESTIMONIALS.map(
+                    (t) => `${t.name} | ${t.text} | ${t.avatar}`
+                  ).join('\n');
+                  setFormData({ ...formData, testimonials: defaultLines });
+                }}
+                className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-[11px] font-bold shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-pink-500" />
+                <span>Carregar 6 Depoimentos Padrão</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const autoTestimonials = getAutomaticTestimonials({
+                    name: formData.name || 'Material Exclusivo',
+                    category: formData.category || '',
+                    description: formData.description || '',
+                    detailed_description: formData.detailed_description || '',
+                  } as any);
+                  const generatedLines = autoTestimonials.map(
+                    (t) => `${t.name} | ${t.text} | ${t.avatar}`
+                  ).join('\n');
+                  setFormData({ ...formData, testimonials: generatedLines });
+                }}
+                className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-[11px] font-bold shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>🎯 Gerar 6 para este Produto</span>
+              </button>
+
+              {formData.testimonials && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, testimonials: '' })}
+                  className="text-[10px] text-slate-500 hover:text-rose-600 underline ml-auto"
+                >
+                  Limpar (Usar 6 Automáticos)
+                </button>
+              )}
+            </div>
+
             <textarea
-              rows={3}
+              rows={4}
               value={formData.testimonials}
               onChange={(e) => setFormData({ ...formData, testimonials: e.target.value })}
               placeholder="Nome | Depoimento | URL da Foto (opcional)&#10;Ex: Valentina Rocha | Amei os arquivos, muito práticos e lindos! | https://..."
               className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
             />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              💡 <strong>O sistema cria e exibe SEMPRE exatamente 6 cards de prova social</strong> na página de vendas (grid simétrico com fotos de perfil, 5 estrelas douradas e depoimentos de alta conversão). Se você deixar em branco ou preencher menos de 6, o sistema complementará automaticamente até fechar os 6 cards perfeitos.
+            </p>
+          </div>
+
+          {/* 6. Bônus Exclusivos da Página de Vendas */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Gift className="w-4 h-4 text-pink-600" />
+                <span>Bônus Exclusivos ("Além disso você leva 3 bônus poderosos")</span>
+              </label>
+              <span className="text-[10px] bg-pink-100/80 text-pink-700 font-bold px-2 py-0.5 rounded-md">
+                {(formData.bonuses || '').split('\n').filter((s) => s.trim().length > 3).length > 0 
+                  ? `${(formData.bonuses || '').split('\n').filter((s) => s.trim().length > 3).length} bônus configurado(s)`
+                  : 'Padrão da loja (3 bônus com fotos)'}
+              </span>
+            </div>
+
+            {/* Ações rápidas para o administrador */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultStr = [
+                    'Pack com +100 Fontes Mais Usadas em Festas e Toppers | As tipografias infantis e comemorativas mais procuradas do momento, prontas para usar no Canva ou computador. | 47 | https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?w=600&q=80',
+                    'Guia Secreto de Fornecedores de Papéis, Acetato e Shaker | Lista exclusiva com os melhores fornecedores do Brasil para comprar papéis especiais e insumos no atacado. | 37 | https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=600&q=80',
+                    'Planilha Automática de Precificação de Papelaria Personalizada | Descubra exatamente quanto cobrar por cada topo de bolo e lembrancinha para lucrar de verdade. | 49 | https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80'
+                  ].join('\n');
+                  setFormData({ ...formData, bonuses: defaultStr });
+                }}
+                className="px-2.5 py-1.5 bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+              >
+                <span>✨ Carregar 3 Bônus Padrão</span>
+              </button>
+
+              {/* Selecionar um produto existente para virar bônus */}
+              {products.length > 1 && (
+                <select
+                  onChange={(e) => {
+                    const selId = e.target.value;
+                    if (!selId) return;
+                    const found = products.find((p) => p.id === selId);
+                    if (found) {
+                      const newBonusLine = `${found.name} | Arquivo digital completo liberado gratuitamente como bônus exclusivo. | ${found.price || 29.9} | ${found.image_url || found.imageUrl || ''}`;
+                      const current = (formData.bonuses || '').trim();
+                      const updated = current ? `${current}\n${newBonusLine}` : newBonusLine;
+                      setFormData({ ...formData, bonuses: updated });
+                    }
+                    e.target.value = '';
+                  }}
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-[11px] font-bold outline-none focus:ring-1 focus:ring-black cursor-pointer"
+                  defaultValue=""
+                >
+                  <option value="" disabled>+ Adicionar Produto da Loja como Bônus...</option>
+                  {products
+                    .filter((p) => p.id !== product?.id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        🎁 {p.name} (R$ {p.price?.toFixed(2)})
+                      </option>
+                    ))}
+                </select>
+              )}
+
+              {formData.bonuses && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, bonuses: '' })}
+                  className="text-[10px] text-slate-500 hover:text-rose-600 underline ml-auto"
+                >
+                  Limpar (Restaurar Padrão)
+                </button>
+              )}
+            </div>
+
+            <textarea
+              rows={4}
+              value={formData.bonuses}
+              onChange={(e) => setFormData({ ...formData, bonuses: e.target.value })}
+              placeholder="Título do Bônus | Descrição do Bônus | Valor de Mercado (ex: 47) | URL da Imagem (opcional)&#10;Ex: Pack de 100 Fontes | Fontes incríveis para Canva | 47 | https://..."
+              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
+            />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              💡 <strong>Deixe em branco</strong> para utilizar automaticamente os 3 bônus exclusivos de alta conversão com fotos e valores riscados. Se preferir personalizar, adicione um bônus por linha ou use os botões acima para selecionar produtos da sua loja como bônus.
+            </p>
+          </div>
+
+          {/* 7. Chamada para o Acesso: Preço do Pacote Completo (Oferta Especial) */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+            <label className="block text-xs font-bold text-slate-900 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#f43f5e]" />
+                Chamada para o Acesso — Preço do Pacote Completo (R$)
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal">Opcional</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+              <input
+                type="text"
+                value={formData.upsell_price}
+                onChange={(e) => setFormData({ ...formData, upsell_price: e.target.value })}
+                placeholder="Ex: 25.00 (ou deixe em branco para cálculo automático)"
+                className="w-full text-xs pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-900"
+              />
+            </div>
             <p className="text-[11px] text-slate-500">
-              💡 <strong>Deixe em branco</strong> para utilizar automaticamente os 6 depoimentos padrão com fotos de perfil, 5 estrelas e textos de alta conversão (Valentina Rocha, Camila Fernandes, etc.). Se desejar personalizar para este produto específico, digite um por linha no formato <code>Nome | Texto do depoimento | URL da foto</code>.
+              💡 Exibido em destaque no card <strong>"PLANO COMPLETO (MAIS POPULAR)"</strong> da seção "Garanta seu acesso hoje". Se deixado em branco, o sistema calculará automaticamente o melhor preço de alta conversão (ex: R$ 25,00 para topos de bolo).
             </p>
           </div>
 

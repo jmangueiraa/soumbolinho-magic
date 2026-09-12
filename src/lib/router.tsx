@@ -220,10 +220,12 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       // 3.5. Rota dinâmica de produto: /produto/:slug, /produto/:id ou /p/:id
       if (cleanTarget.startsWith('/produto/:') || cleanTarget.startsWith('/p/:')) {
-        const isDirectProd = (cleanPath.startsWith('/produto/') || cleanPath.startsWith('/p/')) && !cleanPath.startsWith('/loja/');
-        const isHashProd = (cleanHash.startsWith('/produto/') || cleanHash.startsWith('/p/')) && !cleanHash.startsWith('/loja/');
-        if (isDirectProd || isHashProd) {
-          return element;
+        const prodMatch = cleanPath.match(/^\/(?:produto|p)\/([^/?#]+)/i) || cleanHash.match(/^\/(?:produto|p)\/([^/?#]+)/i);
+        if (prodMatch && prodMatch[1]) {
+          const seg = prodMatch[1].trim();
+          if (seg && !RESERVED_ROUTES.includes(seg.toLowerCase())) {
+            return element;
+          }
         }
         continue;
       }
@@ -258,8 +260,8 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       }
     }
 
-    // Se nenhuma rota bater e estiver na raiz, exibe a primeira rota
-    if (routeList.length > 0 && (cleanPath === '/' || cleanPath === '' || cleanPath === '/index.html')) {
+    // Fallback Resiliente: se nenhuma rota bater ou URL for inválida, renderiza a primeira rota (Home / StoreFront)
+    if (routeList.length > 0) {
       return routeList[0].props.element;
     }
 

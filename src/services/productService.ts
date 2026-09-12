@@ -77,7 +77,46 @@ export function mapSupabaseProduct(item: any): Product {
     try {
       const parsed = JSON.parse(rawTestimonials);
       if (Array.isArray(parsed)) testimonialsList = parsed;
-    } catch {}
+    } catch {
+      const lines = rawTestimonials.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (lines.length > 0) {
+        testimonialsList = lines.map((line) => {
+          const parts = line.split('|').map((p) => p.trim());
+          return {
+            name: parts[0] || 'Cliente',
+            text: parts[1] || parts[0],
+            avatar: parts[2] || '',
+            rating: 5,
+          };
+        });
+      }
+    }
+  }
+
+  // Normalização de bônus exclusivos
+  let bonusesList: any[] = [];
+  const rawBonuses = item.bonuses || item.bonus;
+  if (Array.isArray(rawBonuses)) {
+    bonusesList = rawBonuses;
+  } else if (typeof rawBonuses === 'string' && rawBonuses.trim()) {
+    try {
+      const parsed = JSON.parse(rawBonuses);
+      if (Array.isArray(parsed)) bonusesList = parsed;
+    } catch {
+      bonusesList = rawBonuses
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter(Boolean)
+        .map((line: string) => {
+          const parts = line.split('|').map((p) => p.trim());
+          return {
+            title: parts[0] || 'Bônus Especial',
+            description: parts[1] || 'Acesso exclusivo incluso',
+            originalPrice: parts[2] ? parseFloat(parts[2].replace(/[^0-9.,]/g, '').replace(',', '.')) : 29.9,
+            imageUrl: parts[3] || '',
+          };
+        });
+    }
   }
 
   const detailedDesc = item.detailed_description || item.detailedDescription || item.description || undefined;
@@ -114,6 +153,7 @@ export function mapSupabaseProduct(item: any): Product {
     testimonials: testimonialsList.length > 0 ? testimonialsList : undefined,
     faq: faqList.length > 0 ? faqList : undefined,
     guarantee_days: guaranteeDays,
+    bonuses: bonusesList.length > 0 ? bonusesList : undefined,
     delivery_url: item.delivery_url || item.deliveryUrl || undefined,
     deliveryUrl: item.delivery_url || item.deliveryUrl || undefined,
     inStock: item.inStock !== false && item.in_stock !== false && item.active !== false,
@@ -305,6 +345,7 @@ export async function createProductInSupabase(
     testimonials: (productData as any).testimonials || null,
     faq: (productData as any).faq || null,
     guarantee_days: (productData as any).guarantee_days !== undefined && (productData as any).guarantee_days !== null ? Number((productData as any).guarantee_days) : 7,
+    bonuses: (productData as any).bonuses || null,
   };
 
   console.log('[productService] 💾 Inserindo produto no Supabase com slug:', finalSlug, dbPayload);
@@ -324,7 +365,8 @@ export async function createProductInSupabase(
       error.message.includes('checkout_url') ||
       error.message.includes('testimonials') ||
       error.message.includes('faq') ||
-      error.message.includes('guarantee_days')
+      error.message.includes('guarantee_days') ||
+      error.message.includes('bonuses')
     )) {
       console.warn('[productService] ⚠️ Coluna opcional ausente no Supabase. Gravando versão compatível:', error.message);
       const { 
@@ -340,6 +382,7 @@ export async function createProductInSupabase(
         testimonials, 
         faq, 
         guarantee_days, 
+        bonuses,
         ...payloadClean 
       } = dbPayload;
       const retry = await supabase.from('products').insert([payloadClean]).select();
@@ -435,6 +478,9 @@ export async function updateProductInSupabase(
   if ((updates as any).guarantee_days !== undefined) {
     dbUpdatePayload.guarantee_days = (updates as any).guarantee_days !== null ? Number((updates as any).guarantee_days) : 7;
   }
+  if ((updates as any).bonuses !== undefined) {
+    dbUpdatePayload.bonuses = (updates as any).bonuses || null;
+  }
   if (updates.inStock !== undefined) dbUpdatePayload.in_stock = Boolean(updates.inStock);
   if (updates.badge !== undefined) dbUpdatePayload.badge = updates.badge || null;
   if (updates.isCustomizable !== undefined) dbUpdatePayload.is_customizable = Boolean(updates.isCustomizable);
@@ -467,7 +513,8 @@ export async function updateProductInSupabase(
       error.message.includes('checkout_url') ||
       error.message.includes('testimonials') ||
       error.message.includes('faq') ||
-      error.message.includes('guarantee_days')
+      error.message.includes('guarantee_days') ||
+      error.message.includes('bonuses')
     )) {
       console.warn('[productService] ⚠️ Colunas ausentes na atualização. Gravando sem opcionais:', error.message);
       const { 
@@ -482,6 +529,7 @@ export async function updateProductInSupabase(
         testimonials, 
         faq, 
         guarantee_days, 
+        bonuses,
         ...cleanUpdate 
       } = dbUpdatePayload;
       const retry = await supabase.from('products').update(cleanUpdate).eq('id', id);
@@ -582,96 +630,113 @@ export async function fetchProductByIdOrSlug(
   storeId?: string
 ): Promise<{ data: Product | null; error: string | null }> {
   try {
+    if (!identifier || typeof identifier !== 'string') {
+      return { data: null, error: 'Identificador inválido.' };
+    }
+
     const cleanId = decodeURIComponent(identifier).trim();
+    if (!cleanId || cleanId === 'null' || cleanId === 'undefined') {
+      return { data: null, error: 'Identificador vazio.' };
+    }
+
     const cleanSlug = slugify(cleanId);
     const targetStoreId = (storeId || '').trim();
 
-    // REQUISITO RIGOROSO: Se storeId não fornecido ou resolvendo, não busca produtos
-    if (!targetStoreId || targetStoreId === '__resolving_tenant__') {
-      console.log('[productService] ⏸️ store_id não fornecido em fetchProductByIdOrSlug. Retornando null.');
-      return { data: null, error: null };
-    }
+    console.log(`[productService] 🔍 Consultando produto no Supabase: id/slug="${cleanId}" (slugify="${cleanSlug}"), store_id="${targetStoreId || 'global'}"`);
 
-    // 1. Identifica se a rota atual acessada é de uma loja específica (/loja/...)
-    const pathname = (typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '');
-    const hash = (typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '');
-    const hostname = (typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '');
-    const isSpecificStoreRoute = pathname.includes('/loja/') || hash.includes('/loja/');
+    // ETAPA 1: Busca prioritária no escopo da loja ativa (se informada e pronta)
+    if (targetStoreId && targetStoreId !== '__resolving_tenant__') {
+      // 1.1 Busca por slug no escopo da loja (case-insensitive)
+      if (cleanSlug) {
+        let slugQuery = supabase
+          .from('products')
+          .select('*')
+          .or(`slug.ilike.${cleanSlug},slug.ilike.${cleanId}`);
 
-    const isEditaveisHost = hostname.includes('editaveisdocanva.com.br') || hostname.includes('soumbolinho');
-    const isEditaveisStore = targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'editaveisdocanva';
-    const isBaseStore = targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default';
+        if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
+          slugQuery = slugQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+        } else if (targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva') {
+          slugQuery = slugQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
+        } else {
+          slugQuery = slugQuery.eq('store_id', targetStoreId);
+        }
 
-    const isRootMatriz = !isSpecificStoreRoute && (isEditaveisStore || (isEditaveisHost && !isBaseStore));
+        const { data: byStoreSlug } = await slugQuery.maybeSingle();
+        if (byStoreSlug) {
+          console.log('[productService] ✅ Produto encontrado por slug na loja ativa:', byStoreSlug.name);
+          return { data: mapSupabaseProduct(byStoreSlug), error: null };
+        }
+      }
 
-    console.log(`[productService] 🔍 Consultando produto no Supabase para store_id: "${isRootMatriz ? 'matriz' : targetStoreId}":`, cleanId, cleanSlug);
-
-    // 1. Tenta buscar pelo slug exato
-    if (cleanSlug) {
-      let slugQuery = supabase
+      // 1.2 Busca por ID exato no escopo da loja
+      let idQuery = supabase
         .from('products')
         .select('*')
-        .eq('slug', cleanSlug);
+        .eq('id', cleanId);
 
-      if (isRootMatriz) {
-        slugQuery = slugQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
-      } else if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
-        slugQuery = slugQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default');
+      if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
+        idQuery = idQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+      } else if (targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva') {
+        idQuery = idQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
       } else {
-        slugQuery = slugQuery.eq('store_id', targetStoreId);
+        idQuery = idQuery.eq('store_id', targetStoreId);
       }
 
-      const { data: bySlug } = await slugQuery.maybeSingle();
-
-      if (bySlug) {
-        return { data: mapSupabaseProduct(bySlug), error: null };
+      const { data: byStoreId } = await idQuery.maybeSingle();
+      if (byStoreId) {
+        console.log('[productService] ✅ Produto encontrado por ID na loja ativa:', byStoreId.name);
+        return { data: mapSupabaseProduct(byStoreId), error: null };
       }
     }
 
-    // 2. Tenta buscar pelo ID exato
-    let idQuery = supabase
+    // ETAPA 2 (FALLBACK GLOBAL RESILIENTE):
+    // Se o produto não foi encontrado pelo filtro de loja ou se a rota foi aberta diretamente sem storeId,
+    // busca diretamente na tabela de produtos pelo slug ou ID!
+    if (cleanSlug) {
+      const { data: byGlobalSlug } = await supabase
+        .from('products')
+        .select('*')
+        .or(`slug.ilike.${cleanSlug},slug.ilike.${cleanId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (byGlobalSlug) {
+        console.log('[productService] ✅ Produto encontrado por busca global de slug no Supabase:', byGlobalSlug.name);
+        return { data: mapSupabaseProduct(byGlobalSlug), error: null };
+      }
+    }
+
+    // 2.2 Busca global por ID
+    const { data: byGlobalId } = await supabase
       .from('products')
       .select('*')
-      .eq('id', cleanId);
-
-    if (isRootMatriz) {
-      idQuery = idQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
-    } else if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
-      idQuery = idQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default');
-    } else {
-      idQuery = idQuery.eq('store_id', targetStoreId);
-    }
-
-    const { data: byId, error: errId } = await idQuery.maybeSingle();
-
-    if (byId) {
-      return { data: mapSupabaseProduct(byId), error: null };
-    }
-
-    // 3. Tenta buscar por correspondência no nome
-    const normalizedQuery = cleanId.replace(/[-_]+/g, ' ');
-    let nameQuery = supabase
-      .from('products')
-      .select('*')
-      .ilike('name', `%${normalizedQuery}%`);
-
-    if (isRootMatriz) {
-      nameQuery = nameQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
-    } else if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
-      nameQuery = nameQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default');
-    } else {
-      nameQuery = nameQuery.eq('store_id', targetStoreId);
-    }
-
-    const { data: byName, error: errName } = await nameQuery
+      .eq('id', cleanId)
       .limit(1)
       .maybeSingle();
 
-    if (byName) {
-      return { data: mapSupabaseProduct(byName), error: null };
+    if (byGlobalId) {
+      console.log('[productService] ✅ Produto encontrado por busca global de ID no Supabase:', byGlobalId.name);
+      return { data: mapSupabaseProduct(byGlobalId), error: null };
     }
 
-    return { data: null, error: errId?.message || errName?.message || 'Produto não encontrado nesta loja.' };
+    // 2.3 Busca global aproximada por nome
+    const normalizedQuery = cleanId.replace(/[-_]+/g, ' ').trim();
+    if (normalizedQuery.length >= 3) {
+      const { data: byGlobalName } = await supabase
+        .from('products')
+        .select('*')
+        .ilike('name', `%${normalizedQuery}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (byGlobalName) {
+        console.log('[productService] ✅ Produto encontrado por busca global aproximada no Supabase:', byGlobalName.name);
+        return { data: mapSupabaseProduct(byGlobalName), error: null };
+      }
+    }
+
+    console.warn('[productService] ⚠️ Produto não localizado no Supabase para o identificador:', cleanId);
+    return { data: null, error: 'Produto não encontrado.' };
   } catch (err: any) {
     console.error('[productService] ❌ Exceção ao consultar produto individual:', err);
     return { data: null, error: err.message || 'Erro ao conectar ao banco de dados.' };

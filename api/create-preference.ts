@@ -66,9 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Formatação dos itens para o Mercado Pago
     const formattedItems = items.map((item: any) => {
-      const rawPrice = item.product?.price !== undefined ? item.product.price : (item.unit_price || item.price || 0);
+      const rawPrice = item.customPrice !== undefined ? item.customPrice : (item.product?.price !== undefined ? item.product.price : (item.unit_price || item.price || 0));
       const unitPrice = Number(parseFloat(String(rawPrice)).toFixed(2)) || 1.0;
-      const title = String(item.product?.name || item.title || item.name || 'Produto Digital').trim();
+      const baseTitle = String(item.product?.name || item.title || item.name || 'Produto Digital').trim();
+      const title = item.observations ? `${baseTitle} (${item.observations})` : baseTitle;
       const qty = Math.max(1, parseInt(String(item.quantity || 1), 10));
 
       return {

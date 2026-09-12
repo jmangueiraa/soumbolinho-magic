@@ -284,16 +284,20 @@ export const CheckoutModal: React.FC = () => {
             </div>
             
             <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 text-xs">
-              {items.map((item, idx) => (
-                <div key={idx} className="pt-1.5 first:pt-0 flex items-center justify-between gap-2">
-                  <span className="truncate text-slate-800 font-medium max-w-[240px]">
-                    {item.quantity}x {item.product.name}
-                  </span>
-                  <span className="font-bold text-slate-900 shrink-0">
-                    {formatCurrency((item.product.price || 0) * item.quantity)}
-                  </span>
-                </div>
-              ))}
+              {items.map((item, idx) => {
+                const itemPrice = item.customPrice !== undefined ? item.customPrice : (item.product?.price || 0);
+                return (
+                  <div key={idx} className="pt-1.5 first:pt-0 flex items-center justify-between gap-2">
+                    <span className="truncate text-slate-800 font-medium max-w-[240px]">
+                      {item.quantity}x {item.product.name}
+                      {item.observations ? ` (${item.observations})` : ''}
+                    </span>
+                    <span className="font-bold text-slate-900 shrink-0">
+                      {formatCurrency(itemPrice * item.quantity)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="pt-2 border-t border-slate-200 flex items-center justify-between">

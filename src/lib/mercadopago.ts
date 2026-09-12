@@ -124,10 +124,12 @@ export async function createMercadoPagoPreference(
 
   const preferencePayload = {
     items: items.map((item) => {
-      const rawPrice = item.product?.price !== undefined ? item.product.price : (item as any).price || 0;
+      const rawPrice = item.customPrice !== undefined ? item.customPrice : (item.product?.price !== undefined ? item.product.price : (item as any).price || 0);
       const unitPrice = Number(parseFloat(String(rawPrice)).toFixed(2)) || 1.0;
+      const baseTitle = String(item.product?.name || 'Produto Digital').trim();
+      const title = item.observations ? `${baseTitle} (${item.observations})` : baseTitle;
       return {
-        title: (item.product?.name || 'Produto Digital').slice(0, 250),
+        title: title.slice(0, 250),
         unit_price: unitPrice,
         quantity: Math.max(1, item.quantity || 1),
         currency_id: 'BRL',

@@ -46,6 +46,8 @@ import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ScarcityCountdownBanner } from '../common/ScarcityCountdownBanner';
 import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
+import { DEFAULT_BONUSES, ProductBonusItem } from '../../data/defaultBonuses';
+import { getAutomaticPackageItems, getAutomaticProductDescription, getAutomaticPlanDetails, getAutomaticTestimonials } from '../../utils/automaticProductContent';
 
 interface ProductLandingPageProps {
   productId?: string;
@@ -56,13 +58,13 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   productId: propId, 
   onBack: propOnBack 
 }) => {
-  const { slug: routeSlug, id: routeId, storeSlug } = useParams<{ slug?: string; id?: string; storeSlug?: string }>();
+  const { slug: routeSlug, id: routeId, storeSlug, productId } = useParams<{ slug?: string; id?: string; storeSlug?: string; productId?: string }>();
   const navigate = useNavigate();
   const { storeConfig, showNotification } = useStoreData();
   const { currentStore } = useTenant();
-  const { addToCart, openCart, openCheckout } = useCart();
+  const { addToCart, openCart, openCheckout, clearCart } = useCart();
 
-  const slug = (propId || routeSlug || routeId || '').trim();
+  const slug = (propId || routeSlug || routeId || productId || '').trim();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -83,26 +85,25 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
   }, [storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout, currentStore]);
 
-  // Carregamento resiliente do produto por slug ou ID
+  // Carregamento resiliente do produto por slug ou ID com fallback automático
   useEffect(() => {
     let isMounted = true;
 
     async function loadProduct() {
+      // Se não há slug ou é uma rota reservada do sistema, redireciona imediatamente para a home
       if (!slug || RESERVED_ROUTES.includes(slug.toLowerCase())) {
         if (isMounted) {
           setIsLoading(false);
           setProduct(null);
+          navigate(storeSlug ? `/loja/${storeSlug}` : '/');
         }
         return;
       }
 
       setIsLoading(true);
-      if (!currentStore?.id || currentStore.id === '__resolving_tenant__') {
-        return;
-      }
 
       try {
-        const storeId = currentStore.id;
+        const storeId = currentStore?.id && currentStore.id !== '__resolving_tenant__' ? currentStore.id : '';
         const { data, error } = await fetchProductByIdOrSlug(slug, storeId);
 
         if (isMounted) {
@@ -110,11 +111,17 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             setProduct(data);
           } else {
             setProduct(null);
+            showNotification('Produto não encontrado. Redirecionando para a loja...', 'warning');
+            navigate(storeSlug ? `/loja/${storeSlug}` : '/');
           }
         }
       } catch (err) {
         console.error('[ProductLandingPage] Erro ao carregar produto:', err);
-        if (isMounted) setProduct(null);
+        if (isMounted) {
+          setProduct(null);
+          showNotification('Erro ao carregar produto. Redirecionando...', 'error');
+          navigate(storeSlug ? `/loja/${storeSlug}` : '/');
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -127,7 +134,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [slug, currentStore?.id]);
+  }, [slug, currentStore?.id, storeSlug, navigate, showNotification]);
 
   // Monta a galeria completa de mídias (foto principal + fotos adicionais)
   const mediaList = useMemo(() => {
@@ -178,23 +185,49 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     }
   };
 
+  // Detalhes dos planos de acesso (Plano Básico vs Plano Completo - Mais Popular)
+  const planDetails = useMemo(() => {
+    return getAutomaticPlanDetails(product);
+  }, [product]);
+
+  // Ação de seleção de plano ("Quero o Plano Básico" / "Quero o Pacote Completo")
+  const handleSelectPlan = (plan: 'basic' | 'complete') => {
+    if (!product) return;
+
+    // Fluxo Nativo Unificado da Loja: limpa carrinho anterior, coloca o plano selecionado e abre checkout direto
+    clearCart();
+    if (plan === 'complete') {
+      addToCart(
+        product,
+        1,
+        'Plano Completo (Acesso Imediato + Todos os Bônus)',
+        planDetails.complete.price,
+        true
+      );
+    } else {
+      addToCart(
+        product,
+        1,
+        'Plano Básico (Acesso Imediato)',
+        planDetails.basic.price,
+        false
+      );
+    }
+    openCheckout();
+  };
+
   // AÇÃO PRINCIPAL: COMPRA / CHECKOUT DE ALTA CONVERSÃO
   const handleBuyNow = () => {
     if (!product) return;
 
-    // 1. Se houver link de checkout próprio especificado pelo lojista (Kiwify, Hotmart, etc.)
-    const customCheckout = (product.checkout_url || product.checkoutUrl || '').trim();
-    if (customCheckout) {
-      try {
-        const targetUrl = customCheckout.startsWith('http') ? customCheckout : `https://${customCheckout}`;
-        window.open(targetUrl, '_blank', 'noopener,noreferrer');
-        return;
-      } catch (e) {
-        console.warn('Erro ao abrir link de checkout próprio:', e);
-      }
+    // Rola suavemente até a seção de escolha de planos de acesso ("Garanta seu acesso hoje")
+    const planosEl = document.getElementById('planos-acesso');
+    if (planosEl) {
+      planosEl.scrollIntoView({ behavior: 'smooth' });
+      return;
     }
 
-    // 2. Fluxo Nativo Unificado: coloca no carrinho e abre o checkout integrado imediato
+    // Fallback: coloca no carrinho e abre o checkout integrado imediato da loja
     addToCart(product, quantity);
     openCheckout();
   };
@@ -209,32 +242,64 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     }, 300);
   };
 
-  // Benefícios estruturados (vindos do banco ou lista inteligente de alta conversão)
+  // Benefícios automáticos e dinâmicos baseados no produto ("O que você vai encontrar neste pacote")
   const productBenefits = useMemo(() => {
-    if (product?.benefits) {
-      if (Array.isArray(product.benefits) && product.benefits.length > 0) {
-        return product.benefits;
-      }
-      if (typeof product.benefits === 'string' && product.benefits.trim()) {
-        return product.benefits.split('\n').map((s) => s.trim()).filter(Boolean);
-      }
-    }
-
-    return [
-      `Acesso 100% vitalício e imediato aos arquivos de ${product?.name || 'alta resolução'}`,
-      'Modelos totalmente editáveis no Canva (gratuito ou pro)',
-      'Prontos para impressão em alta definição (300 DPI)',
-      'Economize horas de trabalho na criação e comece a vender hoje mesmo',
-      'Suporte humanizado e envio automático no seu WhatsApp e E-mail'
-    ];
+    return getAutomaticPackageItems(product);
   }, [product]);
 
-  // Depoimentos estruturados (vindos do banco ou depoimentos de prova social padrão)
-  const productTestimonials = useMemo(() => {
-    if (product?.testimonials && Array.isArray(product.testimonials) && product.testimonials.length > 0) {
-      return product.testimonials;
+  // Descrição automática e persuasiva caso não tenha sido preenchida manualmente
+  const productDescription = useMemo(() => {
+    return getAutomaticProductDescription(product);
+  }, [product]);
+
+  // Bônus exclusivos (configurados no produto pelo lojista ou os 3 bônus poderosos padrão)
+  const productBonuses = useMemo(() => {
+    const raw = product?.bonuses;
+    if (raw) {
+      if (Array.isArray(raw) && raw.length > 0) {
+        return raw.map((b: any, idx: number) => ({
+          title: b.title || `Bônus #${idx + 1}`,
+          description: b.description || 'Acesso exclusivo incluso gratuitamente neste pacote.',
+          originalPrice: b.originalPrice !== undefined ? Number(b.originalPrice) : (40 + idx * 10),
+          imageUrl: b.imageUrl || '',
+          badge: b.badge || `BÔNUS #${idx + 1}`,
+        }));
+      }
+      if (typeof raw === 'string' && raw.trim()) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((b: any, idx: number) => ({
+              title: b.title || `Bônus #${idx + 1}`,
+              description: b.description || 'Acesso exclusivo incluso gratuitamente neste pacote.',
+              originalPrice: b.originalPrice !== undefined ? Number(b.originalPrice) : (40 + idx * 10),
+              imageUrl: b.imageUrl || '',
+              badge: b.badge || `BÔNUS #${idx + 1}`,
+            }));
+          }
+        } catch {
+          const lines = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+          if (lines.length > 0) {
+            return lines.map((line, idx) => {
+              const parts = line.split('|').map((p) => p.trim());
+              return {
+                title: parts[0] || `Bônus #${idx + 1}`,
+                description: parts[1] || 'Acesso exclusivo incluso gratuitamente neste pacote.',
+                originalPrice: parts[2] ? parseFloat(parts[2].replace(/[^0-9.,]/g, '').replace(',', '.')) : (40 + idx * 10),
+                imageUrl: parts[3] || '',
+                badge: `BÔNUS #${idx + 1}`,
+              };
+            });
+          }
+        }
+      }
     }
-    return DEFAULT_TESTIMONIALS;
+    return DEFAULT_BONUSES;
+  }, [product]);
+
+  // Depoimentos estruturados (garante SEMPRE exatamente 6 cards de prova social)
+  const productTestimonials = useMemo(() => {
+    return getAutomaticTestimonials(product);
   }, [product]);
 
   // FAQ estruturado (perguntas e respostas de alta conversão)
@@ -291,7 +356,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     );
   }
 
-  // Estado Não Encontrado
+  // Estado Não Encontrado com Redirecionamento Automático
   if (!product) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-slate-50 text-slate-900">
@@ -302,14 +367,15 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
           </div>
           <h2 className="text-2xl font-black text-slate-900">Produto não encontrado</h2>
           <p className="text-sm text-slate-500 leading-relaxed">
-            O link do produto pode ter expirado ou o produto foi removido do catálogo.
+            O endereço informado é inválido ou o produto não foi encontrado. Redirecionando para a loja...
           </p>
           <button
             type="button"
             onClick={handleBack}
-            className="w-full py-3.5 px-6 bg-slate-950 hover:bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg transition-all cursor-pointer"
+            className="w-full py-3.5 px-6 bg-slate-950 hover:bg-slate-800 text-white text-sm font-bold rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            Voltar para a Página Inicial
+            <ArrowLeft className="w-4 h-4" />
+            <span>Voltar para a Página Inicial</span>
           </button>
         </main>
         <Footer />
@@ -584,33 +650,35 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         </section>
 
         {/* ============================================================ */}
-        {/* SEÇÃO 2: O QUE VOCÊ VAI RECEBER (Benefícios & Destaques)      */}
+        {/* SEÇÃO 2: O QUE VOCÊ VAI ENCONTRAR NESTE PACOTE (AUTOMÁTICO)  */}
         {/* ============================================================ */}
-        <section className="space-y-6">
-          <div className="text-center max-w-xl mx-auto space-y-1">
-            <span className="text-xs font-black uppercase tracking-wider text-theme-primary">
-              TUDO INCLUSO
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
-              O que você vai receber neste produto:
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Arquivos profissionais prontos para uso e com direito a personalização total.
+        <section className="space-y-6 py-2">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <div className="flex items-center justify-center gap-2.5">
+              <span className="text-3xl sm:text-4xl select-none" role="img" aria-label="Foguete">
+                🚀
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight font-festive">
+                O que você vai encontrar neste pacote
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              Tudo organizado para facilitar sua produção do dia a dia.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4.5 max-w-4xl mx-auto">
             {productBenefits.map((benefit, index) => (
               <div
                 key={index}
-                className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-start gap-3.5"
+                className="bg-white px-5 sm:px-6 py-4 sm:py-4.5 rounded-[26px] border border-pink-100/90 shadow-xs hover:shadow-md transition-all flex items-center gap-3.5 group"
               >
-                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#f43f5e] via-[#fb7185] to-[#ec4899] text-white flex items-center justify-center shrink-0 shadow-sm shadow-pink-500/20 group-hover:scale-105 transition-transform">
+                  <Check className="w-5 h-5 stroke-[3] text-white" />
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{benefit}</h4>
-                </div>
+                <span className="text-xs sm:text-sm font-bold text-slate-800 leading-snug">
+                  {benefit}
+                </span>
               </div>
             ))}
           </div>
@@ -619,7 +687,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         {/* ============================================================ */}
         {/* SEÇÃO 3: DESCRIÇÃO DETALHADA                                 */}
         {/* ============================================================ */}
-        <section className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 space-y-6 shadow-xs">
+        <section className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 space-y-6 shadow-xs max-w-4xl mx-auto">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <FileText className="w-6 h-6 text-theme-primary" />
             <h3 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
@@ -628,21 +696,114 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
           </div>
 
           <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line space-y-4">
-            {product.detailed_description || product.detailedDescription || product.description || (
-              <>
-                <p>
-                  Projetado especialmente para atender artesãs, designers de festas e apaixonadas por papelaria personalizada que buscam encantar seus clientes com artes exclusivas e de altíssima qualidade visual.
-                </p>
-                <p>
-                  Com este modelo, você não precisa começar do zero. O arquivo já vem estruturado no Canva com camadas organizadas, facilitando a troca de nomes, datas, cores e fotos de forma simples e rápida.
-                </p>
-                <p>
-                  Ideal para criação de kits de lembrancinhas, festas temáticas infantis, eventos e decorações que vendem o ano todo com excelente margem de lucro.
-                </p>
-              </>
-            )}
+            {productDescription}
           </div>
         </section>
+
+        {/* ============================================================ */}
+        {/* SEÇÃO DE BÔNUS EXCLUSIVOS ("Além disso você leva X bônus")   */}
+        {/* ============================================================ */}
+        {productBonuses.length > 0 && (
+          <section className="space-y-8 py-6">
+            <div className="text-center max-w-2xl mx-auto space-y-3">
+              {/* Tag Superior idêntica à imagem */}
+              <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-pink-50 text-pink-600 border border-pink-200/80 shadow-2xs">
+                <Gift className="w-4 h-4 text-pink-600" />
+                <span>BÔNUS EXCLUSIVOS</span>
+              </div>
+
+              {/* Título Principal idêntico à imagem */}
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight font-festive">
+                Além disso você leva {productBonuses.length} {productBonuses.length === 1 ? 'bônus poderoso' : 'bônus poderosos'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Materiais complementares liberados imediatamente junto com seu pedido.
+              </p>
+            </div>
+
+            {/* Grid dos Cards de Bônus */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {productBonuses.map((bonus, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-3xl border border-pink-100/90 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all overflow-hidden flex flex-col justify-between group"
+                >
+                  <div className="p-5 sm:p-6 space-y-4">
+                    {/* Header do Card de Bônus */}
+                    <div className="flex items-center justify-between">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-xs">
+                        {bonus.badge || `BÔNUS #${index + 1}`}
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                        100% Grátis
+                      </span>
+                    </div>
+
+                    {/* Imagem ou Mockup do Bônus */}
+                    {bonus.imageUrl ? (
+                      <div className="w-full h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/60 relative group-hover:scale-[1.02] transition-transform">
+                        <img
+                          src={bonus.imageUrl}
+                          alt={bonus.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-36 rounded-2xl bg-gradient-to-br from-pink-50 via-rose-50 to-amber-50 border border-pink-100 flex items-center justify-center text-pink-500">
+                        <Gift className="w-12 h-12 stroke-[1.5] animate-pulse" />
+                      </div>
+                    )}
+
+                    {/* Conteúdo textual */}
+                    <div className="space-y-2">
+                      <h3 className="text-base font-extrabold text-slate-900 leading-snug group-hover:text-pink-600 transition-colors">
+                        {bonus.title}
+                      </h3>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {bonus.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Barra de Valor e Confirmação no Rodapé do Card */}
+                  <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div>
+                      {bonus.originalPrice && bonus.originalPrice > 0 ? (
+                        <span className="text-[11px] text-slate-400 line-through block">
+                          De {formatCurrency(bonus.originalPrice)}
+                        </span>
+                      ) : null}
+                      <span className="text-sm font-black text-emerald-600">
+                        Por R$ 0,00
+                      </span>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                      <span>Incluso Hoje</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Chamada para Ação abaixo dos Bônus */}
+            <div className="text-center pt-2 max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-xl shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span>QUERO O PRODUTO + TODOS OS BÔNUS</span>
+              </button>
+              <p className="text-[10px] text-slate-400 font-medium mt-2">
+                🔒 Acesso vitalício e liberação instantânea de todos os bônus após a confirmação
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* ============================================================ */}
         {/* SEÇÃO 4: DEPOIMENTOS / PROVA SOCIAL                          */}
@@ -702,6 +863,115 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ============================================================ */}
+        {/* SEÇÃO: GARANTA SEU ACESSO HOJE (TABELA DE PREÇOS / OFERTA)   */}
+        {/* ============================================================ */}
+        <section id="planos-acesso" className="py-6 sm:py-10 space-y-8 scroll-mt-20">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <div className="flex items-center justify-center gap-2.5">
+              <span className="text-3xl sm:text-4xl select-none" role="img" aria-label="Saco de dinheiro">
+                💰
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                Garanta seu acesso hoje
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              Acesso imediato após confirmar o pagamento.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto items-stretch">
+            
+            {/* 1. CARD PLANO BÁSICO */}
+            <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl shadow-slate-100 p-6 sm:p-9 flex flex-col justify-between hover:shadow-2xl transition-all">
+              <div>
+                {/* Header do Card */}
+                <div className="text-center space-y-2 pb-6 border-b border-slate-100">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-slate-900">
+                    {planDetails.basic.name}
+                  </h3>
+                  <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-950 tracking-tight">
+                    {formatCurrency(planDetails.basic.price)}
+                  </div>
+                  <p className="text-xs text-slate-400 font-semibold">
+                    Pagamento único
+                  </p>
+                </div>
+
+                {/* Lista de Recursos com Ícone Scalloped Rosa */}
+                <ul className="py-7 space-y-3.5">
+                  {planDetails.basic.features.map((feat, i) => (
+                    <li key={i} className="flex items-center gap-3 text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
+                      <svg className="w-5 h-5 text-[#f43f5e] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                      </svg>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Botão de Ação Básico */}
+              <button
+                type="button"
+                onClick={() => handleSelectPlan('basic')}
+                className="w-full py-4 px-6 bg-gradient-to-r from-[#ec4899] via-[#f43f5e] to-[#fb7185] hover:opacity-95 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all group"
+              >
+                <Download className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+                <span>{planDetails.basic.buttonText}</span>
+              </button>
+            </div>
+
+            {/* 2. CARD PLANO COMPLETO (MAIS POPULAR) */}
+            <div className="relative bg-white rounded-[32px] border-2 border-[#f43f5e] shadow-2xl shadow-pink-500/15 p-6 sm:p-9 flex flex-col justify-between hover:shadow-pink-500/25 transition-all">
+              
+              {/* Badge Superior "MAIS POPULAR" */}
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-[#ec4899] via-[#f43f5e] to-[#fb7185] text-white shadow-md select-none">
+                {planDetails.complete.badge}
+              </div>
+
+              <div>
+                {/* Header do Card */}
+                <div className="text-center space-y-2 pb-6 border-b border-slate-100 pt-1 sm:pt-0">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-slate-900">
+                    {planDetails.complete.name}
+                  </h3>
+                  <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#f43f5e] tracking-tight">
+                    {formatCurrency(planDetails.complete.price)}
+                  </div>
+                  <p className="text-xs text-slate-400 font-semibold">
+                    Pagamento único
+                  </p>
+                </div>
+
+                {/* Lista de Recursos Completa com Ícone Scalloped Rosa */}
+                <ul className="py-7 space-y-3.5">
+                  {planDetails.complete.features.map((feat, i) => (
+                    <li key={i} className="flex items-center gap-3 text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
+                      <svg className="w-5 h-5 text-[#f43f5e] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                      </svg>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Botão de Ação Completo */}
+              <button
+                type="button"
+                onClick={() => handleSelectPlan('complete')}
+                className="w-full py-4 px-6 bg-gradient-to-r from-[#ec4899] via-[#f43f5e] to-[#fb7185] hover:opacity-95 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all group"
+              >
+                <Download className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+                <span>{planDetails.complete.buttonText}</span>
+              </button>
+            </div>
+
           </div>
         </section>
 

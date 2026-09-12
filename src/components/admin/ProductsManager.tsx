@@ -181,6 +181,16 @@ export const ProductsManager: React.FC = () => {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-slate-900 line-clamp-1">{product.name}</div>
+                          <a
+                            href={getProductShareUrl(product)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-theme-primary hover:underline mt-0.5"
+                            title="Abrir Landing Page do produto em nova aba"
+                          >
+                            <span className="truncate max-w-[180px]">/produto/{product.slug || product.id}</span>
+                            <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                          </a>
                           <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                             {product.badge && (
                               <span className="inline-block text-[9px] font-bold px-2 py-0.2 rounded-full bg-theme-primary text-white">
@@ -294,6 +304,17 @@ export const ProductsManager: React.FC = () => {
                             <Link2 className="w-4 h-4" />
                           )}
                         </button>
+
+                        {/* Botão Testar Landing Page em Nova Aba */}
+                        <a
+                          href={getProductShareUrl(product)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-slate-500 hover:text-theme-primary hover:bg-theme-light/60 rounded-xl transition-all cursor-pointer inline-flex items-center justify-center"
+                          title={`Testar Landing Page em nova aba: ${getProductShareUrl(product)}`}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
 
                         <button
                           onClick={() => handleOpenEdit(product)}

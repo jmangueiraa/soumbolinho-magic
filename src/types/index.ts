@@ -30,6 +30,7 @@ export interface Product {
   testimonials?: Array<{ name: string; text: string; rating?: number; role?: string; avatar?: string }> | string;
   faq?: Array<{ question: string; answer: string }> | string;
   guarantee_days?: number;
+  bonuses?: Array<{ title: string; description: string; originalPrice?: number; imageUrl?: string; badge?: string }> | string;
   inStock: boolean;
   isCustomizable?: boolean;
   customizationPlaceholder?: string;

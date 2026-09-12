@@ -275,6 +275,8 @@ const NavigationRouter: React.FC = () => {
       <Route path="/produto/:slug" element={<ProductDetails />} />
       <Route path="/produto/:id" element={<ProductDetails />} />
       <Route path="/p/:id" element={<ProductDetails />} />
+      <Route path="/produto" element={<StoreFront />} />
+      <Route path="/p" element={<StoreFront />} />
 
       {/* 6. Rota Dinâmica Amigável na Raiz (/:slug) no Final da Lista */}
       <Route path="/:slug" element={<ProductDetails />} />
