@@ -404,3 +404,198 @@ export async function checkMercadoPagoPaymentStatus(
 
   return { success: false, error: 'Não foi possível verificar status' };
 }
+
+export interface CardPaymentOptions {
+  amount: number;
+  cardNumber: string;
+  cardholderName: string;
+  expirationMonth: string | number;
+  expirationYear: string | number;
+  securityCode: string;
+  installments?: number;
+  paymentMethodId?: string;
+  customerCpf?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  description?: string;
+  orderId?: string;
+  storeConfig?: Partial<StoreConfig>;
+  customAccessToken?: string;
+}
+
+export interface CardPaymentResponse {
+  success: boolean;
+  paymentId?: string;
+  status?: string;
+  statusDetail?: string;
+  friendlyMessage?: string;
+  error?: string;
+}
+
+/**
+ * Processa pagamento com Cartão de Crédito Transparente (Serverless + Fallback Direto)
+ */
+export async function createMercadoPagoCardPayment(
+  options: CardPaymentOptions
+): Promise<CardPaymentResponse> {
+  const {
+    amount,
+    cardNumber,
+    cardholderName,
+    expirationMonth,
+    expirationYear,
+    securityCode,
+    installments = 1,
+    paymentMethodId,
+    customerCpf,
+    customerName,
+    customerEmail,
+    customerPhone,
+    description,
+    orderId,
+    storeConfig,
+    customAccessToken,
+  } = options;
+
+  const accessToken = (customAccessToken || getMercadoPagoAccessToken(storeConfig)).trim();
+
+  // 1. Tentar primeiro via Endpoint Serverless /api/create-card-payment
+  try {
+    const res = await fetch('/api/create-card-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount,
+        card_number: cardNumber,
+        cardholder_name: cardholderName,
+        expiration_month: expirationMonth,
+        expiration_year: expirationYear,
+        security_code: securityCode,
+        installments,
+        payment_method_id: paymentMethodId,
+        customer_cpf: customerCpf,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        description,
+        order_id: orderId,
+        access_token: accessToken || undefined,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return {
+        success: true,
+        paymentId: String(data.id || ''),
+        status: data.status,
+        statusDetail: data.status_detail,
+        friendlyMessage: data.friendly_message,
+      };
+    } else {
+      return {
+        success: false,
+        paymentId: data.id ? String(data.id) : undefined,
+        status: data.status,
+        statusDetail: data.status_detail,
+        error: data.friendly_message || data.error || data.message || 'Erro ao processar cartão de crédito.',
+      };
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes('Failed to fetch')) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  // 2. Fallback direto se serverless falhar
+  if (!accessToken) {
+    return { success: false, error: 'Access Token do Mercado Pago não configurado.' };
+  }
+
+  try {
+    const cleanCard = cardNumber.replace(/\D/g, '');
+    const cleanCpf = (customerCpf || '').replace(/\D/g, '');
+    let fullYear = parseInt(String(expirationYear), 10);
+    if (fullYear < 100) fullYear += 2000;
+
+    const tokenRes = await fetch('https://api.mercadopago.com/v1/card_tokens', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        card_number: cleanCard,
+        cardholder: {
+          name: cardholderName || customerName || 'Comprador',
+          identification: cleanCpf ? { type: 'CPF', number: cleanCpf } : undefined,
+        },
+        security_code: securityCode.replace(/\D/g, ''),
+        expiration_month: parseInt(String(expirationMonth), 10),
+        expiration_year: fullYear,
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.id) {
+      return {
+        success: false,
+        error: tokenData.message || 'Não foi possível validar os dados do cartão.',
+      };
+    }
+
+    let brand = paymentMethodId;
+    if (!brand) {
+      if (cleanCard.startsWith('4')) brand = 'visa';
+      else if (/^5[1-5]/.test(cleanCard) || /^2[2-7]/.test(cleanCard)) brand = 'master';
+      else if (/^(4011|4312|4389|4514|4576|5041|5066|5067|5090|6277|6362|6363|650|6516|6550)/.test(cleanCard)) brand = 'elo';
+      else if (/^3[47]/.test(cleanCard)) brand = 'amex';
+      else if (/^6062/.test(cleanCard)) brand = 'hipercard';
+      else brand = 'master';
+    }
+
+    const payRes = await fetch('https://api.mercadopago.com/v1/payments', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': `${Date.now()}-${Math.random()}`,
+      },
+      body: JSON.stringify({
+        transaction_amount: Number(parseFloat(String(amount)).toFixed(2)),
+        token: tokenData.id,
+        description: description || 'Pedido Soumbolinho',
+        installments: installments || 1,
+        payment_method_id: brand,
+        binary_mode: true,
+        payer: {
+          email: customerEmail || 'comprador@soumbolinho.com.br',
+          identification: cleanCpf ? { type: 'CPF', number: cleanCpf } : undefined,
+        },
+        external_reference: orderId,
+      }),
+    });
+
+    const payData = await payRes.json();
+    if (payRes.ok && (payData.status === 'approved' || payData.status === 'in_process')) {
+      return {
+        success: true,
+        paymentId: String(payData.id || ''),
+        status: payData.status,
+        statusDetail: payData.status_detail,
+      };
+    } else {
+      return {
+        success: false,
+        status: payData.status,
+        error: payData.message || 'Pagamento recusado pela operadora do cartão.',
+      };
+    }
+  } catch (directErr: any) {
+    return {
+      success: false,
+      error: directErr.message || 'Erro ao comunicar com o Mercado Pago.',
+    };
+  }
+}
