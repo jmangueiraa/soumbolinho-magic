@@ -292,7 +292,7 @@ export const CheckoutModal: React.FC = () => {
                     onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'retirada' })}
                     className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       customerInfo.deliveryType === 'retirada'
-                        ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
+                        ? 'border-black bg-theme-light ring-2 ring-black/10'
                         : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
@@ -308,7 +308,7 @@ export const CheckoutModal: React.FC = () => {
                     onClick={() => setCustomerInfo({ ...customerInfo, deliveryType: 'entrega' })}
                     className={`p-3.5 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       customerInfo.deliveryType === 'entrega'
-                        ? 'border-black bg-pastel-pink-light/40 ring-2 ring-black/10'
+                        ? 'border-black bg-theme-light ring-2 ring-black/10'
                         : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
@@ -497,7 +497,7 @@ export const CheckoutModal: React.FC = () => {
                       disabled={isLoadingMP}
                       className={`w-full py-4 px-6 text-white font-bold text-sm sm:text-base rounded-2xl shadow-xl flex items-center justify-center gap-3 active:scale-98 transition-all cursor-pointer disabled:opacity-60 ${
                         customerInfo.paymentMethod === 'pix'
-                          ? 'bg-[#ff3399] hover:bg-[#e61e80] shadow-pink-500/25'
+                          ? 'bg-theme-primary hover:bg-theme-primary-hover shadow-lg'
                           : 'bg-[#00a8e8] hover:bg-[#0096c7] shadow-turquesa-500/25'
                       }`}
                     >

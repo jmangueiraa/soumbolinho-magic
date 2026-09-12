@@ -1,6 +1,6 @@
 -- ==============================================================================
--- SCHEMA SUPABASE COMPLETO & REALTIME (Soumbolinho / Editáveis do Canva - SaaS Multi-tenant)
--- Execute este script no SQL Editor do seu Dashboard Supabase (supabase.com)
+-- SAAS MULTI-TENANT & DOMÍNIOS PERSONALIZADOS (Supabase Migration)
+-- Execute este script no SQL Editor do Dashboard Supabase (supabase.com)
 -- ==============================================================================
 
 -- 1. TABELA DE LOJAS / ORGANIZAÇÕES (stores)
@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS public.stores (
     domain_status TEXT DEFAULT 'pending_dns' CHECK (domain_status IN ('pending_dns', 'active', 'unconfigured', 'ativo', 'pendente')),
     theme_settings JSONB DEFAULT '{"primary_color": "#ff3399", "secondary_color": "#00a8e8"}'::jsonb,
     is_active BOOLEAN DEFAULT TRUE,
-    subscription_status TEXT DEFAULT 'trial' CHECK (subscription_status IN ('active', 'suspended', 'trial')),
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
+    subscription_status TEXT DEFAULT 'active' CHECK (subscription_status IN ('active', 'suspended', 'trial')),
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days'),
     monthly_fee NUMERIC(10,2) DEFAULT 50.00,
     owner_name TEXT,
     owner_email TEXT,
@@ -29,11 +29,8 @@ CREATE TABLE IF NOT EXISTS public.stores (
 );
 
 -- Garantir colunas caso a tabela já tenha sido criada anteriormente
-ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial';
-ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days');
-ALTER TABLE public.stores DROP CONSTRAINT IF EXISTS stores_subscription_status_check;
-ALTER TABLE public.stores ADD CONSTRAINT stores_subscription_status_check 
-    CHECK (subscription_status IN ('active', 'suspended', 'trial'));
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days');
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC(10,2) DEFAULT 50.00;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS store_name TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS client_name TEXT;
@@ -55,15 +52,16 @@ ALTER TABLE public.stores DROP CONSTRAINT IF EXISTS stores_domain_status_check;
 ALTER TABLE public.stores ADD CONSTRAINT stores_domain_status_check 
     CHECK (domain_status IN ('pending_dns', 'active', 'unconfigured', 'ativo', 'pendente'));
 
+-- Índices para busca ultrarrápida por domínio, slug e status de mensalidade
 CREATE INDEX IF NOT EXISTS idx_stores_custom_domain ON public.stores (LOWER(custom_domain));
 CREATE INDEX IF NOT EXISTS idx_stores_slug ON public.stores (slug);
 CREATE INDEX IF NOT EXISTS idx_stores_is_active ON public.stores (is_active);
 CREATE INDEX IF NOT EXISTS idx_stores_subscription_status ON public.stores (subscription_status);
 CREATE INDEX IF NOT EXISTS idx_stores_expires_at ON public.stores (expires_at);
 
--- Inserir loja base padrão
+-- 2. INSERIR LOJA BASE PADRÃO (EDITÁVEIS DO CANVA / SOUMBOLINHO) CASO NÃO EXISTA
 INSERT INTO public.stores (
-    id, name, slug, custom_domain, domain_status, is_active,
+    id, name, slug, custom_domain, domain_status, is_active, 
     subscription_status, expires_at, monthly_fee, owner_name, owner_email
 )
 VALUES (
@@ -86,13 +84,13 @@ ON CONFLICT (id) DO UPDATE SET
     subscription_status = 'active',
     expires_at = '2099-12-31 23:59:59+00';
 
--- 2. TABELA DE USUÁRIOS VINCULADOS ÀS LOJAS (store_users)
+-- 3. TABELA DE USUÁRIOS VINCULADOS ÀS LOJAS (store_users)
 CREATE TABLE IF NOT EXISTS public.store_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id TEXT NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
-    user_id UUID,
+    user_id UUID, -- Referência opcional ao auth.users(id) se usar Supabase Auth
     email TEXT NOT NULL,
-    password_hash TEXT,
+    password_hash TEXT, -- Permite autenticação direta ou via Supabase Auth
     role TEXT NOT NULL DEFAULT 'owner' CHECK (role IN ('owner', 'admin')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (store_id, email)
@@ -101,178 +99,44 @@ CREATE TABLE IF NOT EXISTS public.store_users (
 CREATE INDEX IF NOT EXISTS idx_store_users_store_id ON public.store_users (store_id);
 CREATE INDEX IF NOT EXISTS idx_store_users_email ON public.store_users (LOWER(email));
 
--- 3. TABELA DE SUPER ADMINISTRADORES MASTER (master_admins)
+-- 4. TABELA DE SUPER ADMINISTRADORES MASTER (master_admins)
 CREATE TABLE IF NOT EXISTS public.master_admins (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Inserir e-mail inicial do Super Admin
 INSERT INTO public.master_admins (email)
 VALUES ('admin@editaveisdocanva.com.br')
 ON CONFLICT (email) DO NOTHING;
 
--- 4. TABELA DE CONFIGURAÇÕES DA LOJA (store_config)
-CREATE TABLE IF NOT EXISTS public.store_config (
-    id TEXT PRIMARY KEY DEFAULT 'default',
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
-    store_name TEXT NOT NULL DEFAULT 'Soumbolinho',
-    slogan TEXT DEFAULT 'Sua loja de moldes, papelaria e arquivos digitais',
-    whatsapp_number TEXT DEFAULT '5521974975884',
-    whatsapp_display TEXT DEFAULT '(21) 97497-5884',
-    instagram TEXT DEFAULT '@soumbolinho',
-    address TEXT DEFAULT 'Atendimento Online',
-    city TEXT DEFAULT 'Brasil',
-    working_hours TEXT DEFAULT 'Todos os dias: 08h às 22h',
-    min_order_value NUMERIC(10,2) DEFAULT 0.00,
-    mp_access_token TEXT,
-    telegram_bot_token TEXT,
-    telegram_chat_id TEXT,
-    benefit_cards JSONB,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS benefit_cards JSONB;
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS theme_layout TEXT DEFAULT 'classic';
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS color_palette TEXT DEFAULT 'pink_pastel';
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#FF1493';
-ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS logo_url TEXT;
-UPDATE public.store_config SET store_id = 'store_default' WHERE store_id IS NULL;
-
--- 4.1 TABELA DE CONFIGURAÇÕES DE SITE & LAYOUT (site_settings)
-CREATE TABLE IF NOT EXISTS public.site_settings (
-    id TEXT PRIMARY KEY DEFAULT 'default',
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
-    theme_layout TEXT DEFAULT 'classic',
-    color_palette TEXT DEFAULT 'pink_pastel',
-    primary_color TEXT DEFAULT '#FF1493',
-    logo_url TEXT,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS theme_layout TEXT DEFAULT 'classic';
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS color_palette TEXT DEFAULT 'pink_pastel';
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#FF1493';
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS logo_url TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS benefit_cards JSONB;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS whatsapp TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS display_whatsapp TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS instagram TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS slogan TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS address TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS business_hours TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS whatsapp_default_message TEXT;
-ALTER TABLE public.site_settings DROP CONSTRAINT IF EXISTS site_settings_store_id_key;
-ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_store_id_key UNIQUE (store_id);
-CREATE INDEX IF NOT EXISTS idx_site_settings_store_id ON public.site_settings (store_id);
-
--- 5. TABELA DE CATEGORIAS (categories)
-CREATE TABLE IF NOT EXISTS public.categories (
-    id TEXT PRIMARY KEY DEFAULT ('cat_' || substr(md5(random()::text), 1, 10)),
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    icon TEXT DEFAULT 'Gift',
-    subcategories JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
+-- 5. ADICIONAR COLUNA store_id NAS TABELAS TRANSACIONAIS E DE CONTEÚDO
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
 ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
 ALTER TABLE public.categories ALTER COLUMN id SET DEFAULT ('cat_' || substr(md5(random()::text), 1, 10));
-UPDATE public.categories SET store_id = 'store_default' WHERE store_id IS NULL;
-
--- 6. TABELA DE BANNERS (banners)
-CREATE TABLE IF NOT EXISTS public.banners (
-    id TEXT PRIMARY KEY,
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
-    type TEXT NOT NULL DEFAULT 'image',
-    image_url TEXT,
-    alt_text TEXT DEFAULT 'Banner Soumbolinho',
-    tag TEXT,
-    title TEXT,
-    subtitle TEXT,
-    highlight_text TEXT,
-    theme_color TEXT DEFAULT 'pink',
-    link_url TEXT,
-    "order" INTEGER DEFAULT 0,
-    order_index INTEGER DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
-ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
-UPDATE public.banners SET store_id = 'store_default' WHERE store_id IS NULL;
-
--- 7. TABELA DE PRODUTOS (products)
-CREATE TABLE IF NOT EXISTS public.products (
-    id TEXT PRIMARY KEY,
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    slug TEXT,
-    category TEXT NOT NULL,
-    subcategory TEXT,
-    price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-    unit_suffix TEXT DEFAULT '/Un',
-    image_url TEXT,
-    image TEXT,
-    photo_url TEXT,
-    video_url TEXT,
-    media_type TEXT,
-    delivery_url TEXT,
-    description TEXT,
-    in_stock BOOLEAN DEFAULT TRUE,
-    is_customizable BOOLEAN DEFAULT TRUE,
-    customization_placeholder TEXT,
-    badge TEXT,
-    tags TEXT[],
-    upsell_product_id TEXT,
-    upsell_price NUMERIC(10,2),
-    upsell_discount_percent NUMERIC(5,2),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS slug TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS photo_url TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS video_url TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS media_type TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_digital BOOLEAN DEFAULT FALSE;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_product_id TEXT;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_price NUMERIC(10,2);
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS upsell_discount_percent NUMERIC(5,2);
-UPDATE public.products SET store_id = 'store_default' WHERE store_id IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products (slug);
-CREATE INDEX IF NOT EXISTS idx_products_store_id ON public.products (store_id);
-
--- 8. TABELA DE PEDIDOS (orders)
-CREATE TABLE IF NOT EXISTS public.orders (
-    id TEXT PRIMARY KEY,
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
-    customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
-    customer_phone TEXT,
-    product_id TEXT,
-    product_name TEXT,
-    delivery_url TEXT,
-    amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-    payment_id TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_phone TEXT;
-UPDATE public.orders SET store_id = 'store_default' WHERE store_id IS NULL;
-CREATE INDEX IF NOT EXISTS idx_orders_store_id ON public.orders (store_id);
+ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
+ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS benefit_cards JSONB;
 
--- 9. FUNÇÃO ATÔMICA DE CLONAGEM (clone_store_template)
+-- 6. MIGRAR REGISTROS EXISTENTES PARA A LOJA PADRÃO (store_default)
+-- Garante preservação total dos produtos, categorias e configurações atuais
+UPDATE public.products SET store_id = 'store_default' WHERE store_id IS NULL;
+UPDATE public.categories SET store_id = 'store_default' WHERE store_id IS NULL;
+UPDATE public.banners SET store_id = 'store_default' WHERE store_id IS NULL;
+UPDATE public.orders SET store_id = 'store_default' WHERE store_id IS NULL;
+UPDATE public.store_config SET store_id = 'store_default' WHERE store_id IS NULL;
+
+-- Criar índices por store_id para queries eficientes
+CREATE INDEX IF NOT EXISTS idx_products_store_id ON public.products (store_id);
+CREATE INDEX IF NOT EXISTS idx_categories_store_id ON public.categories (store_id);
+CREATE INDEX IF NOT EXISTS idx_banners_store_id ON public.banners (store_id);
+CREATE INDEX IF NOT EXISTS idx_orders_store_id ON public.orders (store_id);
+CREATE INDEX IF NOT EXISTS idx_store_config_store_id ON public.store_config (store_id);
+
+-- 7. FUNÇÃO ATÔMICA DE CLONAGEM DE CONTEÚDO (clone_store_template)
+-- Clona produtos, categorias, banners e configurações da loja base para uma nova loja
 CREATE OR REPLACE FUNCTION public.clone_store_template(
     source_store_id TEXT,
     target_store_id TEXT,
@@ -300,7 +164,7 @@ DECLARE
     cloned_prods_count INT := 0;
     cloned_banners_count INT := 0;
 BEGIN
-    -- Clona Categorias Sequencialmente ('Categoria 1', 'Categoria 2', ...)
+    -- 1. Clona Categorias Sequencialmente ('Categoria 1', 'Categoria 2', ...)
     -- e Subcategorias Sequencialmente ('Subcategoria 1', 'Subcategoria 2', ...)
     CREATE TEMP TABLE IF NOT EXISTS temp_cat_mapping (
         old_name TEXT,
@@ -341,7 +205,7 @@ BEGIN
         VALUES (new_cat_id, target_store_id, new_cat_name, cat_record.icon, new_subcategories, NOW());
     END LOOP;
 
-    -- Clona Produtos (atualizando categoria para 'Categoria X' e subcategoria para 'Subcategoria Y')
+    -- 2. Clona Produtos (atualizando categoria para 'Categoria X' e subcategoria para 'Subcategoria Y')
     FOR prod_record IN SELECT * FROM public.products WHERE store_id = source_store_id LOOP
         new_prod_id := 'prod_' || substr(md5(random()::text), 1, 12);
 
@@ -388,7 +252,7 @@ BEGIN
         cloned_prods_count := cloned_prods_count + 1;
     END LOOP;
 
-    -- Clona Banners
+    -- 3. Clona Banners
     FOR banner_record IN SELECT * FROM public.banners WHERE store_id = source_store_id LOOP
         INSERT INTO public.banners (
             id, store_id, type, image_url, alt_text, tag, title, subtitle,
@@ -402,7 +266,7 @@ BEGIN
         cloned_banners_count := cloned_banners_count + 1;
     END LOOP;
 
-    -- Configurações da Loja: Busca dados próprios da nova loja cadastrada em public.stores
+    -- 4. Configurações da Loja: Busca dados próprios da nova loja cadastrada em public.stores
     SELECT * INTO store_record FROM public.stores WHERE id = target_store_id LIMIT 1;
     INSERT INTO public.store_config (
         id, store_id, store_name, slogan, whatsapp_number, whatsapp_display,
@@ -442,7 +306,7 @@ BEGIN
 END;
 $$;
 
--- 10. FUNÇÃO DE RENOVAÇÃO DE ASSINATURA (+30 DIAS)
+-- 8. FUNÇÃO DE RENOVAÇÃO DE ASSINATURA (+30 DIAS)
 CREATE OR REPLACE FUNCTION public.renew_store_subscription(
     p_store_id TEXT,
     p_days INT DEFAULT 30
@@ -486,51 +350,7 @@ BEGIN
 END;
 $$;
 
--- 10.1. FUNÇÃO DE EXTENSÃO DE TESTE GRATUITO (TRIAL)
-CREATE OR REPLACE FUNCTION public.extend_store_trial(
-    p_store_id TEXT,
-    p_days INT DEFAULT 7
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    current_exp TIMESTAMP WITH TIME ZONE;
-    new_exp TIMESTAMP WITH TIME ZONE;
-BEGIN
-    SELECT expires_at INTO current_exp FROM public.stores WHERE id = p_store_id;
-    
-    IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Loja não encontrada');
-    END IF;
-
-    -- Se ainda não venceu, soma aos dias restantes; se já venceu ou nulo, conta a partir de agora
-    IF current_exp IS NOT NULL AND current_exp > NOW() THEN
-        new_exp := current_exp + (p_days || ' days')::INTERVAL;
-    ELSE
-        new_exp := NOW() + (p_days || ' days')::INTERVAL;
-    END IF;
-
-    UPDATE public.stores
-    SET 
-        expires_at = new_exp,
-        subscription_status = 'trial',
-        is_active = true,
-        updated_at = NOW()
-    WHERE id = p_store_id;
-
-    RETURN jsonb_build_object(
-        'success', true,
-        'store_id', p_store_id,
-        'previous_expires_at', current_exp,
-        'new_expires_at', new_exp,
-        'subscription_status', 'trial'
-    );
-END;
-$$;
-
--- 10.5. TRIGGERS DE COMPATIBILIDADE E AUTO-SYNC PARA INSERTS DIRETOS / LOVABLE
+-- 8.5. TRIGGERS DE COMPATIBILIDADE E AUTO-SYNC PARA INSERTS DIRETOS / LOVABLE
 CREATE OR REPLACE FUNCTION public.handle_store_before_insert()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -565,15 +385,15 @@ BEGIN
         NEW.custom_domain := NEW.slug || '.editaveisdocanva.com.br';
     END IF;
 
-    -- Garantir expiração e mensalidade padrão (7 dias gratuitos em Trial para novas lojas)
+    -- Garantir expiração e mensalidade padrão
     IF NEW.expires_at IS NULL THEN
-        NEW.expires_at := NOW() + INTERVAL '7 days';
+        NEW.expires_at := NOW() + INTERVAL '30 days';
     END IF;
     IF NEW.monthly_fee IS NULL THEN
         NEW.monthly_fee := 50.00;
     END IF;
     IF NEW.subscription_status IS NULL THEN
-        NEW.subscription_status := 'trial';
+        NEW.subscription_status := 'active';
     END IF;
     IF NEW.domain_status IS NULL THEN
         NEW.domain_status := 'ativo';
@@ -624,58 +444,57 @@ AFTER INSERT ON public.stores
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_store_after_insert_clone();
 
--- 11. ROW LEVEL SECURITY (RLS)
+-- 9. ATUALIZAÇÃO DAS POLÍTICAS DE ROW LEVEL SECURITY (RLS)
+-- Políticas flexíveis que atendem tanto chave pública anônima (com filtro por store_id) quanto usuários autenticados
+
+-- Stores
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read active stores" ON public.stores;
 CREATE POLICY "Public read active stores" ON public.stores FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Public write stores" ON public.stores;
 CREATE POLICY "Public write stores" ON public.stores FOR ALL USING (true) WITH CHECK (true);
 
+-- Store Users
 ALTER TABLE public.store_users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public access store_users" ON public.store_users;
 CREATE POLICY "Public access store_users" ON public.store_users FOR ALL USING (true) WITH CHECK (true);
 
+-- Master Admins
 ALTER TABLE public.master_admins ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public access master_admins" ON public.master_admins;
 CREATE POLICY "Public access master_admins" ON public.master_admins FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read products" ON public.products;
-CREATE POLICY "Public read products" ON public.products FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public write products" ON public.products;
-CREATE POLICY "Public write products" ON public.products FOR ALL USING (true) WITH CHECK (true);
+-- Products
+DROP POLICY IF EXISTS "Multi-tenant read products" ON public.products;
+CREATE POLICY "Multi-tenant read products" ON public.products FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Multi-tenant write products" ON public.products;
+CREATE POLICY "Multi-tenant write products" ON public.products FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read categories" ON public.categories;
-CREATE POLICY "Public read categories" ON public.categories FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public write categories" ON public.categories;
-CREATE POLICY "Public write categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
+-- Categories
+DROP POLICY IF EXISTS "Multi-tenant read categories" ON public.categories;
+CREATE POLICY "Multi-tenant read categories" ON public.categories FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Multi-tenant write categories" ON public.categories;
+CREATE POLICY "Multi-tenant write categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read banners" ON public.banners;
-CREATE POLICY "Public read banners" ON public.banners FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public write banners" ON public.banners;
-CREATE POLICY "Public write banners" ON public.banners FOR ALL USING (true) WITH CHECK (true);
+-- Banners
+DROP POLICY IF EXISTS "Multi-tenant read banners" ON public.banners;
+CREATE POLICY "Multi-tenant read banners" ON public.banners FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Multi-tenant write banners" ON public.banners;
+CREATE POLICY "Multi-tenant write banners" ON public.banners FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE public.store_config ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read store_config" ON public.store_config;
-CREATE POLICY "Public read store_config" ON public.store_config FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public write store_config" ON public.store_config;
-CREATE POLICY "Public write store_config" ON public.store_config FOR ALL USING (true) WITH CHECK (true);
+-- Store Config
+DROP POLICY IF EXISTS "Multi-tenant read store_config" ON public.store_config;
+CREATE POLICY "Multi-tenant read store_config" ON public.store_config FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Multi-tenant write store_config" ON public.store_config;
+CREATE POLICY "Multi-tenant write store_config" ON public.store_config FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read orders" ON public.orders;
-CREATE POLICY "Public read orders" ON public.orders FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public write orders" ON public.orders;
-CREATE POLICY "Public write orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+-- Orders
+DROP POLICY IF EXISTS "Multi-tenant read orders" ON public.orders;
+CREATE POLICY "Multi-tenant read orders" ON public.orders FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Multi-tenant write orders" ON public.orders;
+CREATE POLICY "Multi-tenant write orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read site_settings" ON public.site_settings;
-CREATE POLICY "Public read site_settings" ON public.site_settings FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public write site_settings" ON public.site_settings;
-CREATE POLICY "Public write site_settings" ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
-
--- 11. SUPABASE REALTIME
+-- 9. HABILITAR REALTIME NAS NOVAS TABELAS
 DO $$
 BEGIN
     BEGIN
@@ -686,50 +505,4 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.store_users;
     EXCEPTION WHEN OTHERS THEN NULL;
     END;
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.store_config;
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.categories;
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.banners;
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
-    BEGIN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.site_settings;
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
 END $$;
-
--- =========================================================================
--- 12. MIGRAÇÕES DE BANCO (EXECUTE NO SQL EDITOR DO SUPABASE SE NECESSÁRIO)
--- =========================================================================
--- Migração 12.1: Trial de 7 dias
-ALTER TABLE public.stores DROP CONSTRAINT IF EXISTS stores_subscription_status_check;
-ALTER TABLE public.stores ADD CONSTRAINT stores_subscription_status_check CHECK (subscription_status IN ('active', 'suspended', 'trial'));
-ALTER TABLE public.stores ALTER COLUMN subscription_status SET DEFAULT 'trial';
-ALTER TABLE public.stores ALTER COLUMN expires_at SET DEFAULT (NOW() + INTERVAL '7 days');
-
--- Migração 12.2: Campos de layout, textos e benefit_cards em site_settings
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS benefit_cards JSONB;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS whatsapp TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS display_whatsapp TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS instagram TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS slogan TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS address TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS business_hours TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS whatsapp_default_message TEXT;
-ALTER TABLE public.site_settings DROP CONSTRAINT IF EXISTS site_settings_store_id_key;
-ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_store_id_key UNIQUE (store_id);
-

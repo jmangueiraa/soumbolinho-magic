@@ -7,6 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        'theme-primary': 'var(--primary-color, #FF1493)',
         pastel: {
           pink: '#F8A4D8',
           'pink-light': '#FDE8F5',

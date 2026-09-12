@@ -5,6 +5,7 @@ import { CartDrawer } from '../cart/CartDrawer';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { Toast } from '../common/Toast';
 import { useStoreData } from '../../context/StoreDataContext';
+import { applyThemeToDocument } from '../../utils/theme';
 
 export const ArquivosPage: React.FC = () => {
   const { storeConfig } = useStoreData();
@@ -12,10 +13,13 @@ export const ArquivosPage: React.FC = () => {
   useEffect(() => {
     document.title = `Arquivos | ${storeConfig.storeName || 'Soumbolinho'}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [storeConfig.storeName]);
+    if (storeConfig?.primaryColor) {
+      applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+    }
+  }, [storeConfig.storeName, storeConfig?.primaryColor, storeConfig?.colorPalette, storeConfig?.themeLayout]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#FFFBFD] text-slate-900 selection:bg-[#ff3399] selection:text-white">
+    <div className="min-h-screen w-full flex flex-col bg-[#FFFBFD] text-slate-900 selection:bg-theme-primary selection:text-white">
       {/* 1. Cabeçalho Oficial da Loja */}
       <Header />
 

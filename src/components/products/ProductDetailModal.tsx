@@ -108,16 +108,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                 max="99"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full h-12 text-center text-sm font-bold border border-slate-300 text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#ff3399] rounded-none shadow-2xs"
+                className="w-full h-12 text-center text-sm font-bold border border-slate-300 text-slate-900 focus:outline-none focus:ring-1 focus:ring-theme-primary rounded-none shadow-2xs"
               />
             </div>
 
-            {/* Botão Rosa Chiclete "Adicionar Ao Carrinho" */}
+            {/* Botão Principal "Adicionar Ao Carrinho" */}
             <button
               type="button"
               onClick={handleAddToCart}
-              className={`flex-1 h-12 bg-[#ff3399] hover:bg-[#e61e80] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider rounded-none flex items-center justify-center transition-all cursor-pointer shadow-md shadow-pink-500/20 active:scale-98 ${
-                addedAnimation ? 'bg-pink-700' : ''
+              className={`flex-1 h-12 bg-theme-primary hover:bg-theme-primary-hover text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider rounded-none flex items-center justify-center transition-all cursor-pointer shadow-md active:scale-98 ${
+                addedAnimation ? 'filter brightness-75' : ''
               }`}
             >
               <span>{addedAnimation ? 'Adicionado!' : 'Adicionar Ao Carrinho'}</span>

@@ -61,9 +61,9 @@ export const StoreHighlights: React.FC = () => {
         </h2>
 
         <div className="relative flex items-center justify-center">
-          <div className="w-full border-t border-dotted border-pink-200" />
-          <div className="absolute bg-white px-3 text-[#ff3399]">
-            <Star className="w-4 h-4 fill-pink-100 text-[#ff3399]" />
+          <div className="w-full border-t border-dotted border-theme-primary/30" />
+          <div className="absolute bg-white px-3 text-theme-primary">
+            <Star className="w-4 h-4 fill-theme-light text-theme-primary" />
           </div>
         </div>
       </div>

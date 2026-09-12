@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/formatters';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { createOrderInSupabase } from '../../services/orderService';
@@ -22,10 +23,19 @@ import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { CartUpsellCard } from '../cart/CartUpsellCard';
+import { applyThemeToDocument } from '../../utils/theme';
 
 export const CreditCardCheckoutPage: React.FC = () => {
+  const { currentStore } = useTenant();
   const { items, totalPrice, clearCart } = useCart();
   const { storeConfig } = useStoreData();
+
+  // Aplica a variável global CSS --primary-color e tema da loja dinamicamente
+  useEffect(() => {
+    if (storeConfig?.primaryColor) {
+      applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+    }
+  }, [storeConfig?.primaryColor, storeConfig?.colorPalette, storeConfig?.themeLayout]);
 
   const [customerInfo, setCustomerInfo] = useState(() => {
     try {
@@ -291,6 +301,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
 
       // 1. Salvar no Supabase como aprovado
       await createOrderInSupabase({
+        store_id: currentStore?.id || 'suamarcaaqui',
         orderId: generatedOrderId,
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
@@ -367,23 +378,23 @@ export const CreditCardCheckoutPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans flex items-center gap-2">
-              <CreditCard className="w-7 h-7 text-[#ff3399]" />
+              <CreditCard className="w-7 h-7 text-theme-primary" />
               <span>Finalização de Compra • Cartão de Crédito</span>
             </h1>
 
             {/* Alternar para Pix */}
             <a
               href="#/checkout"
-              className="text-xs font-bold text-slate-600 hover:text-[#ff3399] bg-slate-100 hover:bg-pink-50 px-3.5 py-2 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5"
+              className="text-xs font-bold text-slate-600 hover:text-theme-primary bg-slate-100 hover:bg-theme-light/40 px-3.5 py-2 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5"
             >
               <span>❖ Pagar com Pix</span>
             </a>
           </div>
 
           <div className="relative flex items-center justify-center">
-            <div className="w-full border-t border-dotted border-pink-200" />
-            <div className="absolute bg-white px-3 text-[#ff3399]">
-              <Star className="w-4 h-4 fill-pink-100 text-[#ff3399]" />
+            <div className="w-full border-t border-dotted border-theme-primary/30" />
+            <div className="absolute bg-white px-3 text-theme-primary">
+              <Star className="w-4 h-4 fill-theme-light text-theme-primary" />
             </div>
           </div>
         </div>
@@ -490,7 +501,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
           </div>
         ) : items.length === 0 ? (
           <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-200 space-y-4 max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-full bg-pastel-pink-light text-pastel-pink-dark flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 rounded-full bg-theme-light text-theme-primary flex items-center justify-center mx-auto">
               <ShoppingBag className="w-8 h-8" />
             </div>
             <h2 className="text-lg font-bold text-slate-900">Seu carrinho está vazio</h2>
@@ -597,7 +608,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
                             <span className="font-medium text-slate-900">{item.product.name}</span>
                             <span className="text-slate-400 text-xs">× {item.quantity}</span>
                             {item.isUpsell && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-pink-100 text-pink-700 border border-pink-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-theme-light text-theme-primary border border-theme-primary/30 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
                                 ⚡ Compre Junto
                               </span>
                             )}
@@ -768,7 +779,7 @@ export const CreditCardCheckoutPage: React.FC = () => {
                   type="button"
                   onClick={handleProcessPayment}
                   disabled={isLoading}
-                  className="w-full py-4 px-6 bg-[#ff3399] hover:bg-[#e61e80] text-white font-bold text-sm sm:text-base rounded-xl shadow-md shadow-pink-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="w-full py-4 px-6 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-sm sm:text-base rounded-xl shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>

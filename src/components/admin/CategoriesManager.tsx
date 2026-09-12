@@ -89,12 +89,12 @@ export const CategoriesManager: React.FC = () => {
     <div className="space-y-6">
       
       {/* Top Header & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-[#FFA6DF]/40 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm">
         <div>
           <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
-            <FolderTree className="w-5 h-5 text-[#FF1493]" />
+            <FolderTree className="w-5 h-5 text-theme-primary" />
             <span>Categorias & Subcategorias</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FFEBF6] text-[#FF1493] font-bold">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-theme-light text-theme-primary font-bold">
               {categories.length} {categories.length === 1 ? 'categoria' : 'categorias'}
             </span>
           </h2>
@@ -107,7 +107,7 @@ export const CategoriesManager: React.FC = () => {
           onClick={() => setIsAddingCategory(true)}
           className="px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border border-black"
         >
-          <FolderPlus className="w-4 h-4 text-[#FFD1EC]" />
+          <FolderPlus className="w-4 h-4 text-white" />
           <span>Nova Categoria</span>
         </button>
       </div>
@@ -116,7 +116,7 @@ export const CategoriesManager: React.FC = () => {
       {isAddingCategory && (
         <form 
           onSubmit={handleCreateCategory}
-          className="p-4 bg-white rounded-3xl border-2 border-[#FF1493] shadow-sm flex flex-col sm:flex-row items-center gap-3 animate-in fade-in"
+          className="p-4 bg-white rounded-3xl border-2 border-theme-primary shadow-sm flex flex-col sm:flex-row items-center gap-3 animate-in fade-in"
         >
           <div className="flex-1 w-full">
             <input
@@ -125,7 +125,7 @@ export const CategoriesManager: React.FC = () => {
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
               placeholder="Digite o nome da nova categoria (ex: Topos de Bolo & Velas)..."
-              className="w-full text-xs sm:text-sm px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#FF1493]"
+              className="w-full text-xs sm:text-sm px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary"
             />
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -141,7 +141,7 @@ export const CategoriesManager: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-[#FF1493] hover:bg-[#E6007A] text-white text-xs font-bold rounded-xl shadow-xs"
+              className="px-5 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-xl shadow-xs"
             >
               Salvar Categoria
             </button>
@@ -157,7 +157,7 @@ export const CategoriesManager: React.FC = () => {
           return (
             <div 
               key={category.id} 
-              className="bg-white p-5 rounded-3xl border border-[#FFA6DF]/40 shadow-sm flex flex-col justify-between space-y-4 hover:border-[#FFA6DF] transition-colors"
+              className="bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm flex flex-col justify-between space-y-4 hover:border-theme-primary/40 transition-colors"
             >
               
               {/* Category Header */}
@@ -170,7 +170,7 @@ export const CategoriesManager: React.FC = () => {
                         autoFocus
                         value={editCatName}
                         onChange={(e) => setEditCatName(e.target.value)}
-                        className="w-full text-sm font-bold px-2 py-1 bg-slate-50 border border-[#FF1493] rounded-lg outline-none"
+                        className="w-full text-sm font-bold px-2 py-1 bg-slate-50 border border-theme-primary rounded-lg outline-none"
                       />
                       <button
                         onClick={() => handleSaveRenameCategory(category.id)}
@@ -187,7 +187,7 @@ export const CategoriesManager: React.FC = () => {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-[#FF1493]" />
+                      <span className="w-3 h-3 rounded-full bg-theme-primary" />
                       <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate">
                         {category.name}
                       </h3>
@@ -234,7 +234,7 @@ export const CategoriesManager: React.FC = () => {
                         setSubcatInputCatId(category.id);
                         setNewSubcatName('');
                       }}
-                      className="text-[#FF1493] hover:underline font-bold flex items-center gap-0.5 text-[11px]"
+                      className="text-theme-primary hover:underline font-bold flex items-center gap-0.5 text-[11px]"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Adicionar</span>
@@ -244,14 +244,14 @@ export const CategoriesManager: React.FC = () => {
 
                 {/* Subcategory Input */}
                 {subcatInputCatId === category.id && (
-                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-[#FFA6DF] animate-in fade-in">
+                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-theme-primary/30 animate-in fade-in">
                     <input
                       type="text"
                       autoFocus
                       value={newSubcatName}
                       onChange={(e) => setNewSubcatName(e.target.value)}
                       placeholder="Nome da subcategoria..."
-                      className="flex-1 text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-[#FF1493]"
+                      className="flex-1 text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-theme-primary"
                     />
                     <button
                       onClick={() => handleAddSubcategory(category.id)}
@@ -274,7 +274,7 @@ export const CategoriesManager: React.FC = () => {
                     category.subcategories.map((subcat) => (
                       <span
                         key={subcat}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#FFEBF6] text-[#2B3A8C] text-xs font-semibold rounded-xl border border-[#FFA6DF]/50 group/sub"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-theme-light text-slate-800 text-xs font-semibold rounded-xl border border-theme-primary/30 group/sub"
                       >
                         <span>° {subcat}</span>
                         <button

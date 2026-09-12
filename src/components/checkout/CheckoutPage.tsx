@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
@@ -31,10 +32,19 @@ import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { CartUpsellCard } from '../cart/CartUpsellCard';
+import { applyThemeToDocument } from '../../utils/theme';
 
 export const CheckoutPage: React.FC = () => {
+  const { currentStore } = useTenant();
   const { items, totalPrice, clearCart } = useCart();
   const { storeConfig } = useStoreData();
+
+  // Aplica a variável global CSS --primary-color e tema da loja dinamicamente
+  useEffect(() => {
+    if (storeConfig?.primaryColor) {
+      applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+    }
+  }, [storeConfig?.primaryColor, storeConfig?.colorPalette, storeConfig?.themeLayout]);
 
   const [customerInfo, setCustomerInfo] = useState(() => {
     try {
@@ -432,6 +442,7 @@ export const CheckoutPage: React.FC = () => {
 
       // 1. Salvar no Supabase como aprovado
       await createOrderInSupabase({
+        store_id: currentStore?.id || 'suamarcaaqui',
         orderId: generatedOrderId,
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
@@ -554,6 +565,7 @@ export const CheckoutPage: React.FC = () => {
 
     // Salvar pedido no Supabase
     await createOrderInSupabase({
+      store_id: currentStore?.id || 'suamarcaaqui',
       orderId: finalPaymentId,
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
@@ -866,7 +878,7 @@ export const CheckoutPage: React.FC = () => {
                           onClick={handleCopyPix}
                           className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 ${
                             copied
-                              ? 'bg-[#ff3399] text-white'
+                              ? 'bg-theme-primary text-white'
                               : 'bg-[#00a8e8] hover:bg-[#0096c7] text-white active:scale-95'
                           }`}
                         >
@@ -905,7 +917,7 @@ export const CheckoutPage: React.FC = () => {
         ) : items.length === 0 ? (
           /* Carrinho Vazio */
           <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-200 space-y-4 max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-full bg-pastel-pink-light text-pastel-pink-dark flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 rounded-full bg-theme-light text-theme-primary flex items-center justify-center mx-auto">
               <ShoppingBag className="w-8 h-8" />
             </div>
             <h2 className="text-lg font-bold text-slate-900">Seu carrinho está vazio</h2>
@@ -1019,7 +1031,7 @@ export const CheckoutPage: React.FC = () => {
                             <span className="font-medium text-slate-900">{item.product.name}</span>
                             <span className="text-slate-400 text-xs">× {item.quantity}</span>
                             {item.isUpsell && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-pink-100 text-pink-700 border border-pink-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-theme-light text-theme-primary border border-theme-primary/30 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
                                 ⚡ Compre Junto
                               </span>
                             )}
@@ -1103,7 +1115,7 @@ export const CheckoutPage: React.FC = () => {
                     onClick={() => handleSelectPaymentMethod('pix')}
                     className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
                       customerInfo.paymentMethod === 'pix' 
-                        ? 'border-[#ff3399] bg-pink-50/20 shadow-xs' 
+                        ? 'border-theme-primary bg-theme-light/40 shadow-xs' 
                         : 'border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1113,15 +1125,15 @@ export const CheckoutPage: React.FC = () => {
                         name="payment"
                         checked={customerInfo.paymentMethod === 'pix'}
                         onChange={() => handleSelectPaymentMethod('pix')}
-                        className="w-4 h-4 text-[#ff3399] focus:ring-[#ff3399]"
+                        className="w-4 h-4 text-theme-primary focus:ring-theme-primary accent-theme-primary"
                       />
                       <span className="text-xs sm:text-sm font-bold text-slate-900">Pix</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-pink-100 text-[#ff3399]">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-theme-light text-theme-primary">
                         Aprovação Imediata
                       </span>
-                      <span className="text-[#ff3399] font-extrabold text-sm">❖</span>
+                      <span className="text-theme-primary font-extrabold text-sm">❖</span>
                     </div>
                   </label>
 
@@ -1147,7 +1159,7 @@ export const CheckoutPage: React.FC = () => {
                       </p>
 
                       <p className="text-[10px] text-slate-400 pt-1">
-                        Ao continuar, você concorda com nossos <span className="text-[#ff3399] font-semibold cursor-pointer hover:underline">Termos e condições</span>
+                        Ao continuar, você concorda com nossos <span className="text-theme-primary font-semibold cursor-pointer hover:underline">Termos e condições</span>
                       </p>
                     </div>
                   )}
@@ -1157,7 +1169,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="space-y-3">
                   <a 
                     href="#/checkout/cartao"
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-[#ff3399] hover:bg-pink-50/20 transition-all cursor-pointer"
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-theme-primary hover:bg-theme-light/30 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5">
                       <CreditCard className="w-5 h-5 text-slate-500" />
@@ -1166,13 +1178,13 @@ export const CheckoutPage: React.FC = () => {
                         <span className="text-[10px] text-slate-400">Clique para abrir a página de pagamento com cartão</span>
                       </div>
                     </div>
-                    <span className="text-xs text-[#ff3399] font-bold">Abrir &rarr;</span>
+                    <span className="text-xs text-theme-primary font-bold">Abrir &rarr;</span>
                   </a>
                 </div>
 
                 {/* Termos e Política de Privacidade */}
                 <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                  Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-[#ff3399] font-semibold cursor-pointer hover:underline">política de privacidade</span>.
+                  Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-theme-primary font-semibold cursor-pointer hover:underline">política de privacidade</span>.
                 </p>
 
                 {/* Alerta de Erro */}
@@ -1191,7 +1203,7 @@ export const CheckoutPage: React.FC = () => {
                   type="button"
                   onClick={handleFinalizeOrder}
                   disabled={isLoading}
-                  className="w-full py-4 px-6 bg-[#ff3399] hover:bg-[#e61e80] text-white font-bold text-sm sm:text-base rounded-xl shadow-md shadow-pink-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="w-full py-4 px-6 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-sm sm:text-base rounded-xl shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>

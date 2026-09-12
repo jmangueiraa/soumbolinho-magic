@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 
 export const RESERVED_ROUTES = [
   'admin',
+  'master',
+  'super-admin',
   'api',
   'checkout',
   'cart',
@@ -12,7 +14,15 @@ export const RESERVED_ROUTES = [
   'login',
   'produtos',
   'produto',
-  'arquivos'
+  'loja',
+  'arquivos',
+  'index.html',
+  'favicon.ico',
+  'favicon.svg',
+  'assets',
+  'src',
+  '@vite',
+  '@fs'
 ];
 
 interface RouterContextType {
@@ -93,32 +103,40 @@ export function useParams<T extends Record<string, string | undefined> = Record<
     const path = (pathname || (typeof window !== 'undefined' ? window.location.pathname : '') || '').trim();
     const h = (hash || (typeof window !== 'undefined' ? window.location.hash : '') || '').trim();
 
-    // 1. Rota /produto/:id
-    const pathMatch = path.match(/\/produto\/([^/?#]+)/i);
-    if (pathMatch && pathMatch[1]) {
-      const decoded = decodeURIComponent(pathMatch[1]);
-      return { id: decoded, slug: decoded } as unknown as T;
+    // 1. Rota aninhada de loja + produto: /loja/:storeSlug/produto/:slug ou /loja/:storeSlug/p/:id
+    const lojaProdMatch = path.match(/\/loja\/([^/?#]+)\/(?:produto|p)\/([^/?#]+)/i) || h.match(/loja\/([^/?#]+)\/(?:produto|p)\/([^/?#]+)/i);
+    if (lojaProdMatch && lojaProdMatch[1] && lojaProdMatch[2]) {
+      const storeSlug = decodeURIComponent(lojaProdMatch[1]);
+      const prodSlug = decodeURIComponent(lojaProdMatch[2]);
+      return { storeSlug, slug: prodSlug, id: prodSlug, productId: prodSlug } as unknown as T;
     }
 
-    // 2. Rota hash #/produto/:id
-    const hashMatch = h.match(/produto\/([^/?#]+)/i);
-    if (hashMatch && hashMatch[1]) {
-      const decoded = decodeURIComponent(hashMatch[1]);
-      return { id: decoded, slug: decoded } as unknown as T;
+    // 2. Rota dinâmica direta: /produto/:slug ou /p/:id (pathname ou hash)
+    const prodMatch = path.match(/\/(?:produto|p)\/([^/?#]+)/i) || h.match(/(?:produto|p)\/([^/?#]+)/i);
+    if (prodMatch && prodMatch[1]) {
+      const decoded = decodeURIComponent(prodMatch[1]);
+      return { id: decoded, slug: decoded, productId: decoded } as unknown as T;
+    }
+
+    // 2.5. Rota /loja/:storeSlug ou /loja/:storeSlug/admin
+    const lojaMatch = path.match(/\/loja\/([^/?#]+)/i) || h.match(/loja\/([^/?#]+)/i);
+    if (lojaMatch && lojaMatch[1]) {
+      const decoded = decodeURIComponent(lojaMatch[1]);
+      return { storeSlug: decoded, slug: decoded, id: decoded } as unknown as T;
     }
 
     // 3. Rota amigável na raiz /:slug
     const cleanPath = path.replace(/^\/+|\/+$/g, '').toLowerCase();
     if (cleanPath && !cleanPath.includes('/') && !RESERVED_ROUTES.includes(cleanPath)) {
       const decoded = decodeURIComponent(cleanPath);
-      return { slug: decoded, id: decoded } as unknown as T;
+      return { slug: decoded, id: decoded, productId: decoded } as unknown as T;
     }
 
     // 4. Rota amigável hash #/:slug
     const cleanHash = h.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
     if (cleanHash && !cleanHash.includes('/') && !RESERVED_ROUTES.includes(cleanHash)) {
       const decoded = decodeURIComponent(cleanHash);
-      return { slug: decoded, id: decoded } as unknown as T;
+      return { slug: decoded, id: decoded, productId: decoded } as unknown as T;
     }
 
     return {} as unknown as T;
@@ -148,52 +166,86 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { pathname, hash } = useContext(RouterContext);
 
   const matchedElement = useMemo(() => {
-    const currentPath = pathname.toLowerCase();
-    const currentHash = hash.toLowerCase();
+    // Normaliza path removendo barras duplicadas ou finais (exceto raiz "/")
+    const rawPath = (pathname || '/').toLowerCase().trim();
+    const cleanPath = rawPath.replace(/\/+$/, '') || '/';
+
+    // Normaliza hash removendo # e barras finais (ex: "#/master" -> "/master")
+    const rawHash = (hash || '').toLowerCase().trim();
+    const hashOnly = rawHash.replace(/^#\/?/, '').replace(/\/+$/, '');
+    const cleanHash = hashOnly ? `/${hashOnly}` : '';
 
     const routeList = React.Children.toArray(children) as React.ReactElement<RouteProps>[];
 
     for (const child of routeList) {
       if (!React.isValidElement(child)) continue;
       const { path, element } = child.props;
-      const targetPath = path.toLowerCase();
+      const targetPath = (path || '').toLowerCase().trim();
+      const cleanTarget = targetPath.replace(/\/+$/, '') || '/';
 
       // 1. Rota raiz exata
-      if (targetPath === '/') {
+      if (cleanTarget === '/') {
         if (
-          (currentPath === '/' || currentPath === '') &&
-          (!currentHash || currentHash === '#' || currentHash === '#/')
+          (cleanPath === '/' || cleanPath === '' || cleanPath === '/index.html') &&
+          (!cleanHash || cleanHash === '/' || cleanHash === '')
         ) {
           return element;
         }
         continue;
       }
 
-      // 2. Rota estática exata (ex: /admin, /checkout, /cart)
-      if (!targetPath.includes(':')) {
-        if (currentPath === targetPath) {
+      // 2. Rota estática exata (ex: /admin, /master, /checkout, /cart)
+      if (!cleanTarget.includes(':')) {
+        // Bate por pathname direto (/master ou /master/)
+        if (cleanPath === cleanTarget) {
           return element;
         }
 
-        const cleanHash = currentHash.replace(/^#\/?/, '/');
-        if (cleanHash === targetPath || cleanHash.startsWith(`${targetPath}/`)) {
+        // Bate por hash (#/master, #master ou #/master/)
+        if (cleanHash === cleanTarget || cleanHash.startsWith(`${cleanTarget}/`)) {
           return element;
         }
         continue;
       }
 
-      // 3. Rota dinâmica de produto antigo: /produto/:id
-      if (targetPath.startsWith('/produto/:')) {
-        if (currentPath.startsWith('/produto/') || currentHash.includes('/produto/')) {
+      // 3. Rota dinâmica aninhada de produto em loja: /loja/:storeSlug/produto/:slug ou /loja/:storeSlug/p/:id
+      if (cleanTarget.startsWith('/loja/:') && (cleanTarget.includes('/produto/:') || cleanTarget.includes('/p/:'))) {
+        const hasLojaProd = (cleanPath.startsWith('/loja/') && (cleanPath.includes('/produto/') || cleanPath.includes('/p/'))) ||
+          (cleanHash.startsWith('/loja/') && (cleanHash.includes('/produto/') || cleanHash.includes('/p/')));
+        if (hasLojaProd) {
           return element;
+        }
+        continue;
+      }
+
+      // 3.5. Rota dinâmica de produto: /produto/:slug, /produto/:id ou /p/:id
+      if (cleanTarget.startsWith('/produto/:') || cleanTarget.startsWith('/p/:')) {
+        const isDirectProd = (cleanPath.startsWith('/produto/') || cleanPath.startsWith('/p/')) && !cleanPath.startsWith('/loja/');
+        const isHashProd = (cleanHash.startsWith('/produto/') || cleanHash.startsWith('/p/')) && !cleanHash.startsWith('/loja/');
+        if (isDirectProd || isHashProd) {
+          return element;
+        }
+        continue;
+      }
+
+      // 3.6. Rota dinâmica de loja: /loja/:storeSlug ou /loja/:storeSlug/admin
+      if (cleanTarget.startsWith('/loja/:')) {
+        const isLojaAdmin = cleanTarget.endsWith('/admin');
+        const hasLojaPrefix = cleanPath.startsWith('/loja/') || cleanHash.startsWith('/loja/');
+        const isProductSubpath = cleanPath.includes('/produto/') || cleanPath.includes('/p/') || cleanHash.includes('/produto/') || cleanHash.includes('/p/');
+        if (hasLojaPrefix && !isProductSubpath) {
+          const currentIsAdmin = cleanPath.endsWith('/admin') || cleanHash.endsWith('/admin');
+          if (isLojaAdmin === currentIsAdmin) {
+            return element;
+          }
         }
         continue;
       }
 
       // 4. Rota dinâmica amigável na raiz: /:slug
-      if (targetPath === '/:slug') {
-        const pathSegment = currentPath.replace(/^\/+|\/+$/g, '');
-        const hashSegment = currentHash.replace(/^#\/?/, '').replace(/\/+$/, '');
+      if (cleanTarget === '/:slug') {
+        const pathSegment = cleanPath.replace(/^\/+|\/+$/g, '');
+        const hashSegment = cleanHash.replace(/^\/+|\/+$/g, '');
 
         // Ignora palavras reservadas do sistema
         if (pathSegment && !pathSegment.includes('/') && !RESERVED_ROUTES.includes(pathSegment)) {
@@ -207,7 +259,7 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     }
 
     // Se nenhuma rota bater e estiver na raiz, exibe a primeira rota
-    if (routeList.length > 0 && (currentPath === '/' || currentPath === '')) {
+    if (routeList.length > 0 && (cleanPath === '/' || cleanPath === '' || cleanPath === '/index.html')) {
       return routeList[0].props.element;
     }
 

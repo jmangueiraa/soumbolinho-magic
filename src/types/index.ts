@@ -1,5 +1,6 @@
 export interface Product {
   id: string;
+  store_id?: string;
   name: string;
   slug?: string;
   category: string;
@@ -14,10 +15,21 @@ export interface Product {
   videoUrl?: string;
   video_url?: string;
   mediaType?: 'image' | 'video';
+  is_digital?: boolean;
+  isDigital?: boolean;
   delivery_url?: string;
   deliveryUrl?: string;
   galleryImages?: string[];
+  gallery_images?: string[];
   description?: string;
+  detailed_description?: string;
+  detailedDescription?: string;
+  benefits?: string[] | string;
+  checkout_url?: string;
+  checkoutUrl?: string;
+  testimonials?: Array<{ name: string; text: string; rating?: number; role?: string; avatar?: string }> | string;
+  faq?: Array<{ question: string; answer: string }> | string;
+  guarantee_days?: number;
   inStock: boolean;
   isCustomizable?: boolean;
   customizationPlaceholder?: string;
@@ -34,6 +46,7 @@ export interface Product {
 
 export interface Category {
   id: string;
+  store_id?: string;
   name: string;
   icon?: string;
   subcategories: string[];
@@ -41,6 +54,7 @@ export interface Category {
 
 export interface BannerSlide {
   id: string;
+  store_id?: string;
   type: 'image' | 'text';
   // Se for imagem completa
   imageUrl?: string;
@@ -92,9 +106,22 @@ export interface FilterState {
   sortBy: SortOption;
 }
 
+export interface BenefitCard {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export type ThemeLayoutType = 'classic' | 'modern' | 'minimal' | 'featured_grid';
+export type ColorPaletteType = 'pink_pastel' | 'blue_corporate' | 'purple_elegant' | 'green_nature';
+
 export interface StoreConfig {
+  id?: string;
+  store_id?: string;
   storeName: string;
   slogan: string;
+  logoUrl?: string;
   whatsappNumber: string; // ex: 5521974975884
   whatsappDisplay: string;
   instagram: string;
@@ -105,4 +132,72 @@ export interface StoreConfig {
   mpAccessToken?: string;
   telegramBotToken?: string;
   telegramChatId?: string;
+  benefitCards?: BenefitCard[];
+  primaryColor?: string;
+  whatsappDefaultMessage?: string;
+  themeLayout?: ThemeLayoutType;
+  colorPalette?: ColorPaletteType;
+}
+
+export type DomainStatus = 'pending_dns' | 'active' | 'unconfigured' | 'ativo' | 'pendente';
+export type SubscriptionStatus = 'active' | 'suspended' | 'trial';
+
+export interface Store {
+  id: string;
+  name: string;
+  store_name?: string;
+  slug: string;
+  custom_domain?: string | null;
+  domain_status: DomainStatus;
+  logo_url?: string;
+  theme_settings?: {
+    primary_color?: string;
+    secondary_color?: string;
+    logo_url?: string;
+    benefit_cards?: BenefitCard[];
+    whatsapp_default_message?: string;
+    theme_layout?: ThemeLayoutType;
+    color_palette?: ColorPaletteType;
+  };
+  is_active: boolean;
+  subscription_status?: SubscriptionStatus;
+  expires_at?: string | null;
+  monthly_fee?: number;
+  daysRemaining?: number | null;
+  isExpired?: boolean;
+  isExpiringSoon?: boolean;
+  isTrial?: boolean;
+  owner_name?: string | null;
+  client_name?: string | null;
+  owner_email?: string | null;
+  client_email?: string | null;
+  admin_password?: string | null;
+  clone_catalog?: boolean;
+  owner_phone?: string | null;
+  whatsapp_number?: string | null;
+  whatsapp_display?: string | null;
+  instagram?: string | null;
+  slogan?: string | null;
+  address?: string | null;
+  working_hours?: string | null;
+  mp_access_token?: string | null;
+  telegram_bot_token?: string | null;
+  telegram_chat_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StoreUser {
+  id: string;
+  store_id: string;
+  user_id?: string | null;
+  email: string;
+  role: 'owner' | 'admin';
+  created_at?: string;
+}
+
+export interface MasterAdmin {
+  id: string;
+  email: string;
+  created_at?: string;
 }

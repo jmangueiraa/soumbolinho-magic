@@ -3,6 +3,7 @@ import { CartItem } from '../types';
 
 export interface CreateOrderPayload {
   orderId: string;
+  store_id?: string;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
@@ -21,7 +22,9 @@ export async function createOrderInSupabase(
   try {
     const primaryItem = payload.items[0];
     const productNames = payload.items.map((i) => `${i.product.name} (x${i.quantity})`).join(', ');
-    const productIds = payload.items.map((i) => i.product.id).join(', ');
+    const rawStoreId = payload.store_id || primaryItem?.product?.store_id || 'suamarcaaqui';
+    const isBase = rawStoreId === 'suamarcaaqui' || rawStoreId === 'store_default';
+    const resolvedStoreId = isBase ? 'suamarcaaqui' : rawStoreId;
     
     // Coleta todos os links de entrega digital dos produtos do carrinho
     const deliveryUrls = payload.items
@@ -29,8 +32,9 @@ export async function createOrderInSupabase(
       .filter(Boolean)
       .join(', ');
 
-    const orderRow = {
+    const orderRow: any = {
       id: payload.orderId,
+      store_id: resolvedStoreId,
       customer_name: payload.customerName.trim(),
       customer_email: payload.customerEmail.trim(),
       customer_phone: payload.customerPhone ? payload.customerPhone.trim() : null,
@@ -47,10 +51,10 @@ export async function createOrderInSupabase(
 
     let { data, error } = await supabase.from('orders').insert([orderRow]).select();
 
-    // Fallback caso a coluna customer_phone ainda não exista no Supabase
-    if (error && (error.message.includes('customer_phone') || error.message.includes('column'))) {
-      console.warn('[orderService] ⚠️ Coluna customer_phone ausente em orders, tentando salvar sem ela:', error.message);
-      const { customer_phone, ...cleanRow } = orderRow;
+    // Fallback caso as colunas customer_phone ou store_id ainda não existam no Supabase
+    if (error && (error.message.includes('customer_phone') || error.message.includes('store_id') || error.message.includes('column'))) {
+      console.warn('[orderService] ⚠️ Coluna ausente em orders, tentando salvar com fallback:', error.message);
+      const { customer_phone, store_id, ...cleanRow } = orderRow;
       const retry = await supabase.from('orders').insert([cleanRow]).select();
       if (!retry.error && retry.data) {
         data = retry.data;

@@ -150,7 +150,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
       <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-pastel-pink-light via-pastel-lilac-light to-pastel-pink-light border-b border-[#FFA6DF]/40 flex items-center justify-between">
+        <div className="px-6 py-4 bg-gradient-to-r from-pastel-pink-light via-pastel-lilac-light to-pastel-pink-light border-b border-theme-primary/20 flex items-center justify-between">
           <div>
             <h3 className="font-festive font-bold text-slate-900 text-lg">
               {bannerToEdit ? 'Editar Banner / Slide' : 'Novo Banner / Slide'}
@@ -181,11 +181,11 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                 onClick={() => setFormData({ ...formData, type: 'text' })}
                 className={`p-3 rounded-2xl border text-left flex items-center gap-2.5 transition-all ${
                   formData.type === 'text'
-                    ? 'border-[#FF1493] bg-[#FFEBF6] ring-2 ring-[#FF1493]/20 font-bold'
+                    ? 'border-theme-primary bg-theme-light ring-2 ring-theme-primary/20 font-bold'
                     : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                 }`}
               >
-                <FileText className={`w-4 h-4 ${formData.type === 'text' ? 'text-[#FF1493]' : 'text-slate-400'}`} />
+                <FileText className={`w-4 h-4 ${formData.type === 'text' ? 'text-theme-primary' : 'text-slate-400'}`} />
                 <div>
                   <div className="text-xs font-bold">Slide de Texto / Informativo</div>
                   <div className="text-[10px] text-slate-500 font-normal">3 frases e avisos em caixa suave</div>
@@ -197,11 +197,11 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                 onClick={() => setFormData({ ...formData, type: 'image' })}
                 className={`p-3 rounded-2xl border text-left flex items-center gap-2.5 transition-all ${
                   formData.type === 'image'
-                    ? 'border-[#FF1493] bg-[#FFEBF6] ring-2 ring-[#FF1493]/20 font-bold'
+                    ? 'border-theme-primary bg-theme-light ring-2 ring-theme-primary/20 font-bold'
                     : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                 }`}
               >
-                <ImageIcon className={`w-4 h-4 ${formData.type === 'image' ? 'text-[#FF1493]' : 'text-slate-400'}`} />
+                <ImageIcon className={`w-4 h-4 ${formData.type === 'image' ? 'text-theme-primary' : 'text-slate-400'}`} />
                 <div>
                   <div className="text-xs font-bold">Banner com Imagem</div>
                   <div className="text-[10px] text-slate-500 font-normal">Foto de banner completa</div>
@@ -223,7 +223,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                     value={formData.tag}
                     onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
                     placeholder="Ex: 🎀 Ateliê Encantando Festa"
-                    className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493]"
+                    className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-theme-primary"
                   />
                 </div>
 
@@ -254,7 +254,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Ex: Personalizamos em Qualquer Tema para sua Festa!"
-                  className="w-full text-xs sm:text-sm font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#FF1493]"
+                  className="w-full text-xs sm:text-sm font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary"
                 />
               </div>
 
@@ -267,7 +267,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                   value={formData.subtitle}
                   onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                   placeholder="Ex: Kits Só um Bolinho, topos de bolo shaker, caixinhas milk..."
-                  className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493]"
+                  className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-theme-primary"
                 />
               </div>
 
@@ -280,7 +280,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                   value={formData.highlightText}
                   onChange={(e) => setFormData({ ...formData, highlightText: e.target.value })}
                   placeholder="Ex: ✨ Enviamos a prévia da arte para aprovação no WhatsApp! 💕"
-                  className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493] font-semibold text-[#FF1493]"
+                  className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-theme-primary font-semibold text-theme-primary"
                 />
               </div>
             </div>
@@ -308,7 +308,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                     setImagePreview(e.target.value);
                   }}
                   placeholder="Cole o link direto da imagem (URL)..."
-                  className="flex-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-[#FF1493]"
+                  className="flex-1 text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-theme-primary"
                 />
 
                 <label className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-xl cursor-pointer transition-colors shrink-0 flex items-center gap-1.5">
@@ -336,7 +336,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                 min="1"
                 value={formData.order}
                 onChange={(e) => setFormData({ ...formData, order: Number(e.target.value) })}
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-1 focus:ring-[#FF1493]"
+                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-1 focus:ring-theme-primary"
               />
             </div>
 
@@ -349,7 +349,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                 value={formData.linkUrl}
                 onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
                 placeholder="Ex: cat:kits-personalizados ou link externo"
-                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-1 focus:ring-[#FF1493]"
+                className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-1 focus:ring-theme-primary"
               />
             </div>
           </div>
@@ -361,7 +361,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                 type="checkbox"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="w-4 h-4 rounded text-[#FF1493] focus:ring-[#FF1493] border-slate-300 accent-[#FF1493]"
+                className="w-4 h-4 rounded text-theme-primary focus:ring-theme-primary border-slate-300 accent-theme-primary"
               />
               <span>Slide Ativo no Carrossel da Loja</span>
             </label>
@@ -384,7 +384,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
               type="submit"
               className="px-6 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center gap-2"
             >
-              <Save className="w-4 h-4 text-[#FFD1EC]" />
+              <Save className="w-4 h-4 text-white" />
               <span>{bannerToEdit ? 'Salvar Alterações' : 'Criar Banner'}</span>
             </button>
           </div>

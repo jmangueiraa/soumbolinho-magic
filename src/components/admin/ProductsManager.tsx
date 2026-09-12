@@ -13,7 +13,8 @@ import {
   X,
   Filter,
   Link2,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -94,11 +95,11 @@ export const ProductsManager: React.FC = () => {
     <div className="space-y-6">
       
       {/* Top Header & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-[#FFA6DF]/40 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm">
         <div>
           <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
             <span>📦 Catálogo de Produtos</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FFEBF6] text-[#FF1493] font-bold">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-theme-light text-theme-primary font-bold">
               {products.length} {products.length === 1 ? 'item' : 'itens'}
             </span>
           </h2>
@@ -111,7 +112,7 @@ export const ProductsManager: React.FC = () => {
           onClick={handleOpenCreate}
           className="px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border border-black"
         >
-          <Plus className="w-4 h-4 text-[#FFD1EC]" />
+          <Plus className="w-4 h-4 text-white" />
           <span>Cadastrar Novo Produto</span>
         </button>
       </div>
@@ -126,7 +127,7 @@ export const ProductsManager: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nome de produto..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#FF1493] shadow-2xs"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary shadow-2xs"
           />
         </div>
 
@@ -135,7 +136,7 @@ export const ProductsManager: React.FC = () => {
           <select
             value={selectedCategoryFilter}
             onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF1493] cursor-pointer shadow-2xs"
+            className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-theme-primary cursor-pointer shadow-2xs"
           >
             <option value="">Todas as Categorias</option>
             {categories.map((cat) => (
@@ -148,7 +149,7 @@ export const ProductsManager: React.FC = () => {
       </div>
 
       {/* Products Table Container */}
-      <div className="bg-white rounded-3xl border border-[#FFA6DF]/40 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-3xl border border-theme-primary/20 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -163,12 +164,12 @@ export const ProductsManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-[#FFEBF6]/30 transition-colors">
+                  <tr key={product.id} className="hover:bg-theme-light/30 transition-colors">
                     
                     {/* Thumbnail & Title */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-50 border border-[#FFA6DF]/40 shrink-0 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-50 border border-theme-primary/20 shrink-0 flex items-center justify-center">
                           {(() => {
                             const img = (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim();
                             return img ? (
@@ -180,18 +181,26 @@ export const ProductsManager: React.FC = () => {
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-slate-900 line-clamp-1">{product.name}</div>
-                          {product.badge && (
-                            <span className="inline-block text-[9px] font-bold px-2 py-0.2 rounded-full bg-[#FF1493] text-white mt-0.5">
-                              {product.badge}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            {product.badge && (
+                              <span className="inline-block text-[9px] font-bold px-2 py-0.2 rounded-full bg-theme-primary text-white">
+                                {product.badge}
+                              </span>
+                            )}
+                            {(product.is_digital || (product as any).isDigital || product.delivery_url) && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <Download className="w-2.5 h-2.5" />
+                                Digital
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
 
                     {/* Category / Subcategory */}
                     <td className="py-3.5 px-4">
-                      <div className="font-semibold text-[#2B3A8C]">{getCategoryName(product.category)}</div>
+                      <div className="font-semibold text-slate-800">{getCategoryName(product.category)}</div>
                       {product.subcategory && (
                         <div className="text-[11px] text-slate-400 font-medium">{product.subcategory}</div>
                       )}
@@ -206,7 +215,7 @@ export const ProductsManager: React.FC = () => {
                             autoFocus
                             value={newPriceValue}
                             onChange={(e) => setNewPriceValue(e.target.value)}
-                            className="w-20 px-2 py-1 bg-white border border-[#FF1493] rounded-lg text-xs font-bold outline-none"
+                            className="w-20 px-2 py-1 bg-white border border-theme-primary rounded-lg text-xs font-bold outline-none"
                           />
                           <button
                             onClick={() => handleSaveQuickPrice(product.id)}
@@ -225,7 +234,7 @@ export const ProductsManager: React.FC = () => {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 group/price">
-                          <span className="font-extrabold text-[#FF1493] text-sm">
+                          <span className="font-extrabold text-theme-primary text-sm">
                             {formatCurrency(product.price)}
                           </span>
                           <span className="text-[10px] text-slate-400 font-medium">

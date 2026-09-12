@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true, // expõe em localhost e na rede local
-    port: 3000,
+    port: 5173,
   },
 });

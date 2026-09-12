@@ -3,9 +3,12 @@
 -- Execute no SQL Editor do Supabase (https://supabase.com/dashboard)
 -- =========================================================
 
--- 1. Garante a coluna delivery_url na tabela products
+-- 1. Garante as colunas de produto digital na tabela products
 ALTER TABLE public.products 
 ADD COLUMN IF NOT EXISTS delivery_url TEXT;
+
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS is_digital BOOLEAN DEFAULT false;
 
 -- 2. Cria a tabela orders (caso ainda não exista)
 CREATE TABLE IF NOT EXISTS public.orders (

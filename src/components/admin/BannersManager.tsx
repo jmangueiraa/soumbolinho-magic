@@ -51,10 +51,10 @@ export const BannersManager: React.FC = () => {
     <div className="space-y-6">
       
       {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-[#FFA6DF]/40 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm">
         <div>
           <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-[#FF1493]" />
+            <Sliders className="w-5 h-5 text-theme-primary" />
             <span>Banner Principal do Topo (Imagem Única)</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -72,14 +72,14 @@ export const BannersManager: React.FC = () => {
           }}
           className="px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border border-black"
         >
-          <ImageIcon className="w-4 h-4 text-[#FFD1EC]" />
+          <ImageIcon className="w-4 h-4 text-white" />
           <span>{mainBanner ? 'Alterar Imagem do Banner' : 'Adicionar Banner'}</span>
         </button>
       </div>
 
       {/* Visualização do Banner Principal */}
       {mainBanner ? (
-        <div className="bg-white rounded-3xl p-6 border border-[#FFA6DF]/60 shadow-sm space-y-4">
+        <div className="bg-white rounded-3xl p-6 border border-theme-primary/20 shadow-sm space-y-4">
           <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-900">

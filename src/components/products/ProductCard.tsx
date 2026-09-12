@@ -23,12 +23,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
 
   const productSlug = product.slug || slugify(product.name) || product.id;
 
-  // Navega para a rota amigável individual do produto: /:slug
+  // Navega para a rota individual do produto
   const handleCardClick = () => {
     if (onSelectProduct) {
       onSelectProduct(product);
+      return;
     }
-    navigate(`/${productSlug}`);
+    navigate(`/produto/${productSlug}`);
   };
 
   const handleAddToCartClick = (e: React.MouseEvent) => {
@@ -98,7 +99,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
           onClick={handleCopyLinkClick}
           className={`absolute top-1.5 right-1.5 p-1.5 rounded-full transition-all duration-200 z-10 shadow-xs cursor-pointer ${
             copied
-              ? 'bg-[#ff3399] text-white scale-110'
+              ? 'bg-theme-primary text-white scale-110'
               : 'bg-white/90 hover:bg-white text-slate-700 hover:text-black opacity-80 hover:opacity-100'
           }`}
           title={copied ? 'Link copiado!' : `Copiar link do produto: ${shareUrl}`}
@@ -145,7 +146,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
         <button
           type="button"
           onClick={handleAddToCartClick}
-          className="w-full py-2 sm:py-2.5 px-2 bg-[#ff3399] hover:bg-[#e61e80] text-white font-bold text-[11px] sm:text-xs rounded-sm transition-all duration-150 flex items-center justify-center gap-1.5 shadow-xs shadow-pink-500/20 active:scale-97 cursor-pointer"
+          className="w-full py-2 sm:py-2.5 px-2 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-[11px] sm:text-xs rounded-sm transition-all duration-150 flex items-center justify-center gap-1.5 shadow-xs active:scale-97 cursor-pointer"
         >
           <ShoppingBag className="w-3.5 h-3.5" />
           <span>{isAdding ? 'Adicionado!' : 'Adicionar ao carrinho'}</span>
@@ -159,8 +160,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
         >
           {copied ? (
             <>
-              <Check className="w-3 h-3 text-[#ff3399]" />
-              <span className="text-[#ff3399] font-bold">Link Copiado!</span>
+              <Check className="w-3 h-3 text-theme-primary" />
+              <span className="text-theme-primary font-bold">Link Copiado!</span>
             </>
           ) : (
             <>

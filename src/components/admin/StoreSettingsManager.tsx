@@ -1,77 +1,255 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Store, 
   MessageCircle, 
   Instagram, 
-  MapPin, 
-  Clock, 
   Save, 
   RotateCcw,
-  ShieldAlert,
-  Send,
-  Check,
+  Globe, 
+  Heart,
+  ShieldCheck,
+  Truck,
+  Download,
+  Zap,
+  Star,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Gift,
+  Award,
+  Palette,
+  Upload,
+  Image as ImageIcon,
+  Trash2,
   Loader2,
-  AlertCircle
+  Link2
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { DEFAULT_BENEFIT_CARDS } from '../../data/storeConfig';
+import { BenefitCard } from '../../types';
+import { supabase } from '../../lib/supabase';
+import { uploadBannerImage } from '../../lib/storage';
+import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
-export const StoreSettingsManager: React.FC = () => {
+const AVAILABLE_BENEFIT_ICONS = [
+  { value: 'heart', label: 'Coração (Arquivos Digitais / Mimo)', icon: Heart, color: 'text-theme-primary' },
+  { value: 'shield', label: 'Escudo (Compra Segura / Confiança)', icon: ShieldCheck, color: 'text-[#00a8e8]' },
+  { value: 'truck', label: 'Caminhão (Envio / Entrega)', icon: Truck, color: 'text-[#00a8e8]' },
+  { value: 'download', label: 'Download (Link Imediato / Baixar)', icon: Download, color: 'text-[#00a8e8]' },
+  { value: 'zap', label: 'Raio (Liberação Rápida / Automático)', icon: Zap, color: 'text-[#eab308]' },
+  { value: 'message', label: 'WhatsApp / Chat (Atendimento)', icon: MessageCircle, color: 'text-[#25D366]' },
+  { value: 'star', label: 'Estrela (Destaque / Qualidade)', icon: Star, color: 'text-[#f59e0b]' },
+  { value: 'sparkles', label: 'Brilho / Especial', icon: Sparkles, color: 'text-[#a855f7]' },
+  { value: 'check', label: 'Selo Verificado', icon: CheckCircle2, color: 'text-[#10b981]' },
+  { value: 'clock', label: 'Relógio / Sempre Aberto', icon: Clock, color: 'text-[#3b82f6]' },
+  { value: 'gift', label: 'Presente / Brinde', icon: Gift, color: 'text-[#ec4899]' },
+  { value: 'award', label: 'Troféu / Garantia', icon: Award, color: 'text-[#eab308]' },
+];
+
+interface StoreSettingsManagerProps {
+  onNavigateToApiDomain?: () => void;
+  onNavigateToLayout?: () => void;
+}
+
+export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({ 
+  onNavigateToApiDomain, 
+  onNavigateToLayout 
+}) => {
   const { storeConfig, updateStoreConfig, resetToDefaults } = useStoreData();
+  const { currentStore } = useTenant();
 
   const [formData, setFormData] = useState({
-    storeName: storeConfig.storeName,
-    slogan: storeConfig.slogan,
-    whatsappNumber: storeConfig.whatsappNumber,
-    whatsappDisplay: storeConfig.whatsappDisplay,
-    instagram: storeConfig.instagram,
-    address: storeConfig.address,
-    city: storeConfig.city,
-    workingHours: storeConfig.workingHours,
-    minOrderValue: storeConfig.minOrderValue.toString().replace('.', ','),
-    mpAccessToken: storeConfig.mpAccessToken || localStorage.getItem('encantando_festa_mp_access_token') || import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '',
-    telegramBotToken: storeConfig.telegramBotToken || localStorage.getItem('encantando_festa_telegram_bot_token') || '',
-    telegramChatId: storeConfig.telegramChatId || localStorage.getItem('encantando_festa_telegram_chat_id') || '',
+    storeName: storeConfig.storeName || currentStore?.store_name || currentStore?.name || '',
+    slogan: storeConfig.slogan || currentStore?.slogan || '',
+    logoUrl: storeConfig.logoUrl || currentStore?.logo_url || currentStore?.theme_settings?.logo_url || '',
+    whatsappNumber: storeConfig.whatsappNumber || currentStore?.whatsapp_number || '',
+    whatsappDisplay: storeConfig.whatsappDisplay || currentStore?.whatsapp_display || '',
+    instagram: storeConfig.instagram || currentStore?.instagram || '',
+    address: storeConfig.address || currentStore?.address || '',
+    city: storeConfig.city || 'Brasil',
+    workingHours: storeConfig.workingHours || currentStore?.working_hours || 'SEMPRE ABERTO',
+    minOrderValue: (storeConfig.minOrderValue ?? 0).toString().replace('.', ','),
+    whatsappDefaultMessage: storeConfig.whatsappDefaultMessage || currentStore?.theme_settings?.whatsapp_default_message || '',
+    benefitCards: storeConfig.benefitCards && storeConfig.benefitCards.length > 0 
+      ? storeConfig.benefitCards 
+      : DEFAULT_BENEFIT_CARDS,
   });
 
-  // Sincroniza o formulário sempre que storeConfig for carregado do Supabase
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sincroniza o formulário sempre que storeConfig ou currentStore forem carregados do Supabase
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
-      storeName: storeConfig.storeName || prev.storeName,
-      slogan: storeConfig.slogan || prev.slogan,
-      whatsappNumber: storeConfig.whatsappNumber || prev.whatsappNumber,
-      whatsappDisplay: storeConfig.whatsappDisplay || prev.whatsappDisplay,
-      instagram: storeConfig.instagram || prev.instagram,
-      address: storeConfig.address || prev.address,
+      storeName: storeConfig.storeName || currentStore?.store_name || currentStore?.name || prev.storeName,
+      slogan: storeConfig.slogan || currentStore?.slogan || prev.slogan,
+      logoUrl: storeConfig.logoUrl !== undefined ? storeConfig.logoUrl : (currentStore?.logo_url || currentStore?.theme_settings?.logo_url || prev.logoUrl),
+      whatsappNumber: storeConfig.whatsappNumber || currentStore?.whatsapp_number || prev.whatsappNumber,
+      whatsappDisplay: storeConfig.whatsappDisplay || currentStore?.whatsapp_display || prev.whatsappDisplay,
+      instagram: storeConfig.instagram || currentStore?.instagram || prev.instagram,
+      address: storeConfig.address || currentStore?.address || prev.address,
       city: storeConfig.city || prev.city,
-      workingHours: storeConfig.workingHours || prev.workingHours,
-      minOrderValue: storeConfig.minOrderValue ? storeConfig.minOrderValue.toString().replace('.', ',') : prev.minOrderValue,
-      mpAccessToken: storeConfig.mpAccessToken || localStorage.getItem('encantando_festa_mp_access_token') || prev.mpAccessToken,
-      telegramBotToken: storeConfig.telegramBotToken || localStorage.getItem('encantando_festa_telegram_bot_token') || prev.telegramBotToken,
-      telegramChatId: storeConfig.telegramChatId || localStorage.getItem('encantando_festa_telegram_chat_id') || prev.telegramChatId,
+      workingHours: storeConfig.workingHours || currentStore?.working_hours || prev.workingHours,
+      minOrderValue: storeConfig.minOrderValue !== undefined ? storeConfig.minOrderValue.toString().replace('.', ',') : prev.minOrderValue,
+      whatsappDefaultMessage: storeConfig.whatsappDefaultMessage || currentStore?.theme_settings?.whatsapp_default_message || prev.whatsappDefaultMessage,
+      benefitCards: storeConfig.benefitCards && storeConfig.benefitCards.length > 0 
+        ? storeConfig.benefitCards 
+        : (prev.benefitCards || DEFAULT_BENEFIT_CARDS),
     }));
-  }, [storeConfig]);
 
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [testTelegramLoading, setTestTelegramLoading] = useState(false);
-  const [testTelegramStatus, setTestTelegramStatus] = useState<{ success: boolean; message: string } | null>(null);
+    // Leitura direta da tabela site_settings para garantia de dados frescos
+    async function loadFromSiteSettings() {
+      const currentStoreId = currentStore?.id;
+      if (!currentStoreId || currentStoreId === '__resolving_tenant__') return;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanWhatsApp = formData.whatsappNumber.replace(/\D/g, '');
-    const numMin = parseFloat(formData.minOrderValue.replace(',', '.')) || 0;
+      try {
+        const { data } = await supabase
+          .from('site_settings')
+          .select('*')
+          .eq('store_id', currentStoreId)
+          .maybeSingle();
 
-    try {
-      localStorage.setItem('encantando_festa_telegram_bot_token', formData.telegramBotToken.trim());
-      localStorage.setItem('encantando_festa_telegram_chat_id', formData.telegramChatId.trim());
-    } catch (e) {
-      console.warn(e);
+        if (data) {
+          setFormData((prev) => ({
+            ...prev,
+            whatsappNumber: data.whatsapp || prev.whatsappNumber,
+            whatsappDisplay: data.display_whatsapp || prev.whatsappDisplay,
+            instagram: data.instagram || prev.instagram,
+            slogan: data.slogan || prev.slogan,
+            address: data.address || prev.address,
+            workingHours: data.business_hours || prev.workingHours,
+            whatsappDefaultMessage: data.whatsapp_default_message !== undefined ? data.whatsapp_default_message : prev.whatsappDefaultMessage,
+            logoUrl: data.logo_url || prev.logoUrl,
+            benefitCards: data.benefit_cards ? (typeof data.benefit_cards === 'string' ? JSON.parse(data.benefit_cards) : data.benefit_cards) : prev.benefitCards,
+          }));
+        }
+      } catch (err) {
+        console.warn('[StoreSettingsManager] Aviso ao carregar site_settings:', err);
+      }
+    }
+    loadFromSiteSettings();
+  }, [storeConfig, currentStore]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setLogoUploadError('Por favor, selecione um arquivo de imagem válido (PNG, JPG, SVG, WebP).');
+      return;
     }
 
-    updateStoreConfig({
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoUploadError('A imagem do logo deve ter no máximo 5MB.');
+      return;
+    }
+
+    try {
+      setIsUploadingLogo(true);
+      setLogoUploadError(null);
+      const { url, error } = await uploadBannerImage(file);
+      if (error || !url) {
+        setLogoUploadError(`Erro no upload: ${error || 'Falha ao salvar a imagem'}`);
+      } else {
+        setFormData((prev) => ({ ...prev, logoUrl: url }));
+      }
+    } catch (err: any) {
+      setLogoUploadError(`Falha inesperada no upload: ${err.message || err}`);
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoFileInputRef.current) {
+        logoFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleBenefitCardChange = (index: number, field: keyof BenefitCard, value: string) => {
+    setFormData((prev) => {
+      const currentList = prev.benefitCards && prev.benefitCards.length > 0 
+        ? [...prev.benefitCards] 
+        : [...DEFAULT_BENEFIT_CARDS];
+      currentList[index] = {
+        ...currentList[index],
+        [field]: value,
+      };
+      return { ...prev, benefitCards: currentList };
+    });
+  };
+
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentStoreId = currentStore?.id;
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') {
+      showNotification('Loja ainda em carregamento. Aguarde...', 'error');
+      return;
+    }
+
+    const cleanWhatsApp = formData.whatsappNumber.replace(/\D/g, '');
+    const numMin = parseFloat(formData.minOrderValue.replace(',', '.')) || 0;
+    const defaultMsg = (formData.whatsappDefaultMessage || storeConfig.whatsappDefaultMessage || '').trim();
+
+    // 1. Atualização na tabela site_settings filtrando pela loja ativa atual (CRUCIAL)
+    try {
+      const siteSettingsPayload: any = {
+        store_id: currentStoreId,
+        whatsapp: cleanWhatsApp,
+        display_whatsapp: formData.whatsappDisplay.trim(),
+        instagram: formData.instagram.trim(),
+        slogan: formData.slogan.trim(),
+        address: formData.address.trim(),
+        business_hours: formData.workingHours.trim(),
+        whatsapp_default_message: defaultMsg,
+        logo_url: formData.logoUrl?.trim() || null,
+        benefit_cards: formData.benefitCards,
+        updated_at: new Date().toISOString()
+      };
+
+      if (storeConfig.primaryColor) {
+        siteSettingsPayload.primary_color = storeConfig.primaryColor;
+      }
+      if (storeConfig.colorPalette) {
+        siteSettingsPayload.color_palette = storeConfig.colorPalette;
+      }
+      if (storeConfig.themeLayout) {
+        siteSettingsPayload.theme_layout = storeConfig.themeLayout;
+      }
+
+      console.log(`[StoreSettingsManager] 🔄 Atualizando site_settings para store_id="${currentStoreId}"...`);
+      const { data: updatedRows, error: siteSettingsError } = await supabase
+        .from('site_settings')
+        .update(siteSettingsPayload)
+        .eq('store_id', currentStoreId) // CRUCIAL: Deve filtrar pela loja ativa atual
+        .select();
+
+      if (siteSettingsError || !updatedRows || updatedRows.length === 0) {
+        // Se ainda não existia linha para esse store_id, faz upsert ou insere
+        const { error: upsertErr } = await supabase
+          .from('site_settings')
+          .upsert([siteSettingsPayload], { onConflict: 'store_id' });
+        if (upsertErr) {
+          console.warn('[StoreSettingsManager] Aviso ao dar upsert em site_settings:', upsertErr.message);
+          await supabase.from('site_settings').insert([siteSettingsPayload]);
+        } else {
+          console.log(`[StoreSettingsManager] ✅ site_settings inserido/atualizado com sucesso via upsert!`);
+        }
+      } else {
+        console.log(`[StoreSettingsManager] ✅ site_settings atualizado com sucesso para store_id="${currentStoreId}"!`);
+      }
+    } catch (err) {
+      console.warn('[StoreSettingsManager] Exceção em site_settings:', err);
+    }
+
+    // 2. Atualiza via StoreDataContext (que persiste em store_config, stores e emite notificação toast)
+    await updateStoreConfig({
       storeName: formData.storeName.trim(),
       slogan: formData.slogan.trim(),
+      logoUrl: formData.logoUrl?.trim() || '',
       whatsappNumber: cleanWhatsApp,
       whatsappDisplay: formData.whatsappDisplay.trim(),
       instagram: formData.instagram.trim(),
@@ -79,74 +257,28 @@ export const StoreSettingsManager: React.FC = () => {
       city: formData.city.trim(),
       workingHours: formData.workingHours.trim(),
       minOrderValue: numMin,
-      mpAccessToken: formData.mpAccessToken?.trim() || '',
-      telegramBotToken: formData.telegramBotToken?.trim() || '',
-      telegramChatId: formData.telegramChatId?.trim() || '',
+      benefitCards: formData.benefitCards,
+      whatsappDefaultMessage: defaultMsg,
     });
-  };
-
-  const handleTestTelegram = async () => {
-    if (!formData.telegramBotToken.trim() || !formData.telegramChatId.trim()) {
-      setTestTelegramStatus({
-        success: false,
-        message: 'Preencha o Token do Bot e o Chat ID antes de testar.',
-      });
-      return;
-    }
-
-    setTestTelegramLoading(true);
-    setTestTelegramStatus(null);
-
-    try {
-      const res = await fetch('/api/notify-abandoned-cart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action_type: 'test',
-          telegram_bot_token: formData.telegramBotToken.trim(),
-          telegram_chat_id: formData.telegramChatId.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setTestTelegramStatus({
-          success: true,
-          message: 'Mensagem de teste enviada com sucesso! Verifique seu Telegram.',
-        });
-      } else {
-        setTestTelegramStatus({
-          success: false,
-          message: data.error || data.warning || 'Não foi possível conectar ao Telegram.',
-        });
-      }
-    } catch (err: any) {
-      setTestTelegramStatus({
-        success: false,
-        message: err.message || 'Erro ao tentar enviar notificação para o Telegram.',
-      });
-    } finally {
-      setTestTelegramLoading(false);
-    }
   };
 
   const handleResetDefaults = () => {
     resetToDefaults();
     setIsResetModalOpen(false);
-    // Sync local state
+    // Sync local state mantendo isolamento da loja
+    const isBase = currentStore?.id === 'store_default' || currentStore?.id === 'suamarcaaqui' || currentStore?.slug === 'suamarcaaqui';
     setFormData({
-      storeName: 'Encantando Festa - Papelaria Personalizada',
-      slogan: 'Transformando momentos especiais em memórias inesquecíveis',
-      whatsappNumber: '5521974975884',
-      whatsappDisplay: '(21) 97497-5884',
-      instagram: '@encantandofesta.papelaria',
-      address: 'Ateliê Criativo - Rio de Janeiro / RJ',
-      city: 'Rio de Janeiro - RJ',
-      workingHours: 'Segunda a Sábado das 09h às 18h',
-      minOrderValue: '20,00',
-      mpAccessToken: '',
-      telegramBotToken: '',
-      telegramChatId: '',
+      storeName: isBase ? 'Encantando Festa - Papelaria Personalizada' : (currentStore?.store_name || currentStore?.name || 'suamarcaaqui'),
+      slogan: isBase ? 'Transformando momentos especiais em memórias inesquecíveis' : (currentStore?.slogan || 'subtitulo da sua loja'),
+      logoUrl: isBase ? '' : (currentStore?.logo_url || currentStore?.theme_settings?.logo_url || ''),
+      whatsappNumber: isBase ? '5521974975884' : (currentStore?.whatsapp_number || 'SeuWhatsApp'),
+      whatsappDisplay: isBase ? '(21) 97497-5884' : (currentStore?.whatsapp_display || 'SeuWhatsAppWhatsApp'),
+      instagram: isBase ? '@encantandofesta.papelaria' : (currentStore?.instagram || 'suamarcaaqui'),
+      address: isBase ? 'Ateliê Criativo - Rio de Janeiro / RJ' : (currentStore?.address || 'seuendereço'),
+      city: isBase ? 'Rio de Janeiro - RJ' : 'Brasil',
+      workingHours: isBase ? 'Segunda a Sábado das 09h às 18h' : (currentStore?.working_hours || 'SEMPRE ABERTO'),
+      minOrderValue: '0,00',
+      benefitCards: DEFAULT_BENEFIT_CARDS,
     });
   };
 
@@ -154,10 +286,10 @@ export const StoreSettingsManager: React.FC = () => {
     <div className="space-y-6 max-w-4xl">
       
       {/* Header */}
-      <div className="bg-white p-5 rounded-3xl border border-[#FFA6DF]/40 shadow-sm flex items-center justify-between">
+      <div className="bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm flex items-center justify-between">
         <div>
           <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Store className="w-5 h-5 text-[#FF1493]" />
+            <Store className="w-5 h-5 text-theme-primary" />
             <span>Configurações Gerais da Loja</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -167,12 +299,12 @@ export const StoreSettingsManager: React.FC = () => {
       </div>
 
       {/* Main Settings Form */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-[#FFA6DF]/40 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-theme-primary/20 shadow-sm space-y-6">
         
         {/* 1. WhatsApp para Recebimento de Pedidos */}
-        <div className="p-4 sm:p-5 bg-[#FFEBF6]/60 rounded-3xl border border-[#FFA6DF] space-y-4">
-          <div className="flex items-center gap-2 text-[#FF1493] font-bold text-sm">
-            <MessageCircle className="w-5 h-5 fill-[#FF1493]" />
+        <div className="p-4 sm:p-5 bg-theme-light/40 rounded-3xl border border-theme-primary/30 space-y-4">
+          <div className="flex items-center gap-2 text-theme-primary font-bold text-sm">
+            <MessageCircle className="w-5 h-5 fill-theme-primary" />
             <span>WhatsApp de Recebimento dos Pedidos</span>
           </div>
 
@@ -187,7 +319,7 @@ export const StoreSettingsManager: React.FC = () => {
                 value={formData.whatsappNumber}
                 onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
                 placeholder="5521974975884"
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-[#FF1493] font-mono font-bold"
+                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-theme-primary font-mono font-bold"
               />
               <p className="text-[11px] text-slate-500 mt-1">
                 Formato numérico internacional sem espaços (ex: 5521974975884)
@@ -204,7 +336,7 @@ export const StoreSettingsManager: React.FC = () => {
                 value={formData.whatsappDisplay}
                 onChange={(e) => setFormData({ ...formData, whatsappDisplay: e.target.value })}
                 placeholder="(21) 97497-5884"
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-[#FF1493]"
+                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-theme-primary"
               />
               <p className="text-[11px] text-slate-500 mt-1">
                 Como o telefone será exibido no rodapé e botões
@@ -219,6 +351,108 @@ export const StoreSettingsManager: React.FC = () => {
             Identidade da Loja
           </h3>
 
+          {/* Logo / Ícone da Loja */}
+          <div className="p-4 sm:p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-theme-primary" />
+                  <span>Ícone / Imagem do Logo</span>
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Envie o ícone ou mascote da sua loja. O nome e o subtítulo continuam ao lado com a tipografia estilizada.
+                </p>
+              </div>
+
+              {formData.logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, logoUrl: '' })}
+                  className="text-[11px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors px-2.5 py-1 rounded-lg hover:bg-rose-50 cursor-pointer"
+                  title="Remover ícone customizado e voltar ao bolinho padrão"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remover Ícone</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              {/* Preview Box com Ícone + Texto */}
+              <div className="w-full sm:w-64 h-24 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center p-3 relative overflow-hidden shrink-0 shadow-inner group">
+                <div className="text-center p-1">
+                  <SoumbolinhoLogo 
+                    variant="light" 
+                    size="sm" 
+                    storeName={formData.storeName} 
+                    slogan={formData.slogan} 
+                    logoUrl={formData.logoUrl} 
+                  />
+                  <span className="block text-[8.5px] text-zinc-400 mt-1 uppercase tracking-wider font-semibold">
+                    {formData.logoUrl ? '✨ Ícone Customizado' : 'Bolinho Padrão'}
+                  </span>
+                </div>
+                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[8px] text-zinc-300 font-bold uppercase tracking-wider">
+                  Prévia
+                </div>
+              </div>
+
+              {/* Upload and Link Inputs */}
+              <div className="flex-1 w-full space-y-2.5">
+                {/* Upload Button */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <input
+                    ref={logoFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                    id="store-logo-file-input"
+                  />
+                  <button
+                    type="button"
+                    disabled={isUploadingLogo}
+                    onClick={() => logoFileInputRef.current?.click()}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-2 shadow-xs transition-colors disabled:opacity-60 cursor-pointer"
+                  >
+                    {isUploadingLogo ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-theme-primary" />
+                        <span>Fazendo upload...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 text-theme-primary" />
+                        <span>Fazer Upload do Ícone (PNG, JPG, SVG)</span>
+                      </>
+                    )}
+                  </button>
+                  <span className="text-[11px] text-slate-400 font-medium">ou cole o link:</span>
+                </div>
+
+                {/* Direct Link Input */}
+                <div className="relative flex items-center">
+                  <Link2 className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+                  <input
+                    type="url"
+                    value={formData.logoUrl}
+                    onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                    placeholder="https://exemplo.com/imagens/meu-icone.png"
+                    className="w-full text-xs pl-9 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800 placeholder:text-slate-400 font-mono"
+                  />
+                </div>
+
+                {logoUploadError && (
+                  <p className="text-[11px] text-rose-600 font-semibold">{logoUploadError}</p>
+                )}
+
+                <p className="text-[10.5px] text-slate-400 leading-tight">
+                  💡 O upload substitui apenas a imagem/ícone à esquerda. O nome da loja e o subtítulo continuam ao lado exatamente como configurados.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">
@@ -229,7 +463,7 @@ export const StoreSettingsManager: React.FC = () => {
                 required
                 value={formData.storeName}
                 onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
+                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
               />
             </div>
 
@@ -244,7 +478,7 @@ export const StoreSettingsManager: React.FC = () => {
                   value={formData.instagram}
                   onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
                   placeholder="@encantandofesta.papelaria"
-                  className="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
+                  className="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
                 />
               </div>
             </div>
@@ -258,7 +492,7 @@ export const StoreSettingsManager: React.FC = () => {
               type="text"
               value={formData.slogan}
               onChange={(e) => setFormData({ ...formData, slogan: e.target.value })}
-              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
+              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
             />
           </div>
         </div>
@@ -278,7 +512,7 @@ export const StoreSettingsManager: React.FC = () => {
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
+                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
               />
             </div>
 
@@ -290,134 +524,173 @@ export const StoreSettingsManager: React.FC = () => {
                 type="text"
                 value={formData.workingHours}
                 onChange={(e) => setFormData({ ...formData, workingHours: e.target.value })}
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
+                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
               />
             </div>
           </div>
         </div>
 
-        {/* 4. Integração Mercado Pago Checkout Pro */}
-        <div className="p-4 sm:p-5 bg-sky-50/70 rounded-3xl border border-sky-200 space-y-4">
-          <div className="flex items-center gap-2 text-sky-800 font-bold text-sm">
-            <span className="w-6 h-6 rounded-full bg-[#009EE3] text-white flex items-center justify-center text-[10px] font-black">MP</span>
-            <span>Mercado Pago Checkout Pro (Pagamentos Online)</span>
+        {/* 3.1 Destaques & Benefícios do Rodapé (Cards Informativos) */}
+        <div className="space-y-4 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-theme-primary" />
+                <span>Destaques & Benefícios do Rodapé (Cards Informativos)</span>
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Personalize os 4 botões com ícones, títulos e textos que aparecem no rodapé da sua loja
+              </p>
+            </div>
+
+            {onNavigateToLayout && (
+              <button
+                type="button"
+                onClick={onNavigateToLayout}
+                className="px-3 py-1.5 bg-theme-light hover:bg-theme-light/80 text-theme-primary text-xs font-bold rounded-xl border border-theme-primary/30 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <Palette className="w-3.5 h-3.5" />
+                <span>Abrir na Aba Botões e Layout</span>
+              </button>
+            )}
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Access Token do Mercado Pago (Bearer Token)
-            </label>
-            <input
-              type="password"
-              value={formData.mpAccessToken || ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFormData({ ...formData, mpAccessToken: val });
-                localStorage.setItem('encantando_festa_mp_access_token', val);
-              }}
-              placeholder="APP_USR-xxxxxxxxxxxx-xxxxxx-xxxxxxxxxxxxxxxx..."
-              className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#009EE3] font-mono"
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Obtenha suas credenciais de produção ou teste no painel de desenvolvedores: <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-[#009EE3] underline font-semibold">mercadopago.com.br/developers</a>
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(formData.benefitCards && formData.benefitCards.length > 0 ? formData.benefitCards : DEFAULT_BENEFIT_CARDS).map((card, idx) => {
+              const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
+              const IconComponent = selectedIconObj.icon;
+
+              return (
+                <div key={card.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-theme-primary/10 text-theme-primary flex items-center justify-center text-[10px] font-bold">
+                        {idx + 1}
+                      </span>
+                      Botão / Card {idx + 1}
+                    </span>
+                    {/* Mini visualizador em tempo real */}
+                    <div className="flex items-center gap-2 px-2.5 py-1 bg-zinc-900 rounded-xl text-white text-xs border border-zinc-800">
+                      <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
+                      <span className="truncate max-w-[120px] font-medium text-[11px]">{card.title || `Card ${idx + 1}`}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Ícone
+                      </label>
+                      <select
+                        value={card.icon}
+                        onChange={(e) => handleBenefitCardChange(idx, 'icon', e.target.value)}
+                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800 font-medium"
+                      >
+                        {AVAILABLE_BENEFIT_ICONS.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Título Principal *
+                      </label>
+                      <input
+                        type="text"
+                        value={card.title}
+                        onChange={(e) => handleBenefitCardChange(idx, 'title', e.target.value)}
+                        placeholder="Ex: Arquivos Digitais"
+                        className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Subtítulo / Descrição
+                      </label>
+                      <input
+                        type="text"
+                        value={card.description}
+                        onChange={(e) => handleBenefitCardChange(idx, 'description', e.target.value)}
+                        placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
+                        className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800"
+                      />
+                      {idx === 3 && (
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          💡 Dica: Se preencher com "SeuWhatsAppWhatsApp" ou deixar em branco, será exibido automaticamente o WhatsApp cadastrado acima.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* 5. Integração Telegram (Notificações em Tempo Real do Checkout) */}
-        <div className="p-4 sm:p-5 bg-sky-50/50 rounded-3xl border border-sky-300 space-y-4 shadow-2xs">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
-              <div className="w-6 h-6 rounded-full bg-[#229ED9] text-white flex items-center justify-center text-xs shadow-xs">
-                <Send className="w-3.5 h-3.5 fill-white" />
+        {/* Atalhos Rápidos para Botões & Layout e Api & Dominio */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 bg-gradient-to-r from-pink-50/70 via-purple-50/40 to-pink-50/30 rounded-3xl border border-pink-200/80 flex flex-col justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-theme-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Palette className="w-4 h-4 text-white" />
               </div>
-              <span>Bot do Telegram (Notificações do Checkout em Tempo Real)</span>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>Layout & Cores da Loja</span>
+                  <span className="text-[10px] bg-theme-light text-theme-primary font-bold px-2 py-0.5 rounded-full border border-theme-primary/30">
+                    Aba Exclusiva
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Escolha o modelo de layout (Clássico, Moderno, Minimalista, Grid em Destaque) e a paleta de cores na aba <strong>Layout e Cores</strong>.
+                </p>
+              </div>
             </div>
-            <span className="text-[10px] bg-[#229ED9]/15 text-[#229ED9] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
-              3 Alertas Ativos
-            </span>
+
+            {onNavigateToLayout && (
+              <button
+                type="button"
+                onClick={onNavigateToLayout}
+                className="w-full py-2 bg-black hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Palette className="w-3.5 h-3.5 text-white" />
+                <span>Acessar Layout e Cores</span>
+              </button>
+            )}
           </div>
 
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Receba alertas instantâneos no seu Telegram com <b>Nome</b>, <b>E-mail</b>, <b>WhatsApp clicável</b>, <b>Produtos</b> e <b>Valor Total</b> para os 3 eventos vitais do checkout:
-            <br />
-            • 🚨 <b>Carrinho Abandonado:</b> Quando o cliente preenche os dados e sai sem concluir o pagamento.
-            <br />
-            • ✅ <b>Pagamento Aprovado:</b> Assim que o Pix ou Cartão é confirmado com sucesso pelo gateway.
-            <br />
-            • ❌ <b>Pagamento Reprovado / Recusado:</b> Alerta imediato em caso de transação negada ou falha para auxílio rápido ao cliente.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Token do Bot (via @BotFather)
-              </label>
-              <input
-                type="text"
-                value={formData.telegramBotToken}
-                onChange={(e) => setFormData({ ...formData, telegramBotToken: e.target.value })}
-                placeholder="Ex: 7123456789:AAFl..."
-                className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Crie seu bot conversando com o <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@BotFather</a> no Telegram.
-              </span>
+          <div className="p-4 bg-gradient-to-r from-sky-50 via-indigo-50/40 to-blue-50/30 rounded-3xl border border-sky-200/80 flex flex-col justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Globe className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>Domínio Próprio & APIs</span>
+                  <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-300">
+                    Aba Exclusiva
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Apontamento DNS (www), Mercado Pago e Telegram Bot configurados na aba <strong>Api e Dominio</strong>.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Seu Chat ID (ou ID do Grupo/Canal)
-              </label>
-              <input
-                type="text"
-                value={formData.telegramChatId}
-                onChange={(e) => setFormData({ ...formData, telegramChatId: e.target.value })}
-                placeholder="Ex: 123456789 ou -100123456789"
-                className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Descubra seu Chat ID enviando mensagem para <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@userinfobot</a> no Telegram.
-              </span>
-            </div>
-          </div>
-
-          {/* Feedback de Teste */}
-          {testTelegramStatus && (
-            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in ${
-              testTelegramStatus.success
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-rose-50 border-rose-200 text-rose-800'
-            }`}>
-              {testTelegramStatus.success ? (
-                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              <span className="font-medium">{testTelegramStatus.message}</span>
-            </div>
-          )}
-
-          {/* Botão de Teste */}
-          <div className="pt-1 flex items-center justify-end">
-            <button
-              type="button"
-              onClick={handleTestTelegram}
-              disabled={testTelegramLoading}
-              className="px-4 py-2.5 bg-white hover:bg-[#229ED9]/10 text-[#229ED9] border border-[#229ED9] text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
-            >
-              {testTelegramLoading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Enviando teste...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Testar Notificação no Telegram</span>
-                </>
-              )}
-            </button>
+            {onNavigateToApiDomain && (
+              <button
+                type="button"
+                onClick={onNavigateToApiDomain}
+                className="w-full py-2 bg-black hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Globe className="w-3.5 h-3.5 text-white" />
+                <span>Acessar Api e Dominio</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -436,7 +709,7 @@ export const StoreSettingsManager: React.FC = () => {
             type="submit"
             className="px-6 py-3 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center gap-2 active:scale-98 transition-all"
           >
-            <Save className="w-4 h-4 text-[#FFD1EC]" />
+            <Save className="w-4 h-4 text-white" />
             <span>Salvar Configurações</span>
           </button>
         </div>

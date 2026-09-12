@@ -71,14 +71,14 @@ export const SidebarFilters: React.FC = () => {
             Todas as Categorias
           </span>
           {filters.selectedCategory === null && (
-            <span className="w-2 h-2 rounded-full bg-[#ff3399] animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-theme-primary animate-pulse"></span>
           )}
         </button>
 
         {hasActiveFilters && (
           <button
             onClick={resetFilters}
-            className="text-[11px] font-bold text-slate-500 hover:text-[#ff3399] flex items-center gap-1 bg-white hover:bg-pink-50 border border-slate-200 px-2.5 py-1 rounded-md shadow-2xs transition-all cursor-pointer"
+            className="text-[11px] font-bold text-slate-500 hover:text-theme-primary flex items-center gap-1 bg-white hover:bg-theme-light border border-slate-200 px-2.5 py-1 rounded-md shadow-2xs transition-all cursor-pointer"
             title="Limpar todos os filtros"
           >
             <RotateCcw className="w-3 h-3" />
@@ -102,14 +102,14 @@ export const SidebarFilters: React.FC = () => {
                 onClick={() => handleCategoryClick(category.id)}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-150 group cursor-pointer ${
                   isCatSelected && !filters.selectedSubcategory
-                    ? 'bg-[#ff3399] text-white shadow-xs shadow-pink-500/20'
+                    ? 'bg-theme-primary text-white shadow-xs'
                     : isCatSelected
-                    ? 'text-[#ff3399] font-bold bg-pink-50'
-                    : 'text-slate-700 hover:text-[#ff3399] hover:bg-pink-50/60'
+                    ? 'text-theme-primary font-bold bg-theme-light'
+                    : 'text-slate-700 hover:text-theme-primary hover:bg-theme-light/60'
                 }`}
               >
                 <span className={`text-base leading-none ${
-                  isCatSelected && !filters.selectedSubcategory ? 'text-white' : 'text-[#ff3399] group-hover:text-[#ff3399]'
+                  isCatSelected && !filters.selectedSubcategory ? 'text-white' : 'text-theme-primary group-hover:text-theme-primary'
                 }`}>
                   •
                 </span>
@@ -130,12 +130,12 @@ export const SidebarFilters: React.FC = () => {
                         onClick={(e) => handleSubcategoryClick(category.id, subcat, e)}
                         className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-all duration-150 group cursor-pointer ${
                           isSubSelected
-                            ? 'bg-gradient-to-r from-[#ff3399] to-[#e61e80] text-white font-bold shadow-2xs'
-                            : 'text-slate-600 hover:text-[#ff3399] hover:bg-pink-50/50'
+                            ? 'bg-theme-primary text-white font-bold shadow-2xs'
+                            : 'text-slate-600 hover:text-theme-primary hover:bg-theme-light/50'
                         }`}
                       >
                         <span className={`text-sm leading-none font-bold ${
-                          isSubSelected ? 'text-white' : 'text-slate-400 group-hover:text-[#ff3399]'
+                          isSubSelected ? 'text-white' : 'text-slate-400 group-hover:text-theme-primary'
                         }`}>
                           °
                         </span>
@@ -170,7 +170,7 @@ export const SidebarFilters: React.FC = () => {
               placeholder="0,00"
               value={minPriceInput}
               onChange={(e) => setMinPriceInput(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#ff3399] text-slate-900 shadow-2xs"
+              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-theme-primary text-slate-900 shadow-2xs"
             />
           </div>
           <div>
@@ -182,14 +182,14 @@ export const SidebarFilters: React.FC = () => {
               placeholder="100,00"
               value={maxPriceInput}
               onChange={(e) => setMaxPriceInput(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#ff3399] text-slate-900 shadow-2xs"
+              className="w-full text-xs px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-theme-primary text-slate-900 shadow-2xs"
             />
           </div>
         </div>
 
         <button
           onClick={applyPriceFilter}
-          className="w-full py-2 bg-[#ff3399] hover:bg-[#e61e80] text-white text-xs font-bold rounded-lg shadow-xs shadow-pink-500/20 transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
+          className="w-full py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-lg shadow-xs transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Filter className="w-3.5 h-3.5 text-white" />
           Aplicar Filtro
@@ -198,12 +198,12 @@ export const SidebarFilters: React.FC = () => {
 
       {/* 4. Filtro de Estoque */}
       <div className="pt-2 border-t border-slate-200">
-        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none hover:text-[#ff3399] transition-colors">
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none hover:text-theme-primary transition-colors">
           <input
             type="checkbox"
             checked={filters.inStockOnly}
             onChange={(e) => setInStockOnly(e.target.checked)}
-            className="w-4 h-4 rounded text-[#ff3399] focus:ring-[#ff3399] border-slate-300 cursor-pointer accent-[#ff3399]"
+            className="w-4 h-4 rounded text-theme-primary focus:ring-theme-primary border-slate-300 cursor-pointer accent-theme-primary"
           />
           <span>Apenas pronta entrega / estoque</span>
         </label>

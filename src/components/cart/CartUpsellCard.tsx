@@ -101,8 +101,8 @@ export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }
   return (
     <div className={`p-3.5 sm:p-4 rounded-2xl border-2 border-dashed transition-all duration-200 ${
       isAdded 
-        ? 'bg-pink-100/90 border-black shadow-sm' 
-        : 'bg-gradient-to-r from-pink-50/90 via-rose-50/50 to-pink-50/90 border-pink-500 hover:border-black shadow-xs'
+        ? 'bg-theme-light border-black shadow-sm' 
+        : 'bg-theme-light/40 border-theme-primary hover:border-black shadow-xs'
     } ${className}`}>
       
       {/* Top Header Badge */}
@@ -110,18 +110,18 @@ export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }
         <div className="flex items-center gap-1.5">
           {isAdded ? (
             <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white bg-black px-2.5 py-1 rounded-lg shadow-xs">
-              <Check className="w-3.5 h-3.5 text-pink-400 stroke-[3]" />
+              <Check className="w-3.5 h-3.5 text-theme-primary stroke-[3]" />
               <span>Oferta Adicionada!</span>
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white bg-black px-2.5 py-1 rounded-lg shadow-xs">
-              <Zap className="w-3.5 h-3.5 text-pink-400 fill-pink-400 animate-pulse" />
+              <Zap className="w-3.5 h-3.5 text-theme-primary fill-theme-primary animate-pulse" />
               <span>Oferta Relâmpago • Compre Junto</span>
             </span>
           )}
         </div>
 
-        <span className="text-[10px] font-black text-white bg-pink-600 px-2.5 py-0.5 rounded-full shadow-2xs">
+        <span className="text-[10px] font-black text-white bg-theme-primary px-2.5 py-0.5 rounded-full shadow-2xs">
           -{discountPercent}% OFF
         </span>
       </div>
@@ -129,7 +129,7 @@ export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }
       {/* Product Information Card */}
       <div className="flex items-center gap-3">
         {/* Thumbnail */}
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white shrink-0 border border-pink-200 shadow-2xs flex items-center justify-center">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white shrink-0 border border-theme-primary/20 shadow-2xs flex items-center justify-center">
           {imageSrc ? (
             <img
               src={imageSrc}
@@ -138,7 +138,7 @@ export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }
             />
           ) : (
             <ProductImagePlaceholder 
-              iconClassName="w-5 h-5 text-pink-300" 
+              iconClassName="w-5 h-5 text-theme-primary/50" 
               showText={false} 
               className="p-1"
             />
@@ -155,27 +155,27 @@ export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }
               De {formatCurrency(effectiveOriginalPrice)}
             </span>
             <span className="text-xs sm:text-sm font-bold text-slate-800">
-              por apenas <span className="text-pink-600 text-sm sm:text-base font-black">{formatCurrency(effectivePromoPrice)}</span>
+              por apenas <span className="text-theme-primary text-sm sm:text-base font-black">{formatCurrency(effectivePromoPrice)}</span>
             </span>
           </div>
         </div>
       </div>
 
       {/* 1-Click Checkbox Button */}
-      <div className="mt-3 pt-2.5 border-t border-pink-200/80 flex items-center justify-between">
+      <div className="mt-3 pt-2.5 border-t border-theme-primary/20 flex items-center justify-between">
         <label 
           onClick={handleToggleUpsell}
           className="flex items-center gap-2.5 cursor-pointer select-none w-full"
         >
           <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
             isAdded
-              ? 'bg-black border-black text-pink-400 shadow-2xs'
-              : 'bg-white border-black hover:border-pink-600 text-transparent'
+              ? 'bg-black border-black text-theme-primary shadow-2xs'
+              : 'bg-white border-black hover:border-theme-primary text-transparent'
           }`}>
-            <Check className={`w-3.5 h-3.5 stroke-[3] ${isAdded ? 'text-pink-400' : 'text-transparent'}`} />
+            <Check className={`w-3.5 h-3.5 stroke-[3] ${isAdded ? 'text-theme-primary' : 'text-transparent'}`} />
           </div>
           <span className={`text-xs font-bold transition-colors ${
-            isAdded ? 'text-black font-extrabold' : 'text-slate-900 hover:text-pink-600'
+            isAdded ? 'text-black font-extrabold' : 'text-slate-900 hover:text-theme-primary'
           }`}>
             {isAdded 
               ? '✓ Adicionado à compra com desconto!' 

@@ -4,6 +4,7 @@ import { BannerSlide } from '../types';
 export function mapSupabaseBanner(item: any): BannerSlide {
   return {
     id: String(item.id),
+    store_id: item.store_id || undefined,
     type: item.type === 'text' ? 'text' : 'image',
     imageUrl: item.image_url || item.imageUrl || '',
     altText: item.alt_text || item.altText || undefined,
@@ -19,15 +20,38 @@ export function mapSupabaseBanner(item: any): BannerSlide {
 }
 
 /**
- * 1. Busca todos os banners cadastrados no Supabase
+ * 1. Busca todos os banners cadastrados no Supabase (filtrado por loja)
  * NUNCA recarrega imagens mock/demo se a tabela estiver vazia (0 registros).
  */
-export async function fetchAllBanners(): Promise<{ data: BannerSlide[]; error: string | null }> {
+export async function fetchAllBanners(storeId?: string): Promise<{ data: BannerSlide[]; error: string | null }> {
   try {
-    console.log('[bannerService] 🌐 Buscando banners da tabela "banners" no Supabase...');
-    const { data, error } = await supabase
+    const targetStoreId = (storeId || '').trim();
+
+    // REQUISITO RIGOROSO: Se o storeId não estiver disponível, vier vazio ou for '__resolving_tenant__',
+    // retorna [] imediatamente, NUNCA buscando banners globais ou da matriz como fallback.
+    if (!targetStoreId || targetStoreId === '__resolving_tenant__') {
+      console.log('[bannerService] ⏸️ store_id não fornecido ou em resolução de tenant. Retornando lista vazia [].');
+      return { data: [], error: null };
+    }
+
+    console.log(`[bannerService] 🌐 Buscando banners no Supabase (store_id: ${targetStoreId})...`);
+    let query = supabase
       .from('banners')
       .select('*');
+
+    const isBaseStore = 
+      targetStoreId === 'suamarcaaqui' || 
+      targetStoreId === 'store_default';
+
+    if (isBaseStore) {
+      query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+    } else if (targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz' || targetStoreId === 'editaveisdocanva') {
+      query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.matriz');
+    } else {
+      query = query.eq('store_id', targetStoreId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.warn('[bannerService] Erro ao buscar banners no Supabase:', error.message);
@@ -39,7 +63,6 @@ export async function fetchAllBanners(): Promise<{ data: BannerSlide[]; error: s
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
     console.log(`[bannerService] ✅ ${mapped.length} banner(s) carregado(s) do Supabase.`);
-    // Se a tabela estiver vazia (0 registros), PERMANECE VAZIA!
     return { data: mapped, error: null };
   } catch (err: any) {
     console.error('[bannerService] ❌ Exceção ao consultar banners:', err);
@@ -48,15 +71,22 @@ export async function fetchAllBanners(): Promise<{ data: BannerSlide[]; error: s
 }
 
 /**
- * 2. Cria ou insere um banner no Supabase
+ * 2. Cria ou insere um banner no Supabase vinculado à loja
  */
 export async function createBannerInSupabase(
-  bannerData: Omit<BannerSlide, 'id'>
+  bannerData: Omit<BannerSlide, 'id'>,
+  storeId?: string
 ): Promise<{ banner: BannerSlide | null; error: string | null }> {
+  const targetStoreId = (storeId || bannerData.store_id || '').trim();
+  if (!targetStoreId || targetStoreId === '__resolving_tenant__') {
+    console.warn('[bannerService] ❌ Tentativa de criar banner sem store_id válido.');
+    return { banner: null, error: 'store_id obrigatório e válido para criar banner.' };
+  }
   const newId = `banner_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   
   const payload: any = {
     id: newId,
+    store_id: targetStoreId,
     type: bannerData.type || 'image',
     image_url: bannerData.imageUrl || null,
     alt_text: bannerData.altText || null,

@@ -28,6 +28,8 @@ import {
   fetchStoreConfig, 
   saveStoreConfigInSupabase 
 } from '../services/storeConfigService';
+import { useTenant, checkIsTenantRoute } from './TenantContext';
+import { slugify } from '../utils/slug';
 
 const LS_AUTH_KEY = 'soumbolinho_admin_auth_session';
 const DEFAULT_ADMIN_PASSWORD = 'admin';
@@ -72,10 +74,27 @@ interface StoreDataContextType {
 const StoreDataContext = createContext<StoreDataContextType | undefined>(undefined);
 
 export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentStore, isResolvingTenant } = useTenant();
+  const currentStoreId = currentStore?.id || '';
+  const isTenantPending = isResolvingTenant || !currentStoreId || currentStoreId === '__resolving_tenant__';
+
   // Estados 100% Supabase em Memória Viva (Sem LocalStorage e Sem Mocks Fantasmas)
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [storeConfig, setStoreConfig] = useState<StoreConfig>(INITIAL_STORE_CONFIG);
+  const [storeConfig, setStoreConfig] = useState<StoreConfig>(() => {
+    return checkIsTenantRoute() ? {
+      storeName: '',
+      slogan: '',
+      whatsappNumber: '',
+      whatsappDisplay: '',
+      instagram: '',
+      address: '',
+      city: '',
+      workingHours: '',
+      minOrderValue: 0,
+      benefitCards: [],
+    } : INITIAL_STORE_CONFIG;
+  });
   const [banners, setBanners] = useState<BannerSlide[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -101,13 +120,28 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 1. CARREGAMENTO INICIAL DIRETO DO SUPABASE
   // -------------------------------------------------------------
   const refreshAllData = async () => {
+    // REQUISITO RIGOROSO: Se o tenant estiver pendente ou id for vazio, nunca busca produtos globais
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') {
+      setIsLoading(true);
+      setProducts([]);
+      setBanners([]);
+      setCategories([]);
+      return;
+    }
+
     try {
-      console.log('[StoreDataContext] 🔄 Carregando dados completos diretamente do Supabase...');
+      console.log(`[StoreDataContext] 🔄 Carregando dados completos para a loja: ${currentStoreId} (${currentStore?.name || 'Padrão'})...`);
+      setIsLoading(true);
+      // Limpa dados de lojas anteriores para evitar flash de produtos
+      setProducts([]);
+      setBanners([]);
+      setCategories([]);
+
       const [prodsRes, catsRes, configRes, bannersRes] = await Promise.all([
-        fetchAllProducts(),
-        fetchAllCategories(),
-        fetchStoreConfig(),
-        fetchAllBanners(),
+        fetchAllProducts(currentStoreId),
+        fetchAllCategories(currentStoreId),
+        fetchStoreConfig(currentStoreId),
+        fetchAllBanners(currentStoreId),
       ]);
 
       if (prodsRes.data) setProducts(prodsRes.data);
@@ -122,64 +156,120 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   useEffect(() => {
+    if (isTenantPending) {
+      setIsLoading(true);
+      setProducts([]);
+      setBanners([]);
+      setCategories([]);
+      return;
+    }
+
     refreshAllData();
 
     // -------------------------------------------------------------
     // 2. SUPABASE REALTIME MULTI-CANAL PARA ATUALIZAÇÃO INSTANTÂNEA
     // -------------------------------------------------------------
+    const isBase = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default' || !currentStoreId;
+    const isEditaveis = currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'matriz';
     const globalChannel = supabase
-      .channel('realtime_store_sync_v3')
-      // Sincronização de Produtos
+      .channel(`realtime_store_sync_${currentStoreId || 'suamarcaaqui'}`)
+      // Sincronização de Produtos isolada por loja
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
-        async (payload) => {
-          console.log('[StoreDataContext] ⚡ Realtime: Tabela products atualizada:', payload);
-          const { data } = await fetchAllProducts();
-          if (data) setProducts(data);
-        }
-      )
-      // Sincronização de Categorias
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'categories' },
-        async (payload) => {
-          console.log('[StoreDataContext] ⚡ Realtime: Tabela categories atualizada:', payload);
-          const { data } = await fetchAllCategories();
-          if (data && data.length > 0) {
-            setCategories(data);
-          } else {
-            setCategories(INITIAL_CATEGORIES);
+        async (payload: any) => {
+          const recordStoreId = payload.new?.store_id || payload.old?.store_id;
+          const affectsThisStore = isBase
+            ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default')
+            : isEditaveis
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz')
+              : recordStoreId === currentStoreId;
+
+          if (affectsThisStore) {
+            console.log('[StoreDataContext] ⚡ Realtime: Tabela products atualizada para esta loja:', currentStoreId, payload);
+            const { data } = await fetchAllProducts(currentStoreId);
+            if (data) setProducts(data);
           }
         }
       )
-      // Sincronização de Banners
+      // Sincronização de Categorias isolada por loja
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        async (payload: any) => {
+          const recordStoreId = payload.new?.store_id || payload.old?.store_id;
+          const affectsThisStore = isBase
+            ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
+            : isEditaveis
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz')
+              : recordStoreId === currentStoreId;
+
+          if (affectsThisStore) {
+            console.log('[StoreDataContext] ⚡ Realtime: Tabela categories atualizada:', payload);
+            const { data } = await fetchAllCategories(currentStoreId);
+            if (data && data.length > 0) {
+              setCategories(data);
+            } else if (isBase) {
+              setCategories(INITIAL_CATEGORIES);
+            }
+          }
+        }
+      )
+      // Sincronização de Banners isolada por loja
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'banners' },
-        async (payload) => {
-          console.log('[StoreDataContext] ⚡ Realtime: Tabela banners atualizada:', payload);
-          const { data } = await fetchAllBanners();
-          if (data) setBanners(data);
+        async (payload: any) => {
+          const recordStoreId = payload.new?.store_id || payload.old?.store_id;
+          const affectsThisStore = isBase
+            ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
+            : isEditaveis
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz')
+              : recordStoreId === currentStoreId;
+
+          if (affectsThisStore) {
+            console.log('[StoreDataContext] ⚡ Realtime: Tabela banners atualizada:', payload);
+            const { data } = await fetchAllBanners(currentStoreId);
+            if (data) setBanners(data);
+          }
         }
       )
-      // Sincronização de Configurações
+      // Sincronização de Configurações isolada por loja
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'store_config' },
-        async (payload) => {
-          console.log('[StoreDataContext] ⚡ Realtime: Tabela store_config atualizada:', payload);
-          const { data } = await fetchStoreConfig();
-          if (data) setStoreConfig(data);
+        async (payload: any) => {
+          const recordStoreId = payload.new?.store_id || payload.old?.store_id;
+          const affectsThisStore = isBase
+            ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
+            : isEditaveis
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz')
+              : recordStoreId === currentStoreId;
+
+          if (affectsThisStore) {
+            console.log('[StoreDataContext] ⚡ Realtime: Tabela store_config atualizada:', payload);
+            const { data } = await fetchStoreConfig(currentStoreId);
+            if (data) setStoreConfig(data);
+          }
         }
       )
+      // Sincronização de Configurações Visuais (site_settings) isolada por loja
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'site_settings' },
-        async (payload) => {
-          console.log('[StoreDataContext] ⚡ Realtime: Tabela site_settings atualizada:', payload);
-          const { data } = await fetchStoreConfig();
-          if (data) setStoreConfig(data);
+        async (payload: any) => {
+          const recordStoreId = payload.new?.store_id || payload.old?.store_id;
+          const affectsThisStore = isBase
+            ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
+            : isEditaveis
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz')
+              : recordStoreId === currentStoreId;
+
+          if (affectsThisStore) {
+            console.log('[StoreDataContext] ⚡ Realtime: Tabela site_settings atualizada:', payload);
+            const { data } = await fetchStoreConfig(currentStoreId);
+            if (data) setStoreConfig(data);
+          }
         }
       )
       .subscribe();
@@ -187,13 +277,18 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => {
       supabase.removeChannel(globalChannel);
     };
-  }, []);
+  }, [currentStoreId, isTenantPending]);
 
   // -------------------------------------------------------------
   // 3. AUTENTICAÇÃO
   // -------------------------------------------------------------
   const login = (password: string): boolean => {
-    const valid = password.trim() === DEFAULT_ADMIN_PASSWORD || password.trim() === '123456';
+    const clientPass = currentStore?.admin_password;
+    const valid = 
+      (clientPass && password.trim() === clientPass.trim()) ||
+      password.trim() === DEFAULT_ADMIN_PASSWORD || 
+      password.trim() === '123456';
+
     if (valid) {
       setIsAuthenticated(true);
       sessionStorage.setItem(LS_AUTH_KEY, 'true');
@@ -212,7 +307,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
-    const { product: createdProduct, error } = await createProductInSupabase(productData);
+    const { product: createdProduct, error } = await createProductInSupabase(productData, currentStoreId);
 
     if (error || !createdProduct) {
       console.error('[StoreDataContext] ❌ Falha ao cadastrar produto:', error);
@@ -223,7 +318,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProducts((prev) => [createdProduct, ...prev.filter((p) => p.id !== createdProduct.id)]);
     
     // Atualiza imediatamente a listagem completa
-    fetchAllProducts().then((res) => {
+    fetchAllProducts(currentStoreId).then((res) => {
       if (res.data && res.data.length > 0) {
         setProducts(res.data);
       }
@@ -307,10 +402,11 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       id: slug || `cat-${Date.now()}`,
       name: name.trim(),
       icon,
-      subcategories: []
+      subcategories: [],
+      store_id: currentStoreId
     };
 
-    const { category, error } = await createCategoryInSupabase(newCategory);
+    const { category, error } = await createCategoryInSupabase(newCategory, currentStoreId);
     
     if (error || !category) {
       console.error('[StoreDataContext] ❌ Erro ao salvar categoria no Supabase:', error);
@@ -397,7 +493,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 6. AÇÕES DE BANNERS NO SUPABASE
   // -------------------------------------------------------------
   const addBanner = async (bannerData: Omit<BannerSlide, 'id'>): Promise<BannerSlide> => {
-    const { banner, error } = await createBannerInSupabase(bannerData);
+    const { banner, error } = await createBannerInSupabase(bannerData, currentStoreId);
     
     if (error || !banner) {
       console.error('[StoreDataContext] ❌ Erro ao salvar banner no Supabase:', error);
@@ -474,10 +570,10 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // 7. CONFIGURAÇÕES DA LOJA NO SUPABASE
   // -------------------------------------------------------------
   const updateStoreConfig = async (updates: Partial<StoreConfig>): Promise<void> => {
-    const newConfig = { ...storeConfig, ...updates };
+    const newConfig = { ...storeConfig, ...updates, store_id: currentStoreId };
     setStoreConfig(newConfig);
 
-    const { success, error } = await saveStoreConfigInSupabase(newConfig);
+    const { success, error } = await saveStoreConfigInSupabase(newConfig, currentStoreId);
     if (!success) {
       showNotification(`Aviso ao salvar configurações: ${error}`, 'error');
     } else {
@@ -487,10 +583,11 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Resetar
   const resetToDefaults = async (): Promise<void> => {
+    const resetConfig = { ...INITIAL_STORE_CONFIG, store_id: currentStoreId };
     setCategories(INITIAL_CATEGORIES);
-    setStoreConfig(INITIAL_STORE_CONFIG);
+    setStoreConfig(resetConfig);
     setBanners(INITIAL_BANNERS);
-    await saveStoreConfigInSupabase(INITIAL_STORE_CONFIG);
+    await saveStoreConfigInSupabase(resetConfig, currentStoreId);
     showNotification('Configurações restauradas para o padrão no Supabase!', 'info');
   };
 

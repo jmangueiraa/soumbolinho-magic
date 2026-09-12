@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, MessageSquare } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
-import { slugify, generateUniqueSlug } from '../../utils/slug';
+import { slugify, generateSlug, generateUniqueSlug } from '../../utils/slug';
 import { supabase } from '../../lib/supabase';
 
 interface ProductFormModalProps {
@@ -22,8 +23,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onClose,
 }) => {
   const { products, categories, addProduct, updateProduct, showNotification } = useStoreData();
+  const { currentStore } = useTenant();
+  const currentStoreId = currentStore?.id || '';
+  const isBaseStore = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default' || !currentStoreId;
   const product = productProp || productToEdit || null;
 
+  const [activeTab, setActiveTab] = useState<'geral' | 'landing_page'>('geral');
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [formData, setFormData] = useState({
     name: '',
@@ -33,6 +38,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     price: '',
     unitSuffix: '/Un',
     description: '',
+    detailed_description: '',
+    gallery_images: '',
+    benefits: '',
+    testimonials: '',
+    checkout_url: '',
+    guarantee_days: 7,
+    is_digital: false,
     delivery_url: '',
     image: '',
     video_url: '',
@@ -52,10 +64,30 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string; slug?: string }>({});
 
   useEffect(() => {
+    setActiveTab('geral');
     if (product) {
       const existingImg = product.image || product.image_url || product.imageUrl || '';
       const existingVideo = product.videoUrl || product.video_url || '';
       const isVideo = product.mediaType === 'video' || isVideoUrl(existingVideo) || isVideoUrl(existingImg);
+      const isDigital = Boolean(
+        (product as any).is_digital ?? 
+        (product as any).isDigital ?? 
+        Boolean(product.delivery_url || (product as any).deliveryUrl)
+      );
+
+      const rawGallery = product.galleryImages || product.gallery_images || [];
+      const galleryStr = Array.isArray(rawGallery) ? rawGallery.join('\n') : String(rawGallery || '');
+      const rawBenefits = product.benefits;
+      const benefitsStr = Array.isArray(rawBenefits) ? rawBenefits.join('\n') : String(rawBenefits || '');
+      const rawTestimonials = (product as any).testimonials || (product as any).depoimentos;
+      let testimonialsStr = '';
+      if (Array.isArray(rawTestimonials)) {
+        testimonialsStr = rawTestimonials
+          .map((t: any) => `${t.name || ''} | ${t.text || ''}${t.avatar ? ' | ' + t.avatar : ''}`)
+          .join('\n');
+      } else if (typeof rawTestimonials === 'string') {
+        testimonialsStr = rawTestimonials;
+      }
 
       setMediaType(isVideo ? 'video' : 'image');
       setFormData({
@@ -66,6 +98,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: product.price ? String(product.price) : '',
         unitSuffix: product.unitSuffix || '/Un',
         description: product.description || '',
+        detailed_description: product.detailed_description || product.detailedDescription || product.description || '',
+        gallery_images: galleryStr,
+        benefits: benefitsStr,
+        testimonials: testimonialsStr,
+        checkout_url: product.checkout_url || product.checkoutUrl || '',
+        guarantee_days: product.guarantee_days || 7,
+        is_digital: isDigital,
         delivery_url: product.delivery_url || product.deliveryUrl || '',
         image: existingImg,
         video_url: existingVideo,
@@ -92,6 +131,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: '',
         unitSuffix: '/Un',
         description: '',
+        detailed_description: '',
+        gallery_images: '',
+        benefits: '',
+        testimonials: '',
+        checkout_url: '',
+        guarantee_days: 7,
+        is_digital: false,
         delivery_url: '',
         image: '',
         video_url: '',
@@ -188,12 +234,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
 
     setErrors(newErrors);
-    return !newErrors.name && !newErrors.price;
+    if (newErrors.name || newErrors.price) {
+      setActiveTab('geral');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') {
+      showNotification('Loja ainda em carregamento. Aguarde...', 'error');
+      return;
+    }
 
     setSubmitError(null);
     try {
@@ -201,17 +256,26 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const cleanName = String(formData.name).trim();
       const currentProductId = product?.id || '';
 
-      // Validação de Nome Duplicado (Frontend + Supabase)
-      const { data: existing, error: checkError } = await supabase
+      // Validação de Nome Duplicado (Frontend + Supabase) com isolamento estrito por loja
+      let checkQuery = supabase
         .from('products')
         .select('id, name')
         .ilike('name', cleanName)
-        .neq('id', currentProductId || '')
-        .maybeSingle();
+        .neq('id', currentProductId || '');
+
+      if (currentStoreId === 'matriz' || currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva') {
+        checkQuery = checkQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva');
+      } else if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
+        checkQuery = checkQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default');
+      } else {
+        checkQuery = checkQuery.eq('store_id', currentStoreId);
+      }
+
+      const { data: existing, error: checkError } = await checkQuery.maybeSingle();
 
       if (existing) {
-        setErrors((prev) => ({ ...prev, name: 'Já existe um produto cadastrado com este nome.' }));
-        showNotification('Já existe um produto cadastrado com este nome.', 'error');
+        setErrors((prev) => ({ ...prev, name: 'Já existe um produto cadastrado com este nome nesta loja.' }));
+        showNotification('Já existe um produto cadastrado com este nome nesta loja.', 'error');
         setIsSubmitting(false);
         return;
       }
@@ -237,7 +301,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const rawPrice = String(formData.price).replace(',', '.');
       const numericPrice = Number(parseFloat(rawPrice)) || 0;
 
-      const finalSlug = slugify(formData.slug || cleanName);
+      // Garante que o slug do produto está definido antes do envio
+      const finalSlug = formData.slug ? formData.slug.toLowerCase().replace(/\s+/g, '-') : generateSlug(cleanName);
 
       // Verificação explícita do tipo de mídia (aba 'Foto' ou 'Vídeo')
       const isVideo = mediaType === 'video';
@@ -246,7 +311,38 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       // Categoria garantida (se lista estiver vazia, usa 'geral')
       const finalCategory = formData.category.trim() || (categories && categories.length > 0 ? categories[0].id : 'geral');
 
+      const isDigital = Boolean(formData.is_digital);
+      const deliveryUrlClean = isDigital ? (formData.delivery_url || '').trim() : '';
+
+      // Processamento de imagens adicionais da galeria
+      const parsedGallery = formData.gallery_images
+        .split(/[\n,]/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 5);
+
+      // Processamento de benefícios
+      const parsedBenefits = formData.benefits
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 2);
+
+      // Processamento de depoimentos personalizados
+      const parsedTestimonials = (formData.testimonials || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 5)
+        .map((line) => {
+          const parts = line.split('|').map((p) => p.trim());
+          return {
+            name: parts[0] || 'Cliente Satisfeita',
+            text: parts[1] || parts[0],
+            avatar: parts[2] || '',
+            rating: 5,
+          };
+        });
+
       const payload: any = {
+        store_id: currentStoreId,
         name: cleanName,
         slug: finalSlug,
         category: finalCategory,
@@ -262,9 +358,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         photo_url: finalMediaUrl,
         videoUrl: isVideo ? finalMediaUrl : undefined,
         video_url: isVideo ? finalMediaUrl : undefined,
-        delivery_url: (formData.delivery_url || '').trim() || undefined,
-        deliveryUrl: (formData.delivery_url || '').trim() || undefined,
+        is_digital: isDigital,
+        isDigital: isDigital,
+        delivery_url: deliveryUrlClean || undefined,
+        deliveryUrl: deliveryUrlClean || undefined,
         description: formData.description ? String(formData.description).trim() : undefined,
+        detailed_description: formData.detailed_description.trim() || undefined,
+        detailedDescription: formData.detailed_description.trim() || undefined,
+        gallery_images: parsedGallery.length > 0 ? parsedGallery : undefined,
+        galleryImages: parsedGallery.length > 0 ? parsedGallery : undefined,
+        benefits: parsedBenefits.length > 0 ? parsedBenefits : undefined,
+        testimonials: parsedTestimonials.length > 0 ? parsedTestimonials : undefined,
+        checkout_url: formData.checkout_url.trim() || undefined,
+        checkoutUrl: formData.checkout_url.trim() || undefined,
+        guarantee_days: Number(formData.guarantee_days) || 7,
         inStock: Boolean(formData.active),
         isCustomizable: true,
         upsell_product_id: (formData.upsell_product_id || '').trim() || null,
@@ -293,6 +400,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: '',
         unitSuffix: '/Un',
         description: '',
+        detailed_description: '',
+        gallery_images: '',
+        benefits: '',
+        checkout_url: '',
+        guarantee_days: 7,
+        is_digital: false,
         delivery_url: '',
         image: '',
         video_url: '',
@@ -361,6 +474,38 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </button>
         </div>
 
+        {/* Navegação por Abas do Modal */}
+        <div className="flex items-center border-b border-zinc-200 bg-zinc-50 px-6 pt-2.5 gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('geral')}
+            className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'geral'
+                ? 'border-black text-black bg-white rounded-t-xl shadow-xs'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/70 rounded-t-xl'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            <span>Dados do Produto</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('landing_page')}
+            className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'landing_page'
+                ? 'border-theme-primary text-theme-primary bg-white rounded-t-xl shadow-xs'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/70 rounded-t-xl'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-theme-primary" />
+            <span>Landing Page</span>
+            <span className="text-[10px] bg-theme-primary text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+              Página de Vendas
+            </span>
+          </button>
+        </div>
+
         {/* Modal Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-4">
           
@@ -377,9 +522,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </div>
             </div>
           )}
-          
-          {/* Nome do Produto */}
-          <div>
+
+          {/* ============================================================ */}
+          {/* ABA 1: DADOS GERAIS DO PRODUTO                               */}
+          {/* ============================================================ */}
+          {activeTab === 'geral' && (
+            <div className="space-y-4 animate-in fade-in-50 duration-150">
+              {/* Nome do Produto */}
+              <div>
             <label className="block text-xs font-bold text-slate-800 mb-1">
               Nome do Produto *
             </label>
@@ -439,7 +589,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             />
             {errors.slug && <span className="text-[11px] text-rose-500 font-medium mt-1 block">{errors.slug}</span>}
             <p className="text-[10px] text-slate-400 mt-1">
-              URL direta na raiz do site: <strong>https://www.editaveisdocanva.com.br/{formData.slug || slugify(formData.name) || 'seu-produto'}</strong> (estritamente sem números no final).
+              URL direta na raiz do site: <strong>{typeof window !== 'undefined' ? window.location.origin : 'https://www.editaveisdocanva.com.br'}/{formData.slug || slugify(formData.name) || 'seu-produto'}</strong> (estritamente sem números no final).
             </p>
           </div>
 
@@ -542,9 +692,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 {isCurrentMediaVideo ? (
-                  <VideoIcon className="w-4 h-4 text-[#ff3399]" />
+                  <VideoIcon className="w-4 h-4 text-theme-primary" />
                 ) : (
-                  <ImageIcon className="w-4 h-4 text-[#ff3399]" />
+                  <ImageIcon className="w-4 h-4 text-theme-primary" />
                 )}
                 <span>Mídia do Produto (Foto ou Vídeo)</span>
               </label>
@@ -639,7 +789,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <Upload className="w-4 h-4 text-[#ff3399]" />
+                      <Upload className="w-4 h-4 text-theme-primary" />
                       <span>
                         {mediaType === 'video' ? 'Fazer upload de Vídeo (MP4, MOV, WebM)' : 'Fazer upload de Foto (PNG, JPG, WebP)'}
                       </span>
@@ -668,31 +818,84 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             )}
           </div>
 
-          {/* Link de Entrega Digital / Download (Google Drive, Canva, etc.) */}
+          {/* Flag / Alternador: Produto Digital */}
           <div className="pt-3 border-t border-slate-200">
-            <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Link2 className="w-3.5 h-3.5 text-emerald-600" />
-                Link de Entrega Digital / Download (Google Drive, Canva, etc.)
-              </span>
-              <span className="text-[10px] font-normal text-slate-400">Opcional</span>
-            </label>
-            <input
-              type="url"
-              value={formData.delivery_url}
-              onChange={(e) => setFormData({ ...formData, delivery_url: e.target.value })}
-              placeholder="https://drive.google.com/... ou https://canva.com/..."
-              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all placeholder:text-slate-400"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              Este link será liberado na tela de pagamento aprovado e enviado por e-mail ao comprador.
-            </p>
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-200 transition-colors">
+              <label 
+                htmlFor="is-digital-toggle" 
+                className="flex items-center gap-3 cursor-pointer flex-1 select-none pr-3"
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors shrink-0 ${
+                  formData.is_digital 
+                    ? 'bg-emerald-500 text-white shadow-xs' 
+                    : 'bg-slate-200 text-slate-500'
+                }`}>
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-bold text-slate-900">
+                      É um Produto Digital?
+                    </span>
+                    {formData.is_digital && (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wide">
+                        Download Ativo
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Marque esta opção se o produto for um arquivo ou molde digital para download (Canva, Google Drive, PDF, etc.).
+                  </p>
+                </div>
+              </label>
+
+              <label 
+                htmlFor="is-digital-toggle" 
+                className="relative inline-flex items-center cursor-pointer shrink-0"
+              >
+                <input
+                  id="is-digital-toggle"
+                  type="checkbox"
+                  checked={formData.is_digital}
+                  onChange={(e) => setFormData({ ...formData, is_digital: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
           </div>
+
+          {/* Caixa Condicional: Link de Entrega Digital / Download (Google Drive, Canva, etc.) */}
+          {formData.is_digital && (
+            <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-2">
+                <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-emerald-950">
+                    <Link2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Link de Entrega Digital / Download (Google Drive, Canva, etc.)
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                    Opcional
+                  </span>
+                </label>
+                <input
+                  type="url"
+                  value={formData.delivery_url}
+                  onChange={(e) => setFormData({ ...formData, delivery_url: e.target.value })}
+                  placeholder="https://drive.google.com/... ou https://canva.com/..."
+                  className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-400 text-slate-900"
+                />
+                <p className="text-[11px] text-emerald-800/80">
+                  Este link será liberado na tela de pagamento aprovado e enviado por e-mail ao comprador.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Descrição */}
           <div className="pt-2 border-t border-slate-200">
             <label className="block text-xs font-bold text-slate-800 mb-1">
-              Descrição / Detalhes do Produto
+              Descrição / Resumo do Produto
             </label>
             <textarea
               rows={2}
@@ -704,13 +907,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
 
           {/* Oferta de Upsell / Compre Junto no Carrinho (Order Bump) */}
-          <div className="pt-3 border-t border-slate-200 bg-pink-50/60 p-4 rounded-2xl border border-pink-200 space-y-3">
+          <div className="pt-3 border-t border-slate-200 bg-theme-light/40 p-4 rounded-2xl border border-theme-primary/30 space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-black flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-pink-500" />
+                <Sparkles className="w-4 h-4 text-theme-primary" />
                 <span>Oferta de Upsell / Compre Junto no Carrinho (Opcional)</span>
               </label>
-              <span className="text-[10px] bg-black text-pink-300 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+              <span className="text-[10px] bg-black text-theme-primary px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
                 Order Bump
               </span>
             </div>
@@ -726,7 +929,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <select
                   value={formData.upsell_product_id}
                   onChange={(e) => setFormData({ ...formData, upsell_product_id: e.target.value })}
-                  className="w-full text-xs px-3 py-2 bg-white border border-pink-300 rounded-xl outline-none focus:ring-2 focus:ring-black cursor-pointer text-slate-800"
+                  className="w-full text-xs px-3 py-2 bg-white border border-theme-primary/30 rounded-xl outline-none focus:ring-2 focus:ring-black cursor-pointer text-slate-800"
                 >
                   <option value="">Nenhum / Automático (menor valor)</option>
                   {products
@@ -744,13 +947,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   Porcentagem de Desconto do Upsell (%)
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-black text-pink-500">%</span>
+                  <span className="absolute left-3 text-xs font-black text-theme-primary">%</span>
                   <input
                     type="text"
                     value={formData.upsell_discount_percent}
                     onChange={(e) => setFormData({ ...formData, upsell_discount_percent: e.target.value.replace(/[^0-9.,]/g, '') })}
                     placeholder="Ex: 50 (para 50% de desconto)"
-                    className="w-full text-xs pl-8 pr-3 py-2 bg-white border border-pink-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-800"
+                    className="w-full text-xs pl-8 pr-3 py-2 bg-white border border-theme-primary/30 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-800"
                   />
                 </div>
               </div>
@@ -769,6 +972,185 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <span>Disponível no Catálogo (Ativo)</span>
             </label>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* ABA 2: CONFIGURAÇÃO DA LANDING PAGE DE ALTA CONVERSÃO         */}
+      {/* ============================================================ */}
+      {activeTab === 'landing_page' && (
+        <div className="space-y-4 animate-in fade-in-50 duration-150">
+          
+          {/* Card de Apresentação da Aba */}
+          <div className="p-4 bg-gradient-to-r from-theme-light/70 to-slate-50 rounded-2xl border border-theme-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-theme-primary text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-slate-950 flex items-center gap-2">
+                  <span>Configuração da Landing Page</span>
+                  <span className="text-[10px] bg-theme-primary text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Página de Vendas
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  Personalize a página individual do produto com galeria de fotos, benefícios, copy aprofundada e link de checkout.
+                </p>
+              </div>
+            </div>
+
+            {/* Link de prévia ao vivo */}
+            {(formData.slug || formData.name) && (
+              <a
+                href={`/produto/${formData.slug || slugify(formData.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer"
+                title="Abrir prévia da Landing Page em nova aba"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-theme-primary" />
+                <span>Ver Prévia</span>
+              </a>
+            )}
+          </div>
+
+          {/* 1. Link de Checkout Próprio */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+            <label className="block text-xs font-bold text-slate-900 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Link2 className="w-4 h-4 text-theme-primary" />
+                Link de Checkout Próprio (Kiwify, Hotmart, Eduzz, etc.)
+              </span>
+              <span className="text-[10px] text-slate-500 font-normal">
+                Opcional
+              </span>
+            </label>
+            <input
+              type="url"
+              value={formData.checkout_url}
+              onChange={(e) => setFormData({ ...formData, checkout_url: e.target.value })}
+              placeholder="https://pay.kiwify.com.br/... ou deixe em branco para checkout transparente"
+              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 transition-all"
+            />
+            <p className="text-[11px] text-slate-500">
+              💡 Se informado, o botão <strong>"QUERO COMPRAR AGORA"</strong> da página de vendas redirecionará para seu checkout externo. Se deixado em branco, a página usará o checkout transparente integrado com Pix e Cartão.
+            </p>
+          </div>
+
+          {/* 2. Galeria de Fotos Extras */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-theme-primary" />
+                Galeria de Fotos Extras (Miniaturas da Página)
+              </label>
+              <span className="text-[10px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
+                {formData.gallery_images.split('\n').filter((s) => s.trim().length > 5).length} foto(s) configurada(s)
+              </span>
+            </div>
+            <textarea
+              rows={3}
+              value={formData.gallery_images}
+              onChange={(e) => setFormData({ ...formData, gallery_images: e.target.value })}
+              placeholder="https://exemplo.com/foto2.jpg&#10;https://exemplo.com/foto3.jpg"
+              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
+            />
+            <p className="text-[11px] text-slate-500">
+              Cole uma URL por linha. Essas fotos formarão as miniaturas clicáveis na galeria da Landing Page.
+            </p>
+          </div>
+
+          {/* 3. Benefícios (O que você vai receber) */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                Benefícios / O que você vai receber (Um por linha)
+              </label>
+              <span className="text-[10px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
+                {formData.benefits.split('\n').filter((s) => s.trim().length > 2).length} benefício(s)
+              </span>
+            </div>
+            <textarea
+              rows={4}
+              value={formData.benefits}
+              onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+              placeholder="100% editável no Canva gratuito&#10;Arquivos em alta definição 300 DPI&#10;Acesso vitalício e envio imediato no WhatsApp"
+              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 resize-none"
+            />
+            <p className="text-[11px] text-slate-500">
+              Cada linha digitada será exibida como um card com ícone de verificação verde na seção <strong>"O que você vai receber"</strong>.
+            </p>
+          </div>
+
+          {/* 4. Descrição Detalhada & Prazo de Garantia */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="sm:col-span-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-theme-primary" />
+                Texto Detalhado da Página de Vendas (Copy)
+              </label>
+              <textarea
+                rows={4}
+                value={formData.detailed_description}
+                onChange={(e) => setFormData({ ...formData, detailed_description: e.target.value })}
+                placeholder="Texto persuasivo explicando os diferenciais do produto, detalhes dos arquivos, formatos e recomendações..."
+                className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 resize-none"
+              />
+              <p className="text-[11px] text-slate-500">
+                Apresentado na seção <strong>"Detalhes e Descrição do Produto"</strong> da página de vendas.
+              </p>
+            </div>
+
+            <div className="sm:col-span-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 flex flex-col justify-between">
+              <div>
+                <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  Garantia (Dias)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="90"
+                  value={formData.guarantee_days}
+                  onChange={(e) => setFormData({ ...formData, guarantee_days: parseInt(e.target.value) || 7 })}
+                  className="w-full text-xs px-3 py-2 mt-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-900"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Garantia incondicional com selo de risco zero exibido na página.
+              </p>
+            </div>
+          </div>
+
+          {/* 5. Depoimentos de Clientes (Prova Social) */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4 text-theme-primary" />
+                Depoimentos Personalizados (Prova Social)
+              </label>
+              <span className="text-[10px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
+                {(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length > 0 
+                  ? `${(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length} depoimento(s) personalizado(s)`
+                  : 'Padrão da loja (6 depoimentos com foto)'}
+              </span>
+            </div>
+            <textarea
+              rows={3}
+              value={formData.testimonials}
+              onChange={(e) => setFormData({ ...formData, testimonials: e.target.value })}
+              placeholder="Nome | Depoimento | URL da Foto (opcional)&#10;Ex: Valentina Rocha | Amei os arquivos, muito práticos e lindos! | https://..."
+              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
+            />
+            <p className="text-[11px] text-slate-500">
+              💡 <strong>Deixe em branco</strong> para utilizar automaticamente os 6 depoimentos padrão com fotos de perfil, 5 estrelas e textos de alta conversão (Valentina Rocha, Camila Fernandes, etc.). Se desejar personalizar para este produto específico, digite um por linha no formato <code>Nome | Texto do depoimento | URL da foto</code>.
+            </p>
+          </div>
+
+        </div>
+      )}
 
           {/* Submit Actions */}
           <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

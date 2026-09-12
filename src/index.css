@@ -45,15 +45,92 @@ html, body {
   background: #fdf2f8;
 }
 ::-webkit-scrollbar-thumb {
-  background: #f472b6;
+  background: var(--color-primary-hover, #f472b6);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #ff3399;
+  background: var(--primary-color, #ff3399);
 }
 
 /* Seleção de texto temática */
 ::selection {
-  background-color: #ff3399;
+  background-color: var(--primary-color, #ff3399);
   color: #ffffff;
 }
+
+/* -------------------------------------------------------------
+   Variáveis e Classes Utilitárias de Tema Dinâmico
+   ------------------------------------------------------------- */
+:root {
+  --primary-color: #FF1493;
+  --color-primary: var(--primary-color, #FF1493);
+  --color-primary-hover: #e61e80;
+  --color-primary-light: #FFEBF6;
+  --color-primary-subtle: #FFF5F9;
+  --color-accent: #ff3399;
+  --header-bg: #000000;
+  --header-border: #27272a;
+}
+
+.bg-theme-primary {
+  background-color: var(--primary-color, #FF1493) !important;
+}
+
+.hover\:bg-theme-primary-hover:hover {
+  background-color: var(--color-primary-hover, var(--primary-color, #FF1493)) !important;
+  filter: brightness(0.92);
+}
+
+.text-theme-primary {
+  color: var(--primary-color, #FF1493) !important;
+}
+
+.border-theme-primary {
+  border-color: var(--primary-color, #FF1493) !important;
+}
+
+.ring-theme-primary {
+  --tw-ring-color: var(--primary-color, #FF1493) !important;
+}
+
+.focus\:ring-theme-primary:focus {
+  --tw-ring-color: var(--primary-color, #FF1493) !important;
+}
+
+.accent-theme-primary {
+  accent-color: var(--primary-color, #FF1493) !important;
+}
+
+.bg-theme-light {
+  background-color: var(--color-primary-light, #FFEBF6) !important;
+}
+
+.text-theme-accent {
+  color: var(--primary-color, #FF1493) !important;
+}
+
+/* =========================================================
+   Logo Container Styling (Fundo transparente e dimensionamento)
+   ========================================================= */
+.logo-container {
+  background-color: transparent; /* Garante que o fundo do contêiner seja transparente */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-container img {
+  max-height: 60px; /* Ajuste o tamanho conforme necessário */
+  width: auto;
+  object-fit: contain;
+  /* Opcional: aplicar filtro se a logo for preta e precisar ficar branca */
+  /* filter: brightness(0) invert(1); */
+}
+
+/* Remove o fundo branco e adapta a logo para o fundo escuro automaticamente */
+.logo-image {
+  mix-blend-mode: screen; /* Transforma o fundo branco em transparente no fundo escuro */
+  filter: brightness(1.2);  /* Aumenta o brilho para destacar os traços */
+}
+
+
