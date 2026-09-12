@@ -84,7 +84,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const cleanCpf = String(customer_cpf || cpf || '').replace(/\D/g, '');
+    function generateValidRandomCpf(): string {
+      const rnd = (n: number) => Math.floor(Math.random() * n);
+      const digits = Array.from({ length: 9 }, () => rnd(10));
+      let sum1 = 0;
+      for (let i = 0; i < 9; i++) sum1 += digits[i] * (10 - i);
+      let rem1 = sum1 % 11;
+      const d10 = rem1 < 2 ? 0 : 11 - rem1;
+      digits.push(d10);
+      let sum2 = 0;
+      for (let i = 0; i < 10; i++) sum2 += digits[i] * (11 - i);
+      let rem2 = sum2 % 11;
+      const d11 = rem2 < 2 ? 0 : 11 - rem2;
+      digits.push(d11);
+      return digits.join('');
+    }
+
+    const rawCpf = String(customer_cpf || cpf || '').replace(/\D/g, '');
+    const cleanCpf = rawCpf.length === 11 ? rawCpf : generateValidRandomCpf();
     const cleanHolderName = String(cardholder_name || customer_name || 'Comprador').trim();
     const cleanEmail = String(customer_email || 'comprador@soumbolinho.com.br').trim().toLowerCase();
 
@@ -94,12 +111,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       card_number: cleanCardNumber,
       cardholder: {
         name: cleanHolderName,
-        identification: cleanCpf
-          ? {
-              type: 'CPF',
-              number: cleanCpf,
-            }
-          : undefined,
+        identification: {
+          type: 'CPF',
+          number: cleanCpf,
+        },
       },
       security_code: cleanSecurityCode,
       expiration_month: month,

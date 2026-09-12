@@ -1,4 +1,5 @@
 import { CartItem, OrderCustomerInfo, StoreConfig } from '../types';
+import { generateValidRandomCpf } from '../utils/formatters';
 
 export interface CreatePreferenceOptions {
   items: CartItem[];
@@ -199,7 +200,8 @@ export async function createMercadoPagoPixPayment(
   const accessToken = (customAccessToken || getMercadoPagoAccessToken(storeConfig)).trim();
   const numericAmount = Number(parseFloat(String(amount)).toFixed(2));
   const emailCliente = String(customerEmail || '').trim().toLowerCase();
-  const cleanCpf = String(customerCpf || '').replace(/\D/g, '');
+  const rawCpf = String(customerCpf || '').replace(/\D/g, '');
+  const cleanCpf = rawCpf.length === 11 ? rawCpf : generateValidRandomCpf();
   const trimmedName = String(customerName || 'Cliente').trim();
   const firstName = trimmedName.split(' ')[0] || 'Cliente';
   const lastName = trimmedName.split(' ').slice(1).join(' ') || 'Comprador';
@@ -515,7 +517,8 @@ export async function createMercadoPagoCardPayment(
 
   try {
     const cleanCard = cardNumber.replace(/\D/g, '');
-    const cleanCpf = (customerCpf || '').replace(/\D/g, '');
+    const rawCpf = (customerCpf || '').replace(/\D/g, '');
+    const cleanCpf = rawCpf.length === 11 ? rawCpf : generateValidRandomCpf();
     let fullYear = parseInt(String(expirationYear), 10);
     if (fullYear < 100) fullYear += 2000;
 

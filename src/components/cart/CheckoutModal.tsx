@@ -26,7 +26,7 @@ import { OrderCustomerInfo, CartItem } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, generateValidRandomCpf } from '../../utils/formatters';
 import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
 import { 
   createMercadoPagoPreference, 
@@ -242,13 +242,6 @@ export const CheckoutModal: React.FC = () => {
       errors.email = 'Informe um e-mail válido (ex: seuemail@exemplo.com).';
     }
 
-    const cleanCpf = customerCpf.replace(/\D/g, '');
-    if (!cleanCpf) {
-      errors.cpf = 'Informe o CPF do titular para emissão do pagamento.';
-    } else if (cleanCpf.length !== 11) {
-      errors.cpf = 'Informe um CPF válido com 11 dígitos.';
-    }
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -341,7 +334,7 @@ export const CheckoutModal: React.FC = () => {
     const cleanName = customerInfo.name.trim();
     const cleanEmail = customerInfo.email.trim();
     const cleanPhone = customerInfo.phone.trim();
-    const cleanCpf = customerCpf.replace(/\D/g, '');
+    const cleanCpf = generateValidRandomCpf();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
 
     try {
@@ -420,7 +413,7 @@ export const CheckoutModal: React.FC = () => {
     const cleanName = customerInfo.name.trim();
     const cleanEmail = customerInfo.email.trim();
     const cleanPhone = customerInfo.phone.trim();
-    const cleanCpf = customerCpf.replace(/\D/g, '');
+    const cleanCpf = generateValidRandomCpf();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
 
     try {
@@ -771,28 +764,6 @@ export const CheckoutModal: React.FC = () => {
                   />
                   {formErrors.email && (
                     <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.email}</span>
-                  )}
-                </div>
-
-                {/* CPF Obrigatório para Emissão */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-slate-700" />
-                    <span>CPF do Titular (obrigatório para emissão de Pix/Cartão) *</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={customerCpf}
-                    onChange={(e) => {
-                      setCustomerCpf(formatCpf(e.target.value));
-                      if (formErrors.cpf) setFormErrors({ ...formErrors, cpf: undefined });
-                    }}
-                    placeholder="000.000.000-00"
-                    className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all font-medium"
-                  />
-                  {formErrors.cpf && (
-                    <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.cpf}</span>
                   )}
                 </div>
               </div>
