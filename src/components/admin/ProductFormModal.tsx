@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, MessageSquare, Gift } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, MessageSquare, Gift, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -10,6 +10,37 @@ import { slugify, generateSlug, generateUniqueSlug } from '../../utils/slug';
 import { supabase } from '../../lib/supabase';
 import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
 import { getAutomaticTestimonials } from '../../utils/automaticProductContent';
+
+export interface FormBonusItem {
+  title: string;
+  description: string;
+  originalPrice: string;
+  imageUrl: string;
+}
+
+export function parseBonusesString(str: string): FormBonusItem[] {
+  if (!str || !str.trim()) return [];
+  return str
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const parts = line.split('|').map((p) => p.trim());
+      return {
+        title: parts[0] || '',
+        description: parts[1] || '',
+        originalPrice: parts[2] || '47',
+        imageUrl: parts[3] || '',
+      };
+    });
+}
+
+export function serializeBonusItems(items: FormBonusItem[]): string {
+  return items
+    .filter((item) => item.title.trim().length > 0)
+    .map((item) => `${item.title.trim()} | ${item.description.trim()} | ${item.originalPrice || '47'} | ${(item.imageUrl || '').trim()}`)
+    .join('\n');
+}
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -63,8 +94,97 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string; slug?: string }>({});
+  const [showBonusRawText, setShowBonusRawText] = useState(false);
+
+  // Manipuladores visuais para adicionar múltiplos bônus com facilidade
+  const currentBonusItems = useMemo(() => parseBonusesString(formData.bonuses), [formData.bonuses]);
+
+  const handleAddProductAsBonus = (selectedProdId: string) => {
+    const found = products.find((p) => p.id === selectedProdId);
+    if (!found) return;
+    const newItem: FormBonusItem = {
+      title: found.name,
+      description: 'Arquivo digital completo liberado gratuitamente como bônus exclusivo.',
+      originalPrice: found.price ? String(found.price) : '29.90',
+      imageUrl: found.image_url || found.imageUrl || found.image || '',
+    };
+    const current = parseBonusesString(formData.bonuses);
+    setFormData((prev) => ({
+      ...prev,
+      bonuses: serializeBonusItems([...current, newItem]),
+    }));
+    showNotification(`Bônus "${found.name}" adicionado com sucesso!`, 'success');
+  };
+
+  const handleAddNewEmptyBonus = () => {
+    const current = parseBonusesString(formData.bonuses);
+    const nextNum = current.length + 1;
+    const newItem: FormBonusItem = {
+      title: `Bônus Especial #${nextNum}`,
+      description: 'Acesso exclusivo incluso gratuitamente neste pacote.',
+      originalPrice: '47',
+      imageUrl: '',
+    };
+    setFormData((prev) => ({
+      ...prev,
+      bonuses: serializeBonusItems([...current, newItem]),
+    }));
+  };
+
+  const handleAddDefaultBonuses = () => {
+    const defaultItems: FormBonusItem[] = [
+      {
+        title: 'Pack com +100 Fontes Mais Usadas em Festas e Toppers',
+        description: 'As tipografias infantis e comemorativas mais procuradas do momento, prontas para usar no Canva ou computador.',
+        originalPrice: '47',
+        imageUrl: 'https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?w=600&q=80',
+      },
+      {
+        title: 'Guia Secreto de Fornecedores de Papéis, Acetato e Shaker',
+        description: 'Lista exclusiva com os melhores fornecedores do Brasil para comprar papéis especiais e insumos no atacado.',
+        originalPrice: '37',
+        imageUrl: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=600&q=80',
+      },
+      {
+        title: 'Planilha Automática de Precificação de Papelaria Personalizada',
+        description: 'Descubra exatamente quanto cobrar por cada topo de bolo e lembrancinha para lucrar de verdade.',
+        originalPrice: '49',
+        imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80',
+      },
+    ];
+    const current = parseBonusesString(formData.bonuses);
+    // Adiciona os 3 bônus à lista já existente sem perder nada!
+    setFormData((prev) => ({
+      ...prev,
+      bonuses: serializeBonusItems([...current, ...defaultItems]),
+    }));
+    showNotification('3 Bônus Padrão incluídos na lista!', 'success');
+  };
+
+  const handleRemoveBonus = (index: number) => {
+    const current = parseBonusesString(formData.bonuses);
+    const updated = current.filter((_, idx) => idx !== index);
+    setFormData((prev) => ({
+      ...prev,
+      bonuses: serializeBonusItems(updated),
+    }));
+  };
+
+  const handleUpdateBonus = (index: number, field: keyof FormBonusItem, value: string) => {
+    const current = parseBonusesString(formData.bonuses);
+    if (!current[index]) return;
+    current[index] = { ...current[index], [field]: value };
+    setFormData((prev) => ({
+      ...prev,
+      bonuses: serializeBonusItems(current),
+    }));
+  };
+
+  const handleClearBonuses = () => {
+    setFormData((prev) => ({ ...prev, bonuses: '' }));
+    showNotification('Bônus limpos. A loja exibirá os bônus padrão.', 'info');
+  };
 
   useEffect(() => {
     setActiveTab('geral');
@@ -1230,87 +1350,238 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </p>
           </div>
 
-          {/* 6. Bônus Exclusivos da Página de Vendas */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+          {/* 6. Bônus Exclusivos da Página de Vendas (Multi-bônus Dinâmico) */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <Gift className="w-4 h-4 text-pink-600" />
-                <span>Bônus Exclusivos ("Além disso você leva 3 bônus poderosos")</span>
+                <span>Bônus Exclusivos ("Além disso você leva {currentBonusItems.length > 0 ? `${currentBonusItems.length} bônus` : '3 bônus poderosos'}")</span>
               </label>
-              <span className="text-[10px] bg-pink-100/80 text-pink-700 font-bold px-2 py-0.5 rounded-md">
-                {(formData.bonuses || '').split('\n').filter((s) => s.trim().length > 3).length > 0 
-                  ? `${(formData.bonuses || '').split('\n').filter((s) => s.trim().length > 3).length} bônus configurado(s)`
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                currentBonusItems.length > 0 
+                  ? 'bg-pink-100/90 text-pink-700 border border-pink-200/60' 
+                  : 'bg-slate-200 text-slate-700'
+              }`}>
+                {currentBonusItems.length > 0 
+                  ? `${currentBonusItems.length} ${currentBonusItems.length === 1 ? 'bônus configurado' : 'bônus configurados'}`
                   : 'Padrão da loja (3 bônus com fotos)'}
               </span>
             </div>
 
-            {/* Ações rápidas para o administrador */}
+            {/* BARRA DE AÇÕES: Adicionar Múltiplos Bônus */}
             <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
-              <button
-                type="button"
-                onClick={() => {
-                  const defaultStr = [
-                    'Pack com +100 Fontes Mais Usadas em Festas e Toppers | As tipografias infantis e comemorativas mais procuradas do momento, prontas para usar no Canva ou computador. | 47 | https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?w=600&q=80',
-                    'Guia Secreto de Fornecedores de Papéis, Acetato e Shaker | Lista exclusiva com os melhores fornecedores do Brasil para comprar papéis especiais e insumos no atacado. | 37 | https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=600&q=80',
-                    'Planilha Automática de Precificação de Papelaria Personalizada | Descubra exatamente quanto cobrar por cada topo de bolo e lembrancinha para lucrar de verdade. | 49 | https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80'
-                  ].join('\n');
-                  setFormData({ ...formData, bonuses: defaultStr });
-                }}
-                className="px-2.5 py-1.5 bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-              >
-                <span>✨ Carregar 3 Bônus Padrão</span>
-              </button>
-
-              {/* Selecionar um produto existente para virar bônus */}
+              {/* Selecionar produto existente para virar mais um bônus */}
               {products.length > 1 && (
                 <select
                   onChange={(e) => {
                     const selId = e.target.value;
                     if (!selId) return;
-                    const found = products.find((p) => p.id === selId);
-                    if (found) {
-                      const newBonusLine = `${found.name} | Arquivo digital completo liberado gratuitamente como bônus exclusivo. | ${found.price || 29.9} | ${found.image_url || found.imageUrl || ''}`;
-                      const current = (formData.bonuses || '').trim();
-                      const updated = current ? `${current}\n${newBonusLine}` : newBonusLine;
-                      setFormData({ ...formData, bonuses: updated });
-                    }
+                    handleAddProductAsBonus(selId);
                     e.target.value = '';
                   }}
-                  className="px-2.5 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-[11px] font-bold outline-none focus:ring-1 focus:ring-black cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white hover:bg-pink-50/60 border border-pink-300 text-pink-800 rounded-xl text-[11px] font-bold outline-none focus:ring-1 focus:ring-pink-500 cursor-pointer shadow-2xs transition-all"
                   defaultValue=""
                 >
-                  <option value="" disabled>+ Adicionar Produto da Loja como Bônus...</option>
+                  <option value="" disabled>🎁 + Adicionar Produto da Loja como Bônus...</option>
                   {products
                     .filter((p) => p.id !== product?.id)
                     .map((p) => (
                       <option key={p.id} value={p.id}>
-                        🎁 {p.name} (R$ {p.price?.toFixed(2)})
+                        + Adicionar "{p.name}" (R$ {p.price?.toFixed(2)})
                       </option>
                     ))}
                 </select>
               )}
 
-              {formData.bonuses && (
+              <button
+                type="button"
+                onClick={handleAddNewEmptyBonus}
+                className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-pink-600" />
+                <span>+ Criar Bônus Manual</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddDefaultBonuses}
+                className="px-2.5 py-1.5 bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 rounded-xl text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                title="Adiciona os 3 bônus testados de alta conversão à lista atual"
+              >
+                <span>✨ Incluir os 3 Bônus Padrão</span>
+              </button>
+
+              {currentBonusItems.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, bonuses: '' })}
-                  className="text-[10px] text-slate-500 hover:text-rose-600 underline ml-auto"
+                  onClick={handleClearBonuses}
+                  className="text-[11px] text-slate-500 hover:text-rose-600 underline ml-auto cursor-pointer"
                 >
-                  Limpar (Restaurar Padrão)
+                  Limpar Todos (Restaurar Padrão)
                 </button>
               )}
             </div>
 
-            <textarea
-              rows={4}
-              value={formData.bonuses}
-              onChange={(e) => setFormData({ ...formData, bonuses: e.target.value })}
-              placeholder="Título do Bônus | Descrição do Bônus | Valor de Mercado (ex: 47) | URL da Imagem (opcional)&#10;Ex: Pack de 100 Fontes | Fontes incríveis para Canva | 47 | https://..."
-              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
-            />
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              💡 <strong>Deixe em branco</strong> para utilizar automaticamente os 3 bônus exclusivos de alta conversão com fotos e valores riscados. Se preferir personalizar, adicione um bônus por linha ou use os botões acima para selecionar produtos da sua loja como bônus.
-            </p>
+            {/* MODO VISUAL: CARDS INTERATIVOS DE CADA BÔNUS */}
+            {!showBonusRawText ? (
+              <div className="space-y-3">
+                {currentBonusItems.length > 0 ? (
+                  currentBonusItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white border border-pink-100 rounded-xl p-3 sm:p-4 shadow-2xs space-y-3 relative group"
+                    >
+                      {/* Header do Card do Bônus */}
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-xs">
+                            BÔNUS #{idx + 1}
+                          </span>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                            100% Grátis
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBonus(idx)}
+                          className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Remover este bônus"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                        {/* Preview da Imagem do Bônus */}
+                        <div className="sm:col-span-3 flex flex-col items-center">
+                          <div className="w-full aspect-video sm:aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative shadow-inner">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="text-center p-2 text-slate-400">
+                                <Gift className="w-6 h-6 mx-auto mb-1 opacity-50 text-pink-500" />
+                                <span className="text-[9px] font-bold">Sem imagem</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Campos Editáveis do Bônus */}
+                        <div className="sm:col-span-9 space-y-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-700 block mb-0.5">
+                              Título do Bônus #{idx + 1}
+                            </label>
+                            <input
+                              type="text"
+                              value={item.title}
+                              onChange={(e) => handleUpdateBonus(idx, 'title', e.target.value)}
+                              placeholder="Ex: Arquivo Raquetes editáveis"
+                              className="w-full text-xs px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 font-bold text-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-700 block mb-0.5">
+                              Descrição persuasiva do material
+                            </label>
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleUpdateBonus(idx, 'description', e.target.value)}
+                              placeholder="Ex: Arquivo digital completo liberado gratuitamente como bônus exclusivo."
+                              className="w-full text-xs px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 text-slate-700"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-700 block mb-0.5">
+                                Valor de Mercado Riscado (De R$)
+                              </label>
+                              <input
+                                type="text"
+                                value={item.originalPrice}
+                                onChange={(e) => handleUpdateBonus(idx, 'originalPrice', e.target.value)}
+                                placeholder="Ex: 47 ou 29.90"
+                                className="w-full text-xs px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 font-semibold text-slate-800"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-700 block mb-0.5">
+                                URL da Imagem / Foto do Bônus
+                              </label>
+                              <input
+                                type="text"
+                                value={item.imageUrl}
+                                onChange={(e) => handleUpdateBonus(idx, 'imageUrl', e.target.value)}
+                                placeholder="https://..."
+                                className="w-full text-xs px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-pink-500 text-slate-600 font-mono text-[10px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 bg-white border border-dashed border-pink-200 rounded-xl text-center space-y-2">
+                    <Gift className="w-8 h-8 text-pink-400 mx-auto" />
+                    <p className="text-xs font-bold text-slate-800">
+                      Nenhum bônus customizado cadastrado ainda.
+                    </p>
+                    <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                      A página de vendas exibirá automaticamente os <strong>3 bônus padrão de alta conversão</strong> (Pack de 100 Fontes, Guia de Fornecedores e Planilha de Precificação).
+                    </p>
+                    <div className="pt-2 flex flex-wrap justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAddNewEmptyBonus}
+                        className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                      >
+                        + Adicionar Primeiro Bônus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddDefaultBonuses}
+                        className="px-3 py-1.5 bg-white border border-pink-200 text-pink-700 hover:bg-pink-50 rounded-lg text-xs font-bold cursor-pointer"
+                      >
+                        ✨ Personalizar a partir dos 3 Padrão
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <textarea
+                rows={5}
+                value={formData.bonuses}
+                onChange={(e) => setFormData({ ...formData, bonuses: e.target.value })}
+                placeholder="Título do Bônus | Descrição do Bônus | Valor de Mercado (ex: 47) | URL da Imagem (opcional)&#10;Ex: Pack de 100 Fontes | Fontes incríveis para Canva | 47 | https://..."
+                className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
+              />
+            )}
+
+            {/* Alternador de Modo (Cards vs Texto Puro) */}
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[11px] text-slate-500">
+                💡 Adicione quantos bônus desejar (1, 2, 3, 4 ou mais). Todos aparecem com contagem automática na Landing Page.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowBonusRawText(!showBonusRawText)}
+                className="text-[10px] text-slate-400 hover:text-slate-600 underline cursor-pointer shrink-0 ml-2"
+              >
+                {showBonusRawText ? '← Voltar para modo visual com cards' : 'Modo avançado (texto puro)'}
+              </button>
+            </div>
           </div>
 
           {/* 7. Chamada para o Acesso: Preço do Pacote Completo (Oferta Especial) */}

@@ -723,8 +723,14 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
               </p>
             </div>
 
-            {/* Grid dos Cards de Bônus */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Grid dos Cards de Bônus (Responsivo conforme quantidade: 1, 2 ou 3+ bônus) */}
+            <div className={`grid gap-6 mx-auto ${
+              productBonuses.length === 1
+                ? 'grid-cols-1 max-w-md'
+                : productBonuses.length === 2
+                  ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl'
+                  : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-5xl'
+            }`}>
               {productBonuses.map((bonus, index) => (
                 <div
                   key={index}
