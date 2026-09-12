@@ -2,23 +2,141 @@ import { Product } from '../types';
 import { DEFAULT_TESTIMONIALS, TestimonialItem } from '../data/defaultTestimonials';
 
 /**
+ * Extrai itens estruturados diretamente da descrição, benefícios ou copy do produto
+ */
+export function extractFeaturesFromProductDescription(product: Product | null): string[] {
+  if (!product) return [];
+
+  const items: string[] = [];
+
+  // 1. Benefícios cadastrados manualmente no produto (máxima prioridade)
+  const rawBenefits = product.benefits;
+  if (rawBenefits) {
+    if (Array.isArray(rawBenefits)) {
+      rawBenefits.forEach((b) => {
+        const clean = String(b || '').trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').trim();
+        if (clean && clean.length >= 3 && !items.includes(clean)) items.push(clean);
+      });
+    } else if (typeof rawBenefits === 'string' && rawBenefits.trim()) {
+      rawBenefits.split('\n').forEach((line) => {
+        const clean = line.trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').trim();
+        if (clean && clean.length >= 3 && !items.includes(clean)) items.push(clean);
+      });
+    }
+  }
+
+  // 2. Extração inteligente a partir da descrição detalhada e descrição do produto
+  const fullText = [
+    product.detailed_description || (product as any).detailedDescription || '',
+    product.description || ''
+  ].filter(Boolean).join('\n');
+
+  if (fullText.trim()) {
+    // Normalizar quebras de linha de tags HTML <br>, <p>, <li>
+    const normalizedText = fullText
+      .replace(/<br\s*[\/]?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<[^>]+>/g, ' '); // remove all other HTML tags
+
+    const lines = normalizedText.split('\n');
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      // Remove marcadores de lista comuns (-, •, *, ✓, ✔, +, ✅, ✨, números como "1. ", "01 - ")
+      const isBullet = /^[-•*✓✔+✅✨📦]\s+/.test(line) || /^\d+[\.\-\)]\s+/.test(line);
+      const clean = line
+        .replace(/^[-•*✓✔+✅✨📦]\s*/, '')
+        .replace(/^\d+[\.\-\)]\s*/, '')
+        .trim();
+
+      // Ignora títulos simples de cabeçalho
+      const isHeader = /^(o que est[áa] incluso|o que voc[êe] vai receber|conte[úu]do do pacote|itens inclusos|detalhes|benef[íi]cios|importante|aten[çc][ãa]o|descri[çc][ãa]o|caracter[íi]sticas):?$/i.test(clean);
+      if (isHeader) continue;
+
+      if (isBullet && clean.length >= 3 && clean.length <= 140) {
+        if (!items.includes(clean)) items.push(clean);
+      } else if (!isBullet && line.length >= 4 && line.length <= 100 && !line.endsWith(':') && !line.includes('http')) {
+        if (!items.includes(line)) items.push(line);
+      }
+    }
+
+    // Se tiver poucas linhas mas o texto for descritivo, tenta dividir por frases/pontos
+    if (items.length < 2 && normalizedText.length > 30) {
+      const sentences = normalizedText
+        .split(/(?<=[.!?])\s+/)
+        .map(s => s.trim().replace(/^[-•*✓✔+✅✨📦]\s*/, ''))
+        .filter(s => s.length >= 8 && s.length <= 120 && !s.includes('http') && !s.endsWith(':'));
+
+      for (const sent of sentences) {
+        const clean = sent.replace(/[.!]+$/, '').trim();
+        const isHeader = /^(o que est[áa] incluso|o que voc[êe] vai receber|conte[úu]do do pacote|itens inclusos|detalhes|benef[íi]cios|importante|aten[çc][ãa]o|descri[çc][ãa]o|caracter[íi]sticas):?$/i.test(clean);
+        if (!isHeader && clean.length >= 6 && !items.includes(clean)) {
+          items.push(clean);
+        }
+      }
+    }
+  }
+
+  return items;
+}
+
+/**
  * Gera automaticamente os 6 itens da seção "O que você vai encontrar neste pacote"
- * com base no nome do produto, categoria e descrição, sem que o lojista precise preencher nada manualmente.
+ * com base na descrição real do produto, benefícios ou nicho, sem que o lojista precise preencher nada manualmente.
  */
 export function getAutomaticPackageItems(product: Product | null): string[] {
   if (!product) return [];
 
-  // Se o lojista já informou benefícios personalizados no banco, respeita e usa
-  if (product.benefits) {
-    if (Array.isArray(product.benefits) && product.benefits.length > 0) {
-      return product.benefits;
+  // 1. Prioridade Máxima: Extrai itens diretamente da descrição detalhada, descrição ou benefícios do produto
+  const extracted = extractFeaturesFromProductDescription(product);
+
+  if (extracted.length > 0) {
+    const items = [...extracted.slice(0, 6)];
+
+    // Se tiver menos de 6 itens na descrição, completa de forma inteligente
+    // para atingir sempre os 6 cards elegantes da seção
+    if (items.length < 6) {
+      const name = (product.name || '').toLowerCase();
+      const category = (product.category || '').toLowerCase();
+      const desc = (product.detailed_description || (product as any).detailedDescription || product.description || '').toLowerCase();
+      const text = `${name} ${category} ${desc}`;
+
+      const complements: string[] = [];
+
+      if (text.includes('canva')) {
+        complements.push('Templates 100% editáveis no Canva (versão gratuita ou Pro)');
+      } else {
+        complements.push('Arquivos organizados e prontos para uso imediato');
+      }
+
+      if (text.includes('svg') || text.includes('corte') || text.includes('silhouette') || text.includes('molde') || text.includes('tesoura')) {
+        complements.push('Moldes com linhas de corte e vinco perfeitamente testadas');
+      } else {
+        complements.push('Arquivos em altíssima definição (300 DPI) para impressão perfeita');
+      }
+
+      complements.push(
+        'Compatível com celular, tablet e computador',
+        'Economize horas de trabalho na criação e diagramação',
+        'Acesso vitalício e download imediato no seu e-mail e WhatsApp',
+        'Materiais prontos para imprimir ou enviar para seus clientes'
+      );
+
+      for (const comp of complements) {
+        if (items.length >= 6) break;
+        if (!items.some((it) => it.toLowerCase() === comp.toLowerCase())) {
+          items.push(comp);
+        }
+      }
     }
-    if (typeof product.benefits === 'string' && product.benefits.trim()) {
-      const parsed = product.benefits.split('\n').map((s) => s.trim()).filter(Boolean);
-      if (parsed.length > 0) return parsed;
-    }
+
+    return items.slice(0, 6);
   }
 
+  // 2. Fallback inteligente baseado em categorias/nichos se nenhuma descrição foi informada
   const name = (product.name || '').toLowerCase();
   const category = (product.category || '').toLowerCase();
   const desc = (product.detailed_description || product.detailedDescription || product.description || '').toLowerCase();
@@ -190,9 +308,9 @@ export interface PlanDetails {
 }
 
 /**
- * Gera automaticamente os detalhes e diferenciais dos planos de acesso
+ * Gera os detalhes e diferenciais dos planos de acesso
  * ("PLANO BÁSICO" vs "PLANO COMPLETO - MAIS POPULAR")
- * com base na categoria e nome do produto.
+ * extraindo as informações diretamente da descrição do produto.
  */
 export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
   const basicPrice = product?.price || 10;
@@ -207,12 +325,63 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
     completePrice = Math.round(basicPrice * 2.2);
   }
 
+  // Itens de fechamento padrão de alta conversão presentes no modelo
+  const standardClosing = [
+    'Todos os bônus exclusivos',
+    'Acesso imediato',
+    'Receba tudo no seu e-mail e WhatsApp',
+  ];
+
+  // 1. TENTA EXTRAIR OS ITENS DIRETAMENTE DA DESCRIÇÃO DO PRODUTO
+  const descFeatures = extractFeaturesFromProductDescription(product);
+
+  if (descFeatures.length >= 1) {
+    const completeFeatures: string[] = [];
+
+    // Adiciona os itens extraídos da descrição (até 7 itens)
+    descFeatures.slice(0, 7).forEach((feat) => {
+      completeFeatures.push(feat);
+    });
+
+    // Garante os itens de fechamento de alta conversão
+    standardClosing.forEach((closing) => {
+      if (!completeFeatures.some((f) => f.toLowerCase() === closing.toLowerCase())) {
+        completeFeatures.push(closing);
+      }
+    });
+
+    // Card 1 (Plano Básico): item principal da descrição + acesso básico
+    const firstItem = descFeatures[0] || `Acesso essencial a ${product?.name || 'Material'}`.trim();
+    const basicFeatures = [
+      firstItem,
+      'Acesso imediato',
+      'Receba no seu e-mail',
+    ];
+
+    return {
+      basic: {
+        name: 'PLANO BÁSICO',
+        price: basicPrice,
+        features: basicFeatures,
+        buttonText: 'Quero o Plano Básico',
+      },
+      complete: {
+        name: 'PLANO COMPLETO',
+        badge: 'MAIS POPULAR',
+        price: completePrice,
+        features: completeFeatures,
+        buttonText: 'Quero o Pacote Completo',
+      },
+    };
+  }
+
+  // 2. CASO NÃO HAJA DESCRIÇÃO DETALHADA CADASTRADA, GERA POR NICHO E NOME DO PRODUTO
   const name = (product?.name || '').toLowerCase();
   const category = (product?.category || '').toLowerCase();
   const desc = (product?.detailed_description || product?.detailedDescription || product?.description || '').toLowerCase();
   const text = `${name} ${category} ${desc}`;
 
-  // 1. Topos de Bolo / Cake Toppers / Shaker / 3D
+  // 1. Topos de Bolo / Cake Toppers / Shaker / 3D (Fiel à imagem de referência)
   if (
     text.includes('topo') ||
     text.includes('cake') ||

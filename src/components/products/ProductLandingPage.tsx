@@ -525,11 +525,8 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             {/* COLUNA DIREITA: Informações do Produto & Oferta de Compra */}
             <div className="lg:col-span-5 space-y-6">
               
-              {/* Categoria / Tags */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-theme-primary">
-                  {product.category || 'Arquivos Digitais & Papelaria'}
-                </span>
+              {/* Título do Produto */}
+              <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight leading-tight">
                   {product.name}
                 </h1>

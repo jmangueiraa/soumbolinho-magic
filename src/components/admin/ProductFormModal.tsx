@@ -1320,8 +1320,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 className="w-full text-xs pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-bold text-slate-900"
               />
             </div>
-            <p className="text-[11px] text-slate-500">
-              💡 Exibido em destaque no card <strong>"PLANO COMPLETO (MAIS POPULAR)"</strong> da seção "Garanta seu acesso hoje". Se deixado em branco, o sistema calculará automaticamente o melhor preço de alta conversão (ex: R$ 25,00 para topos de bolo).
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              💡 Exibido em destaque no card <strong>"PLANO COMPLETO (MAIS POPULAR)"</strong> da seção "Garanta seu acesso hoje". Os itens e recursos listados no card são puxados automaticamente dos <strong>Benefícios</strong> e da <strong>Descrição Detalhada</strong> cadastrados acima, seguidos dos bônus e garantias de acesso imediato.
             </p>
           </div>
 
