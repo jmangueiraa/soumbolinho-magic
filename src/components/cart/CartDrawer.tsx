@@ -111,30 +111,18 @@ export const CartDrawer: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="space-y-2 pt-1">
-              {/* Botão Pix */}
               <button
                 type="button"
                 onClick={() => {
                   closeCart();
-                  window.location.hash = '#/checkout';
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  openCheckout();
                 }}
-                className="w-full py-3.5 px-4 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+                className="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
               >
-                <span>❖ Pagar com Pix (Aprovação Imediata)</span>
-              </button>
-
-              {/* Botão Cartão de Crédito */}
-              <button
-                type="button"
-                onClick={() => {
-                  closeCart();
-                  window.location.hash = '#/checkout/cartao';
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="w-full py-3 px-4 bg-black hover:bg-zinc-800 text-white font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
-              >
-                <span>💳 Pagar com Cartão de Crédito (Até 12x)</span>
+                <span>Finalizar Pedido Seguro</span>
+                <span className="text-[10px] bg-white text-emerald-700 px-2 py-0.5 rounded-full uppercase font-black">
+                  Mercado Pago
+                </span>
               </button>
             </div>
 

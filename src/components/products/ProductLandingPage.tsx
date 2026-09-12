@@ -41,6 +41,7 @@ import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
 import { CartDrawer } from '../cart/CartDrawer';
 import { CheckoutModal } from '../cart/CheckoutModal';
+import { PaymentFeedbackModal } from '../cart/PaymentFeedbackModal';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ScarcityCountdownBanner } from '../common/ScarcityCountdownBanner';
@@ -193,15 +194,9 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       }
     }
 
-    // 2. Fluxo Nativo Transparente: coloca no carrinho e abre o checkout integrado imediato
+    // 2. Fluxo Nativo Unificado: coloca no carrinho e abre o checkout integrado imediato
     addToCart(product, quantity);
     openCheckout();
-    
-    // Navega diretamente para o checkout
-    if (typeof window !== 'undefined') {
-      window.location.hash = '#/checkout';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   const handleAddToCart = () => {
@@ -840,6 +835,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       {/* Overlays e Modais */}
       <CartDrawer />
       <CheckoutModal />
+      <PaymentFeedbackModal />
       <Toast />
       <FloatingWhatsApp />
 

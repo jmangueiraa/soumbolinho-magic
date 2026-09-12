@@ -5,6 +5,8 @@ export interface CreatePreferenceOptions {
   customerInfo?: Partial<OrderCustomerInfo>;
   storeConfig?: Partial<StoreConfig>;
   customAccessToken?: string;
+  orderId?: string;
+  storeId?: string;
 }
 
 export interface PreferenceResponse {
@@ -66,20 +68,88 @@ export const isMercadoPagoConfigured = (storeConfig?: Partial<StoreConfig>): boo
 export async function createMercadoPagoPreference(
   options: CreatePreferenceOptions
 ): Promise<PreferenceResponse> {
-  const { items, storeConfig, customAccessToken } = options;
+  const { items, storeConfig, customAccessToken, customerInfo, orderId, storeId } = options;
   const accessToken = customAccessToken || getMercadoPagoAccessToken(storeConfig);
+  const origin = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
+  const finalOrderId = orderId || `order_${Date.now()}`;
+
+  // 1. Tentar primeiro via Endpoint Serverless (/api/create-preference)
+  try {
+    const serverlessRes = await fetch('/api/create-preference', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items,
+        customer_name: customerInfo?.name || 'Cliente',
+        customer_email: customerInfo?.email || '',
+        customer_phone: customerInfo?.phone || '',
+        order_id: finalOrderId,
+        store_id: storeId || storeConfig?.storeId || '',
+        back_url_origin: origin,
+        access_token: accessToken || undefined,
+      }),
+    });
+
+    if (serverlessRes.ok) {
+      const data = await serverlessRes.json();
+      if (data.success && data.init_point) {
+        console.log('[Mercado Pago Checkout Pro] ✅ Preferência criada via Serverless:', data);
+        return {
+          id: data.id,
+          init_point: data.init_point,
+          sandbox_init_point: data.sandbox_init_point,
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Mercado Pago Checkout Pro] Fallback para chamada direta:', err?.message);
+  }
+
+  // 2. Chamada direta de fallback para api.mercadopago.com/checkout/preferences
+  if (!accessToken) {
+    return {
+      id: '',
+      init_point: '',
+      error: 'Access Token do Mercado Pago não configurado.',
+    };
+  }
+
+  const trimmedName = String(customerInfo?.name || 'Cliente').trim();
+  const nameParts = trimmedName.split(' ');
+  const firstName = nameParts[0] || 'Cliente';
+  const lastName = nameParts.slice(1).join(' ') || 'Comprador';
+  const cleanPhone = String(customerInfo?.phone || '').replace(/\D/g, '');
+  const areaCode = cleanPhone.length >= 10 ? cleanPhone.slice(0, 2) : '11';
+  const phoneNumber = cleanPhone.length >= 10 ? cleanPhone.slice(2) : cleanPhone;
 
   const preferencePayload = {
-    items: items.map((item) => ({
-      title: item.product.name,
-      unit_price: Number(item.product.price.toFixed(2)),
-      quantity: item.quantity,
-      currency_id: 'BRL',
-    })),
+    items: items.map((item) => {
+      const rawPrice = item.product?.price !== undefined ? item.product.price : (item as any).price || 0;
+      const unitPrice = Number(parseFloat(String(rawPrice)).toFixed(2)) || 1.0;
+      return {
+        title: (item.product?.name || 'Produto Digital').slice(0, 250),
+        unit_price: unitPrice,
+        quantity: Math.max(1, item.quantity || 1),
+        currency_id: 'BRL',
+      };
+    }),
+    payer: {
+      name: firstName,
+      surname: lastName,
+      email: customerInfo?.email ? String(customerInfo.email).trim() : 'comprador@soumbolinho.com.br',
+      phone: cleanPhone ? { area_code: areaCode, number: phoneNumber } : undefined,
+    },
+    external_reference: finalOrderId,
+    metadata: {
+      order_id: finalOrderId,
+      customer_name: trimmedName,
+      customer_email: customerInfo?.email,
+      customer_phone: customerInfo?.phone,
+    },
     back_urls: {
-      success: typeof window !== 'undefined' ? `${window.location.origin}/#/finalizar-compra` : '',
-      failure: typeof window !== 'undefined' ? `${window.location.origin}/#/finalizar-compra` : '',
-      pending: typeof window !== 'undefined' ? `${window.location.origin}/#/finalizar-compra` : '',
+      success: `${origin}/finalizar-compra?status=approved&order_id=${encodeURIComponent(finalOrderId)}`,
+      failure: `${origin}/finalizar-compra?status=rejected&order_id=${encodeURIComponent(finalOrderId)}`,
+      pending: `${origin}/finalizar-compra?status=pending&order_id=${encodeURIComponent(finalOrderId)}`,
     },
     auto_return: 'approved',
   };
@@ -95,7 +165,7 @@ export async function createMercadoPagoPreference(
     });
 
     const data = await res.json();
-    if (res.ok) {
+    if (res.ok && data.init_point) {
       return {
         id: data.id,
         init_point: data.init_point,

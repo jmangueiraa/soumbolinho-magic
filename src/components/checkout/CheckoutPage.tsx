@@ -5,33 +5,32 @@ import {
   CreditCard, 
   Tag, 
   Star,
-  Copy,
   Check,
   Loader2,
-  MessageCircle,
-  QrCode,
   ShieldCheck,
   Download,
-  ExternalLink,
+  Lock,
   Mail,
   Phone,
   AlertCircle,
-  X
+  X,
+  Sparkles,
+  Zap,
+  ExternalLink
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/formatters';
-import { buildWhatsAppOrderMessage, createWhatsAppUrl } from '../../utils/whatsapp';
-import { sendOrderConfirmationEmail } from '../../services/emailService';
-import { createOrderInSupabase, updateOrderStatusInSupabase } from '../../services/orderService';
-import { createMercadoPagoPixPayment, isMercadoPagoConfigured, checkMercadoPagoPaymentStatus } from '../../lib/mercadopago';
+import { createOrderInSupabase } from '../../services/orderService';
+import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
 import { notifyTelegram } from '../../services/telegramNotificationService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { CartUpsellCard } from '../cart/CartUpsellCard';
+import { PaymentFeedbackModal } from '../cart/PaymentFeedbackModal';
 import { applyThemeToDocument } from '../../utils/theme';
 
 export const CheckoutPage: React.FC = () => {
@@ -48,14 +47,15 @@ export const CheckoutPage: React.FC = () => {
 
   const [customerInfo, setCustomerInfo] = useState(() => {
     try {
-      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('last_checkout_customer') : null;
+      const saved = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('last_checkout_customer') || localStorage.getItem('last_checkout_customer')
+        : null;
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
           name: parsed.name || '',
           email: parsed.email || '',
           phone: parsed.phone || '',
-          paymentMethod: 'pix' as 'pix' | 'cartao',
         };
       }
     } catch (e) {
@@ -65,16 +65,7 @@ export const CheckoutPage: React.FC = () => {
       name: '',
       email: '',
       phone: '',
-      paymentMethod: 'pix' as 'pix' | 'cartao',
     };
-  });
-
-  const [cardInfo, setCardInfo] = useState({
-    cardNumber: '',
-    cardholderName: '',
-    expirationDate: '',
-    securityCode: '',
-    installments: '1',
   });
 
   const [couponCode, setCouponCode] = useState('');
@@ -86,28 +77,9 @@ export const CheckoutPage: React.FC = () => {
     name?: string; 
     email?: string; 
     phone?: string;
-    cardNumber?: string;
-    cardholderName?: string;
-    expirationDate?: string;
-    securityCode?: string;
   }>({});
   const [mpError, setMpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isPaymentApproved, setIsPaymentApproved] = useState(false);
-
-  // Formata o Número do Cartão com espaços a cada 4 dígitos
-  const formatCardNumber = (val: string) => {
-    const clean = val.replace(/\D/g, '').slice(0, 16);
-    return clean.replace(/(\d{4})(?=\d)/g, '$1 ');
-  };
-
-  // Formata a Validade no padrão MM/AA
-  const formatExpirationDate = (val: string) => {
-    const clean = val.replace(/\D/g, '').slice(0, 4);
-    if (clean.length <= 2) return clean;
-    return `${clean.slice(0, 2)}/${clean.slice(2)}`;
-  };
 
   // Formata o WhatsApp no padrão brasileiro (XX) XXXXX-XXXX
   const formatPhoneNumber = (val: string) => {
@@ -122,7 +94,6 @@ export const CheckoutPage: React.FC = () => {
   // --- LÓGICA DE CAPTURA DE CARRINHO ABANDONADO & TELEGRAM BOT ---
   const isOrderCompletedRef = useRef(false);
   const hasSentAbandonedRef = useRef(false);
-  const hasSentApprovedRef = useRef(false);
   const abandonTimerRef = useRef<any>(null);
   const leadDataRef = useRef({
     name: customerInfo.name,
@@ -213,143 +184,16 @@ export const CheckoutPage: React.FC = () => {
     };
   }, []);
 
-  // Alterna o método de pagamento e navega para a página dedicada se for cartão
-  const handleSelectPaymentMethod = (method: 'pix' | 'cartao') => {
-    if (method === 'cartao') {
-      window.location.hash = '/checkout/cartao';
-      return;
-    }
-    setCustomerInfo({ ...customerInfo, paymentMethod: 'pix' });
-    setOrderReceived(null);
-    setMpError(null);
-    setIsPaymentApproved(false);
-    setFormErrors({});
-  };
-
-  // Limpa o estado e retorna para o início
-  const handleFinishAndExit = () => {
-    clearCart();
-    setOrderReceived(null);
-    setIsPaymentApproved(false);
-    window.location.hash = '#/';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Estado da tela de Pedido Recebido na Mesma Página (Order Received)
-  const [orderReceived, setOrderReceived] = useState<{
-    orderId: string;
-    orderDate: string;
-    totalAmount: number;
-    paymentMethod: string;
-    customerName: string;
-    customerEmail: string;
-    customerPhone: string;
-    items: typeof items;
-    pixCode: string;
-    qrCodeUrl: string;
-  } | null>(null);
-
-  // Polling automático a cada 4s para detectar confirmação do Pix
-  React.useEffect(() => {
-    if (!orderReceived?.orderId || isPaymentApproved) return;
-
-    const paymentId = String(orderReceived.orderId).trim();
-    if (!/^\d+$/.test(paymentId)) {
-      console.warn(`[Pix Polling] ⚠️ ID #${paymentId} não numérico, ignorando polling.`);
-      return;
-    }
-
-    console.log(`[Pix Polling] ⏳ Iniciando verificação automática a cada 4s para o pagamento #${paymentId}...`);
-
-    const intervalId = setInterval(async () => {
-      try {
-        console.log(`[Pix Polling] 🔍 Consultando /api/check-payment?id=${paymentId}...`);
-        const result = await checkMercadoPagoPaymentStatus(paymentId, storeConfig);
-        console.log(`[Pix Polling] 📡 Retorno para #${paymentId}:`, result);
-
-        if (result.success && result.status === 'approved') {
-          console.log(`[Pix Polling] 🎉 Pagamento #${paymentId} APROVADO COM SUCESSO!`);
-          clearInterval(intervalId);
-          setIsPaymentApproved(true);
-          isOrderCompletedRef.current = true;
-
-          // 1. Atualizar status na tabela 'orders' do Supabase
-          console.log(`[Pix Polling] 📝 Atualizando pedido no Supabase para status = 'approved'...`);
-          await updateOrderStatusInSupabase(paymentId, 'approved');
-
-          // 2. Disparar e-mail de entrega com o link do produto via /api/send-delivery-email
-          console.log(`[Pix Polling] ✉️ Disparando e-mail de entrega via /api/send-delivery-email...`);
-          await sendOrderConfirmationEmail({
-            customerName: orderReceived.customerName,
-            customerEmail: orderReceived.customerEmail,
-            orderId: paymentId,
-            orderDate: orderReceived.orderDate,
-            items: orderReceived.items,
-            totalAmount: orderReceived.totalAmount,
-            storeConfig,
-          });
-          console.log(`[Pix Polling] ✅ E-mail de entrega enviado com sucesso!`);
-
-          // 3. Disparar notificação de Pagamento Aprovado no Telegram
-          if (!hasSentApprovedRef.current) {
-            hasSentApprovedRef.current = true;
-            await notifyTelegram({
-              action_type: 'payment_approved',
-              customer_name: orderReceived.customerName,
-              customer_email: orderReceived.customerEmail,
-              customer_phone: orderReceived.customerPhone,
-              items: orderReceived.items,
-              total_amount: orderReceived.totalAmount,
-              order_id: paymentId,
-              payment_method: 'Pix',
-              telegram_bot_token: storeConfig.telegramBotToken,
-              telegram_chat_id: storeConfig.telegramChatId,
-            });
-          }
-        } else if (result.success && (result.status === 'rejected' || result.status === 'cancelled')) {
-          console.log(`[Pix Polling] ❌ Pagamento #${paymentId} REPROVADO OU CANCELADO!`);
-          clearInterval(intervalId);
-          await updateOrderStatusInSupabase(paymentId, 'rejected');
-
-          await notifyTelegram({
-            action_type: 'payment_rejected',
-            customer_name: orderReceived.customerName,
-            customer_email: orderReceived.customerEmail,
-            customer_phone: orderReceived.customerPhone,
-            items: orderReceived.items,
-            total_amount: orderReceived.totalAmount,
-            order_id: paymentId,
-            payment_method: 'Pix',
-            error_message: result.statusDetail || `Pagamento Pix ${result.status === 'rejected' ? 'rejeitado' : 'cancelado'} pelo gateway.`,
-            telegram_bot_token: storeConfig.telegramBotToken,
-            telegram_chat_id: storeConfig.telegramChatId,
-          });
-        }
-      } catch (err) {
-        console.warn('[Pix Polling] ❌ Erro ao consultar status:', err);
-      }
-    }, 4000);
-
-    return () => {
-      console.log(`[Pix Polling] 🛑 Encerrando polling para #${paymentId}`);
-      clearInterval(intervalId);
-    };
-  }, [orderReceived, isPaymentApproved, storeConfig]);
-
-  const hasMercadoPago = isMercadoPagoConfigured(storeConfig);
   const finalTotal = Math.max(0, totalPrice - discount);
 
   const validateForm = () => {
     const errors: { 
       name?: string; 
       email?: string; 
-      cardNumber?: string;
-      cardholderName?: string;
-      expirationDate?: string;
-      securityCode?: string;
+      phone?: string;
     } = {};
 
-    if (!customerInfo.name.trim()) errors.name = 'Informe o seu nome.';
+    if (!customerInfo.name.trim()) errors.name = 'Informe o seu nome completo.';
 
     const cleanPhone = (customerInfo.phone || '').replace(/\D/g, '');
     if (!cleanPhone) {
@@ -360,32 +204,9 @@ export const CheckoutPage: React.FC = () => {
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!customerInfo.email.trim()) {
-      errors.email = 'Informe o seu e-mail para recebimento do link.';
+      errors.email = 'Informe o seu e-mail para recebimento dos arquivos.';
     } else if (!emailRegex.test(customerInfo.email.trim())) {
-      errors.email = 'Informe um e-mail válido.';
-    }
-
-    if (customerInfo.paymentMethod === 'cartao') {
-      const cleanCard = cardInfo.cardNumber.replace(/\D/g, '');
-      if (!cleanCard) {
-        errors.cardNumber = 'Informe o número do cartão.';
-      } else if (cleanCard.length < 13 || cleanCard.length > 19) {
-        errors.cardNumber = 'Número de cartão inválido.';
-      }
-
-      if (!cardInfo.cardholderName.trim()) {
-        errors.cardholderName = 'Informe o nome impresso no cartão.';
-      }
-
-      const cleanExp = cardInfo.expirationDate.replace(/\D/g, '');
-      if (!cleanExp || cleanExp.length !== 4) {
-        errors.expirationDate = 'Informe a validade (MM/AA).';
-      }
-
-      const cleanCvv = cardInfo.securityCode.replace(/\D/g, '');
-      if (!cleanCvv || cleanCvv.length < 3) {
-        errors.securityCode = 'Informe o CVV (3 ou 4 dígitos).';
-      }
+      errors.email = 'Informe um e-mail válido (ex: seuemail@exemplo.com).';
     }
 
     setFormErrors(errors);
@@ -405,518 +226,151 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  // FLUXO PRINCIPAL: Mercado Pago Checkout Pro Único
   const handleFinalizeOrder = async () => {
     if (!validateForm()) return;
+    if (items.length === 0) return;
 
     setIsLoading(true);
     setMpError(null);
 
-    const generatedOrderId = String(Math.floor(700 + Math.random() * 200));
-    const currentDate = new Date().toLocaleDateString('pt-BR');
+    const generatedOrderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const cleanName = customerInfo.name.trim();
+    const cleanEmail = customerInfo.email.trim();
+    const cleanPhone = customerInfo.phone.trim();
+    const targetStoreId = currentStore?.id || 'suamarcaaqui';
 
-    // FLUXO 1: CARTÃO DE CRÉDITO
-    if (customerInfo.paymentMethod === 'cartao') {
-      const orderData = {
+    try {
+      // 1. Salvar dados na sessionStorage e localStorage para recuperação no retorno
+      const leadData = {
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
         orderId: generatedOrderId,
-        orderDate: currentDate,
-        totalAmount: finalTotal,
-        paymentMethod: 'Cartão de crédito',
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        items: [...items],
-        pixCode: '',
-        qrCodeUrl: '',
       };
+      sessionStorage.setItem('last_checkout_customer', JSON.stringify(leadData));
+      localStorage.setItem('last_checkout_customer', JSON.stringify(leadData));
+      sessionStorage.setItem('last_order_id', generatedOrderId);
+      sessionStorage.setItem('last_checkout_items', JSON.stringify(items));
+      localStorage.setItem('last_checkout_items', JSON.stringify(items));
+      sessionStorage.setItem('last_checkout_total', String(finalTotal));
 
-      try {
-        sessionStorage.setItem('last_checkout_customer', JSON.stringify({
-          name: customerInfo.name,
-          email: customerInfo.email,
-          phone: customerInfo.phone
-        }));
-      } catch (e) {
-        console.warn(e);
-      }
-
+      // Marca como finalizado para não reenviar notificação de abandono ao mudar de aba
       isOrderCompletedRef.current = true;
 
-      // 1. Salvar no Supabase como aprovado
+      // 2. Salvar obrigatoriamente o pedido no Supabase com status 'pending'
+      console.log('[CheckoutPage] 💾 Registrando lead e pedido pendente no Supabase...', generatedOrderId);
       await createOrderInSupabase({
-        store_id: currentStore?.id || 'suamarcaaqui',
+        store_id: targetStoreId,
         orderId: generatedOrderId,
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        customerPhone: customerInfo.phone,
+        customerName: cleanName,
+        customerEmail: cleanEmail,
+        customerPhone: cleanPhone,
         items: [...items],
         totalAmount: finalTotal,
         paymentId: generatedOrderId,
-        status: 'approved',
+        status: 'pending',
       });
 
-      // 2. Disparar e-mail com os links de entrega
-      await sendOrderConfirmationEmail({
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        orderId: generatedOrderId,
-        orderDate: currentDate,
-        items: [...items],
-        totalAmount: finalTotal,
-        storeConfig,
-      });
-
-      // 3. Disparar notificação de Pagamento Aprovado no Telegram
-      if (!hasSentApprovedRef.current) {
-        hasSentApprovedRef.current = true;
-        await notifyTelegram({
-          action_type: 'payment_approved',
-          customer_name: customerInfo.name,
-          customer_email: customerInfo.email,
-          customer_phone: customerInfo.phone,
-          items: [...items],
-          total_amount: finalTotal,
-          order_id: generatedOrderId,
-          payment_method: 'Cartão de crédito',
-          telegram_bot_token: storeConfig.telegramBotToken,
-          telegram_chat_id: storeConfig.telegramChatId,
-        });
-      }
-
-      setIsPaymentApproved(true);
-      setOrderReceived(orderData);
-      clearCart();
-      setIsLoading(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    // FLUXO 2: PIX
-    const pixKey = storeConfig.whatsappNumber || '21974975884';
-    let finalPixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${finalTotal.toFixed(2)}5802BR5911SOUMBOLINHO6009RIO DE JANEIRO62070503***6304`;
-    let finalQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(finalPixCode)}&bgcolor=ffffff&color=008080&margin=1`;
-    let finalPaymentId = generatedOrderId;
-
-    try {
-      const pixResponse = await createMercadoPagoPixPayment({
-        amount: finalTotal,
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        description: 'Pedido Soumbolinho',
-        storeConfig,
-      });
-
-      if (pixResponse.success && pixResponse.qrCode) {
-        finalPixCode = pixResponse.qrCode;
-        finalQrUrl = pixResponse.qrCodeImage || (pixResponse.qrCodeBase64
-          ? `data:image/png;base64,${pixResponse.qrCodeBase64}`
-          : `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pixResponse.qrCode)}&bgcolor=ffffff&color=008080&margin=1`);
-        if (pixResponse.paymentId) {
-          finalPaymentId = String(pixResponse.paymentId);
-          console.log('[CheckoutPage] ✅ Payment ID real retornado pelo Mercado Pago:', finalPaymentId);
-        }
-      } else {
-        throw new Error('A API do Mercado Pago não retornou o código Pix.');
-      }
-    } catch (mpErr: any) {
-      console.error('[CheckoutPage] ❌ Erro detalhado do Mercado Pago Pix:', mpErr);
-      setMpError(mpErr.message || 'Erro ao comunicar com o Mercado Pago.');
-      setIsLoading(false);
-
-      // Notificar Pagamento Reprovado / Falha no Gateway no Telegram
+      // 3. Notificar Telegram com os dados capturados
+      console.log('[CheckoutPage] 🚨 Notificando lead capturado no Telegram...');
       await notifyTelegram({
-        action_type: 'payment_rejected',
-        customer_name: customerInfo.name,
-        customer_email: customerInfo.email,
-        customer_phone: customerInfo.phone,
+        action_type: 'abandoned_cart',
+        customer_name: cleanName,
+        customer_phone: cleanPhone,
+        customer_email: cleanEmail,
         items: [...items],
         total_amount: finalTotal,
-        order_id: generatedOrderId,
-        payment_method: 'Pix',
-        error_message: mpErr.message || 'Erro ao comunicar com o Mercado Pago Pix.',
         telegram_bot_token: storeConfig.telegramBotToken,
         telegram_chat_id: storeConfig.telegramChatId,
       });
-      return;
+
+      // 4. Criar preferência do Mercado Pago Checkout Pro
+      console.log('[CheckoutPage] 🚀 Criando preferência Checkout Pro no Mercado Pago...');
+      const pref = await createMercadoPagoPreference({
+        items,
+        customerInfo: {
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+        },
+        orderId: generatedOrderId,
+        storeId: targetStoreId,
+        storeConfig,
+      });
+
+      if (pref.error || !pref.init_point) {
+        throw new Error(pref.error || 'Não foi possível gerar o link de pagamento do Mercado Pago.');
+      }
+
+      console.log('[CheckoutPage] ➡️ Redirecionando para Checkout Pro:', pref.init_point);
+      // Redirecionamento direto para a tela de pagamento do Mercado Pago
+      window.location.href = pref.init_point;
+    } catch (err: any) {
+      console.error('[CheckoutPage] ❌ Erro ao processar checkout:', err);
+      setMpError(err.message || 'Ocorreu um erro ao conectar com o Mercado Pago. Tente novamente.');
+      setIsLoading(false);
+      isOrderCompletedRef.current = false;
     }
-
-    const orderData = {
-      orderId: finalPaymentId,
-      orderDate: currentDate,
-      totalAmount: finalTotal,
-      paymentMethod: 'Pix',
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      items: [...items],
-      pixCode: finalPixCode,
-      qrCodeUrl: finalQrUrl,
-    };
-
-    try {
-      sessionStorage.setItem('last_checkout_customer', JSON.stringify({
-        name: customerInfo.name,
-        email: customerInfo.email,
-        phone: customerInfo.phone
-      }));
-    } catch (e) {
-      console.warn(e);
-    }
-
-    isOrderCompletedRef.current = true;
-
-    // Salvar pedido no Supabase
-    await createOrderInSupabase({
-      store_id: currentStore?.id || 'suamarcaaqui',
-      orderId: finalPaymentId,
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      items: [...items],
-      totalAmount: finalTotal,
-      paymentId: finalPaymentId,
-      status: 'pending',
-    });
-
-    // Manter na mesma página exibindo o Pix
-    setOrderReceived(orderData);
-    clearCart();
-    setIsLoading(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCopyPix = () => {
-    if (!orderReceived) return;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(orderReceived.pixCode);
-    } else {
-      const textarea = document.createElement('textarea');
-      textarea.value = orderReceived.pixCode;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-    }
-
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
-  };
-
-  const handleNotifyWhatsApp = () => {
-    if (!orderReceived) return;
-
-    const orderMessage = buildWhatsAppOrderMessage(
-      orderReceived.items,
-      {
-        name: orderReceived.customerName,
-        email: orderReceived.customerEmail,
-        paymentMethod: 'pix',
-        deliveryType: 'retirada',
-      },
-      orderReceived.totalAmount,
-      storeConfig
-    );
-
-    const whatsappUrl = createWhatsAppUrl(storeConfig.whatsappNumber, orderMessage);
-    window.open(whatsappUrl, '_blank');
-  };
+  // Verifica se há status de pagamento na URL (retorno do Mercado Pago)
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const hashQuery = typeof window !== 'undefined' && window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+  const hashParams = new URLSearchParams(hashQuery);
+  const hasPaymentReturn = Boolean(
+    searchParams?.get('status') ||
+    searchParams?.get('payment_status') ||
+    searchParams?.get('collection_status') ||
+    hashParams.get('status') ||
+    hashParams.get('payment_status')
+  );
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-slate-800">
+    <div className="min-h-screen flex flex-col bg-[#FFFBFD] text-slate-800">
       
       {/* 1. Header Oficial */}
       <Header />
 
       {/* 2. Conteúdo da Página de Finalização de Compra */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
         
-        {/* Título Principal com Linha Pontilhada */}
-        <div className="space-y-4">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-            Finalização de Compra
-          </h1>
+        {/* Título Principal com Badge de Segurança */}
+        <div className="space-y-3 text-center sm:text-left">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold mb-2">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Ambiente Seguro • Checkout Criptografado</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-festive">
+                Finalização de Compra
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                Preencha seus dados para receber o link de download imediato dos seus arquivos.
+              </p>
+            </div>
+
+            <a
+              href="#/"
+              className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Continuar comprando</span>
+            </a>
+          </div>
           
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center pt-2">
             <div className="w-full border-t border-dotted border-slate-300" />
-            <div className="absolute bg-white px-3 text-slate-400">
+            <div className="absolute bg-[#FFFBFD] px-3 text-slate-400">
               <Star className="w-4 h-4 fill-slate-100 text-slate-400" />
             </div>
           </div>
         </div>
 
-        {/* TELA 1: PEDIDO RECEBIDO NA MESMA PÁGINA (PAGAMENTO COM PIX) */}
-        {orderReceived ? (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            
-            {/* Mensagem e Barra de Dados do Pedido */}
-            <div className="space-y-4">
-              <p className="text-xs sm:text-sm text-slate-700 font-medium">
-                {isPaymentApproved ? '🎉 Parabéns! Seu pagamento foi confirmado com sucesso.' : 'Obrigado. Seu pedido foi recebido.'}
-              </p>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 sm:p-5 bg-slate-50/90 rounded-2xl border border-slate-200 text-xs">
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                    NÚMERO DO PEDIDO:
-                  </span>
-                  <span className="font-extrabold text-slate-900 text-sm">
-                    {orderReceived.orderId}
-                  </span>
-                </div>
-
-                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                    DATA:
-                  </span>
-                  <span className="font-extrabold text-slate-900 text-sm">
-                    {orderReceived.orderDate}
-                  </span>
-                </div>
-
-                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                    TOTAL:
-                  </span>
-                  <span className="font-extrabold text-slate-900 text-sm">
-                    {formatCurrency(orderReceived.totalAmount)}
-                  </span>
-                </div>
-
-                <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-4">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                    STATUS:
-                  </span>
-                  <span className={`font-extrabold text-sm flex items-center gap-1 ${isPaymentApproved ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {isPaymentApproved ? '✓ Pago / Aprovado' : 'Aguardando Pix'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* SE O PAGAMENTO ESTIVER APROVADO: MOSTRA SUCESSO E DOWNLOADS */}
-            {isPaymentApproved || orderReceived.paymentMethod === 'Cartão de crédito' ? (
-              <div className="relative bg-gradient-to-b from-emerald-500/10 via-emerald-50/50 to-white p-6 sm:p-8 rounded-3xl border-2 border-emerald-500 shadow-lg space-y-6 text-center animate-in zoom-in-95 duration-300">
-                
-                {/* Botão Fechar 'X' no Canto Superior Direito */}
-                <button
-                  type="button"
-                  onClick={handleFinishAndExit}
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
-                  title="Fechar e Voltar ao Início"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-
-                <div className="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md animate-bounce">
-                  <Check className="w-9 h-9 stroke-[3]" />
-                </div>
-
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    Pagamento Aprovado com Sucesso!
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-lg mx-auto leading-relaxed">
-                    {orderReceived.paymentMethod === 'Cartão de crédito'
-                      ? `Seu pagamento com Cartão de Crédito foi aprovado. Os links de download foram liberados abaixo e enviados para ${orderReceived.customerEmail}.`
-                      : `Identificamos o seu pagamento Pix no Mercado Pago. O link de download também foi enviado para ${orderReceived.customerEmail}.`}
-                  </p>
-                </div>
-
-                {/* Card de Downloads com Botão Verde */}
-                <div className="space-y-3 pt-2 text-left max-w-2xl mx-auto">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Download className="w-4 h-4 text-emerald-600" />
-                    <span>Seus Arquivos para Download:</span>
-                  </h3>
-
-                  <div className="space-y-2">
-                    {orderReceived.items.map((item) => {
-                      const downloadUrl = item.product.delivery_url || item.product.deliveryUrl || item.product.imageUrl || '#';
-                      return (
-                        <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white rounded-2xl border border-emerald-200 shadow-sm gap-3">
-                          <div>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 block">{item.product.name}</span>
-                            <span className="text-[10px] text-emerald-700 font-semibold">✓ Acesso vitalício imediato</span>
-                          </div>
-
-                          <a
-                            href={downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-5 py-3.5 bg-[#00a8e8] hover:bg-[#0096c7] text-white text-xs sm:text-sm font-extrabold rounded-xl flex items-center gap-2 shadow-lg shadow-turquesa-500/25 transition-all active:scale-95 shrink-0 cursor-pointer"
-                          >
-                            <Download className="w-4 h-4 stroke-[2.5]" />
-                            <span>Baixar Arquivo Agora</span>
-                          </a>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Botão Inferior: Fechar e Voltar ao Início */}
-                <div className="pt-4 border-t border-emerald-200/60 max-w-md mx-auto">
-                  <button
-                    type="button"
-                    onClick={handleFinishAndExit}
-                    className="w-full py-3.5 px-6 bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>Fechar e Voltar ao Início</span>
-                  </button>
-                </div>
-
-              </div>
-            ) : (
-              /* SE O PAGAMENTO AINDA NÃO FOI APROVADO E FOR PIX: MOSTRA QR CODE E POLLING */
-              <>
-                {/* Banner de Polling Ativo */}
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center flex items-center justify-center gap-2 text-xs text-amber-800 animate-pulse">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                  <span className="font-semibold">Aguardando pagamento... A tela atualizará automaticamente assim que você pagar no app do banco.</span>
-                </div>
-
-                {/* Título de Pagamento Pix */}
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Agora é só pagar com o Pix para finalizar sua compra
-                </h2>
-
-                {/* Card Principal do Pix em 2 Colunas */}
-                <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  
-                  {/* Coluna Esquerda: Instruções Pix */}
-                  <div className="lg:col-span-6 space-y-6">
-                    
-                    {/* Logo Pix Banco Central */}
-                    <div className="flex items-center gap-2.5">
-                      <svg className="w-10 h-10 text-[#32BCAD]" viewBox="0 0 512 512" fill="currentColor">
-                        <path d="M112.5 131.3L234.7 9.1c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5L277.2 296c-11.7 11.7-30.8 11.7-42.5 0L112.5 173.8c-11.7-11.7-11.7-30.8 0-42.5zM399.5 380.7L277.3 502.9c-11.7 11.7-30.8 11.7-42.5 0L112.5 380.7c-11.7-11.7-11.7-30.8 0-42.5L234.8 216c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5z"/>
-                      </svg>
-                      <div>
-                        <span className="text-2xl font-black tracking-tight text-slate-800 leading-none block">pix</span>
-                        <span className="text-[10px] text-slate-400 font-medium">powered by Banco Central</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-bold text-slate-900">
-                        Como pagar com Pix:
-                      </h3>
-
-                      <ol className="space-y-3 text-xs text-slate-600">
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                            1
-                          </span>
-                          <span className="pt-0.5">Acesse o app ou site do seu banco</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                            2
-                          </span>
-                          <span className="pt-0.5">Busque a opção de pagar com Pix</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                            3
-                          </span>
-                          <span className="pt-0.5">Leia o QR code ou código Pix</span>
-                        </li>
-                        <li className="flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-[11px]">
-                            4
-                          </span>
-                          <span className="pt-0.5">Pronto! Você verá a confirmação do pagamento</span>
-                        </li>
-                      </ol>
-                    </div>
-
-                  </div>
-
-                  {/* Coluna Direita: QR Code e Código Copia e Cola */}
-                  <div className="lg:col-span-6 space-y-4 text-center lg:text-left">
-                    
-                    <div>
-                      <span className="text-xs text-slate-500">Valor a pagar:</span>
-                      <span className="text-lg font-black text-slate-900 ml-1">
-                        {formatCurrency(orderReceived.totalAmount)}
-                      </span>
-                    </div>
-
-                    <div className="text-xs font-bold text-slate-800">
-                      Escaneie o QR code:
-                    </div>
-
-                    {/* QR Code */}
-                    <div className="flex flex-col items-center lg:items-start justify-center">
-                      <div className="p-2.5 bg-white rounded-2xl border border-slate-200 shadow-xs inline-block">
-                        <img
-                          src={orderReceived.qrCodeUrl}
-                          alt="QR Code Pix"
-                          className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
-                        />
-                      </div>
-                      <span className="text-[11px] text-slate-400 mt-2">
-                        Código válido por 30 minutos
-                      </span>
-                    </div>
-
-                    {/* Código Copia e Cola */}
-                    <div className="space-y-2 pt-2 text-left">
-                      <p className="text-[11px] text-slate-500">
-                        Se preferir, você pode pagar copiando e colando o seguinte código:
-                      </p>
-
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          readOnly
-                          value={orderReceived.pixCode}
-                          className="flex-1 text-xs font-mono px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 outline-none select-all truncate"
-                        />
-
-                        <button
-                          type="button"
-                          onClick={handleCopyPix}
-                          className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 ${
-                            copied
-                              ? 'bg-theme-primary text-white'
-                              : 'bg-[#00a8e8] hover:bg-[#0096c7] text-white active:scale-95'
-                          }`}
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              <span>Copiado!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              <span>Copiar código Pix</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                  </div>
-
-                </div>
-              </>
-            )}
-
-            {/* Link para voltar ao início */}
-            <div className="text-center pt-4">
-              <a
-                href="#/"
-                className="text-xs font-semibold text-slate-500 hover:text-slate-900 underline"
-              >
-                Voltar à página inicial do catálogo
-              </a>
-            </div>
-
-          </div>
-        ) : items.length === 0 ? (
+        {items.length === 0 && !hasPaymentReturn ? (
           /* Carrinho Vazio */
-          <div className="bg-slate-50 rounded-3xl p-12 text-center border border-slate-200 space-y-4 max-w-md mx-auto">
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-4 max-w-md mx-auto animate-in fade-in">
             <div className="w-16 h-16 rounded-full bg-theme-light text-theme-primary flex items-center justify-center mx-auto">
               <ShoppingBag className="w-8 h-8" />
             </div>
@@ -926,42 +380,55 @@ export const CheckoutPage: React.FC = () => {
             </p>
             <a
               href="#/"
-              className="inline-block px-6 py-3 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-full transition-all"
+              className="inline-block px-6 py-3 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-full transition-all cursor-pointer shadow-md"
             >
-              Ver Catálogo de Produtos
+              Explorar Catálogo de Arquivos
             </a>
           </div>
         ) : (
-          /* TELA 2: FORMULÁRIO DE CHECKOUT EM 2 COLUNAS */
+          /* FORMULÁRIO DE CHECKOUT UNIFICADO EM 2 COLUNAS */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Coluna Esquerda: Dados do Contato */}
+            {/* Coluna Esquerda: Dados Obrigatórios de Contato & Entrega */}
             <div className="lg:col-span-6 space-y-6">
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-5">
-                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                  Dados do Contato
-                </h3>
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-full bg-theme-primary text-white text-xs font-black flex items-center justify-center">
+                      1
+                    </span>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                      Dados para Envio & Contato
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Obrigatório
+                  </span>
+                </div>
 
                 <div className="space-y-4">
-                  {/* Nome * */}
+                  {/* Nome Completo */}
                   <div>
                     <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                      Nome <span className="text-rose-600">*</span>
+                      Nome Completo <span className="text-rose-600">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={customerInfo.name}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                      placeholder="Nome"
-                      className="w-full text-xs sm:text-sm px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all placeholder:text-slate-400"
+                      onChange={(e) => {
+                        setCustomerInfo({ ...customerInfo, name: e.target.value });
+                        if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                      }}
+                      placeholder="Ex: Maria da Silva"
+                      className="w-full text-xs sm:text-sm px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 transition-all placeholder:text-slate-400"
                     />
                     {formErrors.name && (
                       <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.name}</span>
                     )}
                   </div>
 
-                  {/* WhatsApp com DDD * */}
+                  {/* WhatsApp com DDD */}
                   <div>
                     <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
                       <span>
@@ -975,9 +442,12 @@ export const CheckoutPage: React.FC = () => {
                         type="tel"
                         required
                         value={customerInfo.phone}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, phone: formatPhoneNumber(e.target.value) })}
+                        onChange={(e) => {
+                          setCustomerInfo({ ...customerInfo, phone: formatPhoneNumber(e.target.value) });
+                          if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined });
+                        }}
                         placeholder="(21) 99999-9999"
-                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all placeholder:text-slate-400 font-medium text-slate-800"
+                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 transition-all placeholder:text-slate-400 font-medium text-slate-800"
                       />
                     </div>
                     {formErrors.phone && (
@@ -985,43 +455,68 @@ export const CheckoutPage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* E-mail para recebimento do link * */}
+                  {/* E-mail para recebimento do link */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                      E-mail para recebimento do link <span className="text-rose-600">*</span>
+                    <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                      <span>
+                        E-mail para Acesso aos Arquivos <span className="text-rose-600">*</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Link enviado na hora</span>
                     </label>
-                    <input
-                      type="email"
-                      required
-                      value={customerInfo.email}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
-                      placeholder="Email Address"
-                      className="w-full text-xs sm:text-sm px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all placeholder:text-slate-400"
-                    />
+                    <div className="relative flex items-center">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                      <input
+                        type="email"
+                        required
+                        value={customerInfo.email}
+                        onChange={(e) => {
+                          setCustomerInfo({ ...customerInfo, email: e.target.value });
+                          if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                        }}
+                        placeholder="seuemail@exemplo.com"
+                        className="w-full text-xs sm:text-sm pl-10 pr-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 transition-all placeholder:text-slate-400"
+                      />
+                    </div>
                     {formErrors.email && (
                       <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.email}</span>
                     )}
                   </div>
                 </div>
+
+                {/* Box de Confiança e Segurança */}
+                <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-emerald-950">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Entrega Digital 100% Automática</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 leading-relaxed">
+                    Assim que o pagamento for aprovado pelo Mercado Pago, os arquivos serão liberados imediatamente na sua tela e uma cópia será enviada ao seu e-mail.
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Coluna Direita: Resumo do Pedido, Cupom e Pagamento */}
+            {/* Coluna Direita: Resumo do Pedido, Cupom e Mercado Pago Checkout Pro */}
             <div className="lg:col-span-6 space-y-5">
               
-              {/* Card 1: Pedido */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                  Pedido
-                </h3>
+              {/* Card 1: Resumo do Pedido */}
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center">
+                      2
+                    </span>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                      Resumo dos Produtos
+                    </h3>
+                  </div>
+                  <span className="text-xs text-slate-500 font-semibold">
+                    {items.reduce((acc, it) => acc + it.quantity, 0)} {items.length === 1 ? 'item' : 'itens'}
+                  </span>
+                </div>
 
                 {/* Tabela de Produtos */}
                 <div className="divide-y divide-slate-100 text-xs sm:text-sm">
-                  <div className="flex justify-between py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    <span>Produto</span>
-                    <span>Subtotal</span>
-                  </div>
-
                   {items.map((item) => {
                     const unitPrice = item.customPrice !== undefined ? item.customPrice : item.product.price;
                     return (
@@ -1032,7 +527,7 @@ export const CheckoutPage: React.FC = () => {
                             <span className="text-slate-400 text-xs">× {item.quantity}</span>
                             {item.isUpsell && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-black bg-theme-light text-theme-primary border border-theme-primary/30 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                                ⚡ Compre Junto
+                                ⚡ Oferta Especial
                               </span>
                             )}
                           </div>
@@ -1062,10 +557,10 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Total */}
-                  <div className="flex justify-between pt-3 text-base font-extrabold text-slate-900">
-                    <span>Total</span>
-                    <span className="text-lg font-black text-slate-900">{formatCurrency(finalTotal)}</span>
+                  {/* Total Final */}
+                  <div className="flex justify-between pt-3 text-base font-extrabold text-slate-900 border-t border-slate-200">
+                    <span>Total a Pagar</span>
+                    <span className="text-xl font-black text-theme-primary">{formatCurrency(finalTotal)}</span>
                   </div>
                 </div>
               </div>
@@ -1081,8 +576,8 @@ export const CheckoutPage: React.FC = () => {
                     onClick={() => setIsCouponOpen(true)}
                     className="text-xs text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span>Você tem um cupom?</span>
-                    <span className="text-emerald-600 font-bold hover:underline">Coloque o código</span>
+                    <span>Possui um cupom de desconto?</span>
+                    <span className="text-theme-primary font-bold hover:underline">Inserir código</span>
                   </button>
                 ) : (
                   <form onSubmit={handleApplyCoupon} className="flex gap-2">
@@ -1090,8 +585,8 @@ export const CheckoutPage: React.FC = () => {
                       type="text"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Código do cupom"
-                      className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-1 focus:ring-emerald-500 uppercase"
+                      placeholder="CUPOM"
+                      className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary/20 uppercase"
                     />
                     <button
                       type="submit"
@@ -1103,117 +598,92 @@ export const CheckoutPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Card 3: Formas de Pagamento */}
-              <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                  Formas de Pagamento
-                </h3>
-
-                {/* Opção Pix */}
-                <div className="space-y-3">
-                  <label 
-                    onClick={() => handleSelectPaymentMethod('pix')}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
-                      customerInfo.paymentMethod === 'pix' 
-                        ? 'border-theme-primary bg-theme-light/40 shadow-xs' 
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={customerInfo.paymentMethod === 'pix'}
-                        onChange={() => handleSelectPaymentMethod('pix')}
-                        className="w-4 h-4 text-theme-primary focus:ring-theme-primary accent-theme-primary"
-                      />
-                      <span className="text-xs sm:text-sm font-bold text-slate-900">Pix</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-theme-light text-theme-primary">
-                        Aprovação Imediata
-                      </span>
-                      <span className="text-theme-primary font-extrabold text-sm">❖</span>
-                    </div>
-                  </label>
-
-                  {/* Card Informativo Pix do Banco Central (SOMENTE NO PIX) */}
-                  {customerInfo.paymentMethod === 'pix' && (
-                    <div className="bg-slate-50/90 p-5 rounded-2xl border border-slate-200 text-center space-y-3 animate-in fade-in duration-200">
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-8 h-8 text-[#32BCAD]" viewBox="0 0 512 512" fill="currentColor">
-                            <path d="M112.5 131.3L234.7 9.1c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5L277.2 296c-11.7 11.7-30.8 11.7-42.5 0L112.5 173.8c-11.7-11.7-11.7-30.8 0-42.5zM399.5 380.7L277.3 502.9c-11.7 11.7-30.8 11.7-42.5 0L112.5 380.7c-11.7-11.7-11.7-30.8 0-42.5L234.8 216c11.7-11.7 30.8-11.7 42.5 0l122.2 122.2c11.7 11.7 11.7 30.8 0 42.5z"/>
-                          </svg>
-                          <span className="text-2xl font-black tracking-tight text-slate-800">pix</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-medium">powered by Banco Central</span>
-                      </div>
-
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-800">
-                        Pague de forma segura e instantânea
-                      </h4>
-
-                      <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
-                        Ao confirmar a compra, nós vamos te mostrar o código para fazer o pagamento.
-                      </p>
-
-                      <p className="text-[10px] text-slate-400 pt-1">
-                        Ao continuar, você concorda com nossos <span className="text-theme-primary font-semibold cursor-pointer hover:underline">Termos e condições</span>
-                      </p>
-                    </div>
-                  )}
+              {/* Card 3: Pagamento Seguro Mercado Pago Checkout Pro Único */}
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border-2 border-theme-primary/30 shadow-sm space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-[#009ee3] text-white text-xs font-black flex items-center justify-center">
+                      3
+                    </span>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                      Pagamento Seguro
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-[#009ee3]">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Mercado Pago</span>
+                  </div>
                 </div>
 
-                {/* Opção Cartão de Crédito (Página Dedicada) */}
-                <div className="space-y-3">
-                  <a 
-                    href="#/checkout/cartao"
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-theme-primary hover:bg-theme-light/30 transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <CreditCard className="w-5 h-5 text-slate-500" />
-                      <div>
-                        <span className="text-xs sm:text-sm font-bold text-slate-800 block">Pagar com Cartão de crédito</span>
-                        <span className="text-[10px] text-slate-400">Clique para abrir a página de pagamento com cartão</span>
-                      </div>
-                    </div>
-                    <span className="text-xs text-theme-primary font-bold">Abrir &rarr;</span>
-                  </a>
-                </div>
+                {/* Destaque das Formas Aceitas pelo Checkout Pro */}
+                <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-sky-950">
+                      Você poderá pagar por:
+                    </span>
+                    <span className="text-[10px] font-black uppercase text-sky-700 bg-white px-2 py-0.5 rounded-md border border-sky-200">
+                      Checkout Oficial
+                    </span>
+                  </div>
 
-                {/* Termos e Política de Privacidade */}
-                <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                  Os seus dados pessoais serão utilizados para processar a sua compra, apoiar a sua experiência em todo este site e para outros fins descritos na nossa <span className="text-theme-primary font-semibold cursor-pointer hover:underline">política de privacidade</span>.
-                </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-sky-100 font-semibold text-slate-800">
+                      <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Pix Instantâneo</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-sky-100 font-semibold text-slate-800">
+                      <CreditCard className="w-4 h-4 text-[#009ee3] shrink-0" />
+                      <span>Cartão até 12x</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-sky-800 leading-relaxed pt-1">
+                    Ao clicar no botão abaixo, você será direcionado ao ambiente seguro do <strong>Mercado Pago</strong> para concluir seu pagamento com total tranquilidade.
+                  </p>
+                </div>
 
                 {/* Alerta de Erro */}
                 {mpError && (
                   <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in">
                     <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold block">Erro no processamento:</span>
+                      <span className="font-bold block">Não foi possível prosseguir:</span>
                       <span className="text-[11px] leading-tight block mt-0.5">{mpError}</span>
                     </div>
                   </div>
                 )}
 
-                {/* Botão Finalizar Pedido Pix */}
+                {/* Botão Oficial de Checkout Pro */}
                 <button
                   type="button"
                   onClick={handleFinalizeOrder}
                   disabled={isLoading}
-                  className="w-full py-4 px-6 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-sm sm:text-base rounded-xl shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-98 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin text-white" />
-                      <span>Gerando Pix...</span>
+                      <span>Conectando ao Mercado Pago...</span>
                     </>
                   ) : (
-                    <span>Finalizar e Pagar com Pix • {formatCurrency(finalTotal)}</span>
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>Ir para Pagamento Seguro • {formatCurrency(finalTotal)}</span>
+                    </>
                   )}
                 </button>
+
+                {/* Selos de Segurança e Garantia */}
+                <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400 pt-1">
+                  <div className="flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Compra 100% Protegida</span>
+                  </div>
+                  <span>•</span>
+                  <div>SSL 256-Bit</div>
+                  <span>•</span>
+                  <div>Mercado Pago Oficial</div>
+                </div>
 
               </div>
 
@@ -1224,7 +694,10 @@ export const CheckoutPage: React.FC = () => {
 
       </main>
 
-      {/* 3. Toast, WhatsApp & Footer */}
+      {/* 3. Modal de Retorno de Pagamento (Captura ?status=approved / ?status=failure) */}
+      <PaymentFeedbackModal />
+
+      {/* 4. Toast, WhatsApp & Footer */}
       <Toast />
       <FloatingWhatsApp />
       <Footer />
@@ -1232,3 +705,5 @@ export const CheckoutPage: React.FC = () => {
     </div>
   );
 };
+
+export default CheckoutPage;
