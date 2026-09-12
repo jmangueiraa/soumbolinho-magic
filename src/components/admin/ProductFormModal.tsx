@@ -18,8 +18,19 @@ export interface FormBonusItem {
   imageUrl: string;
 }
 
-export function parseBonusesString(str: string): FormBonusItem[] {
-  if (!str || !str.trim()) return [];
+export function parseBonusesString(str: any): FormBonusItem[] {
+  if (!str) return [];
+  if (typeof str !== 'string') {
+    if (Array.isArray(str)) {
+      return str.filter(Boolean).map((b: any) => ({
+        title: String(b?.title || b?.name || ''),
+        description: String(b?.description || ''),
+        originalPrice: b?.originalPrice !== undefined ? String(b.originalPrice) : '47',
+        imageUrl: String(b?.imageUrl || b?.image || ''),
+      }));
+    }
+    return [];
+  }
   return str
     .split('\n')
     .map((line) => line.trim())
@@ -36,9 +47,10 @@ export function parseBonusesString(str: string): FormBonusItem[] {
 }
 
 export function serializeBonusItems(items: FormBonusItem[]): string {
+  if (!Array.isArray(items)) return '';
   return items
-    .filter((item) => item.title.trim().length > 0)
-    .map((item) => `${item.title.trim()} | ${item.description.trim()} | ${item.originalPrice || '47'} | ${(item.imageUrl || '').trim()}`)
+    .filter((item) => item && typeof item.title === 'string' && item.title.trim().length > 0)
+    .map((item) => `${item.title.trim()} | ${(item.description || '').trim()} | ${item.originalPrice || '47'} | ${(item.imageUrl || '').trim()}`)
     .join('\n');
 }
 
@@ -94,6 +106,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string; slug?: string }>({});
   const [showBonusRawText, setShowBonusRawText] = useState(false);
 
@@ -188,6 +201,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   useEffect(() => {
     setActiveTab('geral');
+    setSubmitError(null);
+    setUploadError(null);
+    setErrors({});
     if (product) {
       const existingImg = product.image || product.image_url || product.imageUrl || '';
       const existingVideo = product.videoUrl || product.video_url || '';
@@ -206,7 +222,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       let testimonialsStr = '';
       if (Array.isArray(rawTestimonials)) {
         testimonialsStr = rawTestimonials
-          .map((t: any) => `${t.name || ''} | ${t.text || ''}${t.avatar ? ' | ' + t.avatar : ''}`)
+          .filter(Boolean)
+          .map((t: any) => {
+            if (typeof t === 'string') return t;
+            return `${t.name || ''} | ${t.text || ''}${t.avatar ? ' | ' + t.avatar : ''}`;
+          })
           .join('\n');
       } else if (typeof rawTestimonials === 'string') {
         testimonialsStr = rawTestimonials;
@@ -227,7 +247,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       let bonusesStr = '';
       if (Array.isArray(rawBonuses)) {
         bonusesStr = rawBonuses
-          .map((b: any) => `${b.title || ''} | ${b.description || ''}${b.originalPrice !== undefined ? ' | ' + b.originalPrice : ''}${b.imageUrl ? ' | ' + b.imageUrl : ''}`)
+          .filter(Boolean)
+          .map((b: any) => {
+            if (typeof b === 'string') return b;
+            return `${b.title || ''} | ${b.description || ''}${b.originalPrice !== undefined ? ' | ' + b.originalPrice : ''}${b.imageUrl ? ' | ' + b.imageUrl : ''}`;
+          })
           .join('\n');
       } else if (typeof rawBonuses === 'string') {
         bonusesStr = rawBonuses;
@@ -1384,12 +1408,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 >
                   <option value="" disabled>🎁 + Adicionar Produto da Loja como Bônus...</option>
                   {products
-                    .filter((p) => p.id !== product?.id)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        + Adicionar "{p.name}" (R$ {p.price?.toFixed(2)})
-                      </option>
-                    ))}
+                    .filter((p) => p && p.id !== product?.id)
+                    .map((p) => {
+                      const numPrice = typeof p.price === 'number' ? p.price : parseFloat(String(p.price || '0').replace(',', '.'));
+                      const formatted = isNaN(numPrice) ? '0,00' : numPrice.toFixed(2).replace('.', ',');
+                      return (
+                        <option key={p.id} value={p.id}>
+                          + Adicionar "{p.name}" (R$ {formatted})
+                        </option>
+                      );
+                    })}
                 </select>
               )}
 

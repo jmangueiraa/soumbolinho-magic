@@ -23,6 +23,7 @@ import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ProductFormModal } from './ProductFormModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { copyProductLink, getProductShareUrl } from '../../utils/share';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 export const ProductsManager: React.FC = () => {
   const { products, categories, deleteProduct, toggleProductStock, quickUpdatePrice, showNotification } = useStoreData();
@@ -347,12 +348,23 @@ export const ProductsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal de Criação / Edição */}
-      <ProductFormModal
-        isOpen={isFormModalOpen}
-        productToEdit={productToEdit}
-        onClose={() => setIsFormModalOpen(false)}
-      />
+      {/* Modal de Criação / Edição protegido por ErrorBoundary */}
+      <ErrorBoundary
+        fallbackTitle="Não foi possível abrir o formulário deste produto"
+        onReset={() => {
+          setIsFormModalOpen(false);
+          setProductToEdit(null);
+        }}
+      >
+        <ProductFormModal
+          isOpen={isFormModalOpen}
+          productToEdit={productToEdit}
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setProductToEdit(null);
+          }}
+        />
+      </ErrorBoundary>
 
       {/* Modal de Confirmação de Exclusão */}
       <DeleteConfirmModal
