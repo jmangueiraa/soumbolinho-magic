@@ -36,8 +36,6 @@ import { useParams, useNavigate, RESERVED_ROUTES } from '../../lib/router';
 import { fetchProductByIdOrSlug } from '../../services/productService';
 import { copyProductLink, getProductShareUrl } from '../../utils/share';
 import { getProductMedia, isVideoUrl } from '../../utils/media';
-import { Header } from '../layout/Header';
-import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
 import { CartDrawer } from '../cart/CartDrawer';
 import { CheckoutModal } from '../cart/CheckoutModal';
@@ -345,13 +343,11 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-slate-50 text-slate-900">
-        <Header />
         <main className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
           <Loader2 className="w-12 h-12 animate-spin text-theme-primary mb-4" />
           <p className="text-base font-bold text-slate-700">Carregando página do produto...</p>
           <p className="text-xs text-slate-400 mt-1">Preparando a melhor oferta para você</p>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -360,7 +356,6 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   if (!product) {
     return (
       <div className="min-h-screen w-full flex flex-col bg-slate-50 text-slate-900">
-        <Header />
         <main className="flex-1 max-w-md mx-auto flex flex-col items-center justify-center p-8 text-center space-y-4 min-h-[400px]">
           <div className="w-20 h-20 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-2 shadow-inner">
             <AlertCircle className="w-10 h-10" />
@@ -378,7 +373,6 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             <span>Voltar para a Página Inicial</span>
           </button>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -391,10 +385,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       {/* 1. Barra de Aviso de Escassez com Cronômetro Regressivo no Topo Absoluto */}
       <ScarcityCountdownBanner />
 
-      {/* 2. Header Oficial da Loja */}
-      <Header isSticky={false} />
-
-      {/* 3. Container Principal da Landing Page */}
+      {/* 2. Container Principal da Landing Page (Sem Topo do Site Principal) */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-10 sm:space-y-14">
         
         {/* Barra de Navegação & Ações Rápidas */}
@@ -1109,8 +1100,26 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       <Toast />
       <FloatingWhatsApp />
 
-      {/* Footer Oficial */}
-      <Footer />
+      {/* Rodapé Exclusivo da Landing Page (Sem o Rodapé do Site Principal) */}
+      <footer className="mt-16 py-8 border-t border-slate-200 bg-white/80 text-center text-xs text-slate-500 space-y-2">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-slate-600 font-semibold text-[11px]">
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Compra 100% Segura
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            Acesso Imediato aos Arquivos
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-theme-primary" />
+            Pagamento Seguro via Mercado Pago
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          © {new Date().getFullYear()} {storeConfig.name || currentStore?.name || 'Editáveis do Canva'}. Todos os direitos reservados.
+        </p>
+      </footer>
     </div>
   );
 };

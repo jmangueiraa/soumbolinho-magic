@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:daemon": "pm2 start ecosystem.config.cjs",
+    "dev:stop": "pm2 stop soumbolinho-dev",
+    "dev:restart": "pm2 restart soumbolinho-dev",
+    "dev:status": "pm2 status",
+    "dev:logs": "pm2 logs soumbolinho-dev",
     "build": "vite build",
     "preview": "vite preview"
   },

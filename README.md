@@ -39,12 +39,26 @@ Aplicação web completa desenvolvida para a **Encantando Festa - Papelaria Pers
 
 ## 🚀 Como Executar o Projeto
 
+### Modo Tradicional (Terminal Ativo)
 ```bash
-# 1. Instalar dependências
 npm install
-
-# 2. Iniciar servidor de desenvolvimento
 npm run dev
 ```
 
-Acesse a vitrine em `http://localhost:3000` e o painel admin em `http://localhost:3000/#/admin`.
+### 🔄 Modo Segundo Plano (Daemon / Persistente)
+Para manter o servidor rodando continuamente sem precisar manter a janela do terminal aberta:
+
+1. **Via NPM / PM2:**
+```bash
+npm run dev:daemon   # Inicia em segundo plano
+npm run dev:status   # Visualiza status
+npm run dev:logs     # Visualiza logs
+npm run dev:stop     # Para o servidor
+```
+
+2. **Via Scripts Windows (1 Clique / Atalhos):**
+- **Iniciar em segundo plano:** Dê dois cliques em `scripts\start-background.vbs` (inicia 100% silencioso/invisível) ou `scripts\start-dev-daemon.bat`.
+- **Parar o servidor:** Dê dois cliques em `scripts\stop-dev-daemon.bat`.
+- **Autostart no Windows (Ao Ligar o PC):** Execute `scripts\setup-windows-autostart.bat` e digite `1`. O servidor de desenvolvimento subirá automaticamente em segundo plano sempre que você ligar o computador!
+
+Acesse a vitrine em `http://localhost:5173`.
