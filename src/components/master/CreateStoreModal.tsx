@@ -20,7 +20,8 @@ import {
   Send,
   ChevronDown,
   ChevronUp,
-  Sliders
+  Sliders,
+  Crown
 } from 'lucide-react';
 import { createStoreWithClient } from '../../services/storeManagementService';
 import { Store } from '../../types';
@@ -29,13 +30,18 @@ interface CreateStoreModalProps {
   isOpen: boolean;
   onClose: () => void;
   onStoreCreated: (newStore: Store) => void;
+  stores?: Store[];
 }
 
 export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
   isOpen,
   onClose,
   onStoreCreated,
+  stores,
 }) => {
+  const matrizStore = stores?.find(
+    (s) => Boolean(s.is_matriz) || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'
+  ) || stores?.[0];
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -103,6 +109,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
         telegramChatId: formData.telegramChatId.trim() || undefined,
         clientPassword: formData.password.trim() || 'admin',
         cloneBaseCatalog: formData.cloneCatalog,
+        sourceMatrizStoreId: matrizStore?.id || matrizStore?.slug || 'suamarcaaqui',
         monthlyFee: parseFloat(formData.monthlyFee.replace(',', '.')) || 50.00,
         initialDays: parseInt(formData.initialDays) || 7,
       });
@@ -151,6 +158,29 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
               Crie uma nova loja com dados padrão pré-preenchidos e catálogo sincronizado
             </p>
           </div>
+        </div>
+
+        {/* Banner Loja Matriz a ser Clonada */}
+        <div className="mb-4 p-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200/80 rounded-2xl flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF1493] to-pink-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Crown className="w-4 h-4 text-yellow-300" />
+            </div>
+            <div>
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">
+                Loja Matriz a ser Clonada:
+              </span>
+              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                {matrizStore?.name || matrizStore?.store_name || 'SUAMARCAAQUI'}
+                <span className="text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
+                  Matriz Ativa
+                </span>
+              </span>
+            </div>
+          </div>
+          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+            ✓ Catálogo Pronto
+          </span>
         </div>
 
         {error && (
@@ -477,12 +507,12 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
                 className="mt-0.5 w-4 h-4 rounded text-[#FF1493] focus:ring-[#FF1493] cursor-pointer"
               />
               <div className="text-xs">
-                <span className="font-bold text-slate-800 block flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-[#FF1493]" />
-                  Clonar catálogo base e banners prontos
+                <span className="font-bold text-slate-800 block flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-yellow-500" />
+                  Clonar catálogo completo da loja matriz ({matrizStore?.name || matrizStore?.store_name || 'SUAMARCAAQUI'})
                 </span>
                 <span className="text-slate-500 text-[11px] block mt-0.5">
-                  Copia todos os produtos, categorias e banners ativos da loja modelo com categorias renomeadas sequencialmente (Categoria 1, Categoria 2...).
+                  Copia com fidelidade total todos os produtos reais (com fotos, descrições, preços e links), categorias originais, subcategorias e banners da loja marcada como matriz.
                 </span>
               </div>
             </label>

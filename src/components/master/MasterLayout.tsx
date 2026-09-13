@@ -290,6 +290,7 @@ export const MasterLayout: React.FC = () => {
       {/* Modals */}
       <CreateStoreModal
         isOpen={isCreateModalOpen}
+        stores={stores}
         onClose={() => setIsCreateModalOpen(false)}
         onStoreCreated={(newStore) => {
           loadStores();

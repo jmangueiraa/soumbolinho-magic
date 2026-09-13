@@ -21,6 +21,7 @@ export interface CreateStoreInput {
   telegramBotToken?: string;
   telegramChatId?: string;
   cloneBaseCatalog?: boolean;
+  sourceMatrizStoreId?: string;
   monthlyFee?: number;
   initialDays?: number;
   subscriptionStatus?: 'active' | 'trial' | 'suspended';
@@ -141,6 +142,66 @@ export async function ensureMatrizStoreExists(): Promise<Store> {
 }
 
 /**
+ * Retorna a loja atualmente configurada como Matriz / Base no sistema.
+ */
+export async function getMatrizStore(): Promise<Store> {
+  try {
+    const { data: stores } = await supabase.from('stores').select('*');
+    if (stores && stores.length > 0) {
+      // 1. Loja explicitamente marcada como matriz
+      const explicit = stores.find((s) => Boolean(s.is_matriz));
+      if (explicit) return explicit as Store;
+
+      // 2. Loja oficial base SUAMARCAAQUI
+      const suamarca = stores.find(
+        (s) => s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'
+      );
+      if (suamarca) return suamarca as Store;
+
+      return stores[0] as Store;
+    }
+  } catch (err) {
+    console.warn('[storeManagementService] Erro ao buscar loja matriz:', err);
+  }
+  return MATRIZ_DEFAULT_STORE_DATA as Store;
+}
+
+/**
+ * Define qualquer loja como Matriz / Base do sistema (removendo a marcação das demais).
+ */
+export async function setStoreAsMatriz(storeId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(`[storeManagementService] 👑 Definindo loja "${storeId}" como Matriz...`);
+
+    // 1. Remove is_matriz das outras lojas
+    await supabase
+      .from('stores')
+      .update({ is_matriz: false })
+      .neq('id', storeId);
+
+    // 2. Marca a loja escolhida como matriz vitalícia
+    const { error } = await supabase
+      .from('stores')
+      .update({
+        is_matriz: true,
+        subscription_status: 'active',
+        monthly_fee: 0.00,
+        expires_at: '2099-12-31T23:59:59.000Z'
+      })
+      .eq('id', storeId);
+
+    if (error) {
+      console.warn('[storeManagementService] Aviso ao persistir is_matriz:', error.message);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[storeManagementService] Erro ao definir matriz:', err);
+    return { success: false, error: err.message || 'Erro ao definir matriz.' };
+  }
+}
+
+/**
  * 1. Lista todas as lojas cadastradas no SaaS para o Painel Master (incluindo a Loja Matriz Oficial SUAMARCAAQUI)
  */
 export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error: string | null }> {
@@ -187,8 +248,8 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
 
     const now = Date.now();
     const withStats: StoreWithStats[] = allStores.map((st) => {
-      // REQUISITO RIGOROSO 1: Apenas SUAMARCAAQUI é a loja matriz/base vitalícia (sem expiração)
-      const isBaseStore = st.slug === 'suamarcaaqui' || st.id === 'suamarcaaqui' || st.id === 'store_default';
+      // Identifica a loja matriz/base (por is_matriz ou slug/id suamarcaaqui)
+      const isBaseStore = Boolean(st.is_matriz) || st.slug === 'suamarcaaqui' || st.id === 'suamarcaaqui' || st.id === 'store_default';
       let daysRemaining: number | null = null;
       let isExpired = false;
       let isExpiringSoon = false;
@@ -265,6 +326,7 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
         owner_email: resolvedOwnerEmail,
         client_email: resolvedClientEmail,
         admin_password: resolvedPassword,
+        is_matriz: isBaseStore,
         domain_status: st.domain_status || 'active',
         subscription_status: isBaseStore ? 'active' : (st.subscription_status || 'trial'),
         isTrial: !isBaseStore && st.subscription_status === 'trial',
@@ -477,11 +539,17 @@ export async function createStoreWithClient(
       console.warn('[storeManagementService] Aviso ao cadastrar em store_users:', uErr);
     }
 
-    // 4. Clonar catálogo base (opcional, padrão true)
+    // 4. Clonar catálogo da loja que está como matriz
     let cloneRes = null;
     if (input.cloneBaseCatalog !== false) {
-      console.log('[storeManagementService] 🧬 Disparando rotina de clonagem automática do catálogo a partir de SUAMARCAAQUI...');
-      cloneRes = await cloneStoreTemplate('suamarcaaqui', newStoreId, storeName, {
+      let sourceStoreId = input.sourceMatrizStoreId;
+      if (!sourceStoreId) {
+        const matriz = await getMatrizStore();
+        sourceStoreId = matriz?.id || matriz?.slug || 'suamarcaaqui';
+      }
+
+      console.log(`[storeManagementService] 🧬 Disparando rotina de clonagem fiel da loja matriz "${sourceStoreId}"...`);
+      cloneRes = await cloneStoreTemplate(sourceStoreId, newStoreId, storeName, {
         storeName: storeName,
         slogan: input.slogan?.trim() || 'subtitulo da sua loja',
         whatsappNumber: input.whatsappNumber?.trim() || 'SeuWhatsApp',

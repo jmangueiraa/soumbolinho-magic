@@ -106,58 +106,6 @@ export async function fetchAllCategories(storeId?: string): Promise<{ data: Cate
         return { data: defaultCategories, error: null };
       }
 
-      // 2. Se a loja já tiver categorias, mas alguma delas tiver vindo com o nome da matriz
-      // (ex: lojas geradas anteriormente ou clonadas pelo trigger do banco antigo),
-      // sanitiza IMEDIATAMENTE os nomes para "Categoria 1", "Categoria 2" / "Subcategoria 1", etc.
-      const hasMatrizCategory = mapped.some(c => MATRIZ_CATEGORY_NAMES.has(c.name.trim().toLowerCase()));
-      if (hasMatrizCategory) {
-        console.log(`[categoryService] 🧹 Detectados nomes da matriz na loja "${targetStoreId}". Sanitizando para padrão sequencial...`);
-        const sanitizedList: Category[] = [];
-        const catMap: Record<string, string> = {};
-        const subMap: Record<string, string> = {};
-
-        mapped.forEach((c, idx) => {
-          const newName = `Categoria ${idx + 1}`;
-          catMap[c.name] = newName;
-
-          const newSubcats = (c.subcategories || []).map((sub, sIdx) => {
-            const newSubName = `Subcategoria ${sIdx + 1}`;
-            subMap[`${c.name}:::${sub.toLowerCase()}`] = newSubName;
-            subMap[sub.toLowerCase()] = newSubName;
-            return newSubName;
-          });
-
-          const sanitizedCat: Category = {
-            ...c,
-            name: newName,
-            subcategories: newSubcats
-          };
-          sanitizedList.push(sanitizedCat);
-
-          // Atualiza a categoria no Supabase
-          supabase.from('categories').update({
-            name: newName,
-            subcategories: newSubcats
-          }).eq('id', c.id).then();
-        });
-
-        // Atualiza os produtos da loja no Supabase em background
-        supabase.from('products').select('id, category, subcategory').eq('store_id', targetStoreId).then(({ data: prods }) => {
-          if (prods && prods.length > 0) {
-            prods.forEach(p => {
-              const newCat = catMap[p.category] || p.category;
-              let newSub = p.subcategory;
-              if (p.subcategory) {
-                newSub = subMap[`${p.category}:::${p.subcategory.toLowerCase()}`] || subMap[p.subcategory.toLowerCase()] || 'Subcategoria 1';
-              }
-              if (newCat !== p.category || newSub !== p.subcategory) {
-                supabase.from('products').update({ category: newCat, subcategory: newSub }).eq('id', p.id).then();
-              }
-            });
-          }
-        });
-
-        mapped = sanitizedList;
       }
     }
 

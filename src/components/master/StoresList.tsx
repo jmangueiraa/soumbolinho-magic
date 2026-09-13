@@ -35,7 +35,8 @@ import {
   toggleStoreSubscription,
   extendStoreTrial,
   activatePaidSubscription,
-  setStoreExpirationDays
+  setStoreExpirationDays,
+  setStoreAsMatriz
 } from '../../services/storeManagementService';
 
 interface StoresListProps {
@@ -63,6 +64,25 @@ export const StoresList: React.FC<StoresListProps> = ({
   const [customDaysInput, setCustomDaysInput] = useState<string>('180');
   const [customDateInput, setCustomDateInput] = useState<string>('');
   const [isSavingDays, setIsSavingDays] = useState(false);
+  const [isSettingMatrizId, setIsSettingMatrizId] = useState<string | null>(null);
+
+  const handleSetAsMatriz = async (store: Store) => {
+    const storeName = store.name || store.store_name || store.slug;
+    if (!window.confirm(`Deseja definir a loja "${storeName}" como a nova MATRIZ / BASE do sistema?\n\nAo criar novas lojas, todo o catálogo fiel (produtos, categorias e banners) será clonado a partir desta loja.`)) {
+      return;
+    }
+    setIsSettingMatrizId(store.id);
+    try {
+      const res = await setStoreAsMatriz(store.id);
+      if (!res.success) {
+        alert(res.error || 'Erro ao definir matriz.');
+      } else {
+        onRefresh();
+      }
+    } finally {
+      setIsSettingMatrizId(null);
+    }
+  };
 
   // Contagens para os filtros
   const trialCount = stores.filter(s => (s.subscription_status === 'trial' || s.isTrial) && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
@@ -265,7 +285,7 @@ export const StoresList: React.FC<StoresListProps> = ({
       window.location.hostname.startsWith('10.') ||
       window.location.hostname.endsWith('.local')
     );
-    const isBaseStore = store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
+    const isBaseStore = Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
 
     if (!isLocal && store.custom_domain && (store.domain_status === 'active' || store.domain_status === 'ativo')) {
       const url = store.custom_domain.startsWith('http') ? store.custom_domain : `https://${store.custom_domain}`;
@@ -366,7 +386,7 @@ export const StoresList: React.FC<StoresListProps> = ({
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {filteredStores.map((store) => {
-            const isBaseStore = store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
+            const isBaseStore = Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
             const isEditingThisDomain = editingDomainId === store.id;
 
             return (
@@ -666,6 +686,23 @@ export const StoresList: React.FC<StoresListProps> = ({
                       >
                         <Edit2 className="w-3.5 h-3.5 text-purple-600" />
                         <span>Dias</span>
+                      </button>
+                    )}
+
+                    {/* Botão para Definir como Matriz */}
+                    {!isBaseStore && (
+                      <button
+                        onClick={() => handleSetAsMatriz(store)}
+                        disabled={isSettingMatrizId === store.id}
+                        className="px-2.5 py-2 bg-pink-50 hover:bg-pink-100 text-[#FF1493] text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-pink-200 cursor-pointer active:scale-98 disabled:opacity-50"
+                        title="Definir esta loja como a Matriz do sistema (novas lojas clonarão o catálogo dela)"
+                      >
+                        {isSettingMatrizId === store.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF1493]" />
+                        ) : (
+                          <Crown className="w-3.5 h-3.5 text-yellow-500" />
+                        )}
+                        <span>Definir Matriz</span>
                       </button>
                     )}
 

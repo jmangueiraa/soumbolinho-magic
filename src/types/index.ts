@@ -162,6 +162,7 @@ export interface Store {
     color_palette?: ColorPaletteType;
   };
   is_active: boolean;
+  is_matriz?: boolean;
   subscription_status?: SubscriptionStatus;
   expires_at?: string | null;
   monthly_fee?: number;

@@ -1,8 +1,8 @@
 import { supabase } from '../lib/supabase';
-import { fetchAllCategories, createCategoryInSupabase } from './categoryService';
+import { fetchAllCategories } from './categoryService';
 import { fetchAllProducts, createProductInSupabase } from './productService';
 import { fetchAllBanners, createBannerInSupabase } from './bannerService';
-import { fetchStoreConfig, saveStoreConfigInSupabase } from './storeConfigService';
+import { saveStoreConfigInSupabase } from './storeConfigService';
 import { StoreConfig } from '../types';
 
 export interface CloneResult {
@@ -14,218 +14,9 @@ export interface CloneResult {
 }
 
 /**
- * Clona produtos, categorias, banners e configurações da loja modelo (store_default)
- * para a nova loja recém-criada.
- */
-export async function cloneStoreTemplate(
-  sourceStoreId: string = 'suamarcaaqui',
-  targetStoreId: string,
-  targetStoreName?: string,
-  initialConfig?: Partial<StoreConfig>
-): Promise<{ success: boolean; error?: string; clonedCategories?: number; clonedProducts?: number; clonedBanners?: number }> {
-  console.log(`[storeCloneService] 🧬 Iniciando clonagem da loja "${sourceStoreId}" para "${targetStoreId}"...`);
-
-  try {
-    // 1. Tentar executar a Stored Procedure SQL rápida do Supabase para produtos/categorias/banners
-    let rpcDataResult: any = null;
-    try {
-      const { data: rpcData, error: rpcError } = await (supabase as any).rpc('clone_store_template', {
-        source_store_id: sourceStoreId,
-        target_store_id: targetStoreId,
-        target_store_name: targetStoreName || null
-      });
-
-      if (!rpcError && rpcData && rpcData.success) {
-        console.log('[storeCloneService] ✅ Catálogo clonado via RPC com sucesso:', rpcData);
-        rpcDataResult = rpcData;
-      } else if (rpcError) {
-        console.warn('[storeCloneService] ⚠️ RPC indisponível ou falhou, utilizando clonador via cliente:', rpcError.message);
-      }
-    } catch (err: any) {
-      console.warn('[storeCloneService] ⚠️ Exceção ao chamar RPC:', err.message);
-    }
-
-    // SEMPRE consolida as configurações digitadas pelo Super Admin (NUNCA permite que dados da matriz persistam)
-    await saveStoreConfigInSupabase({
-      id: `cfg_${targetStoreId}`,
-      store_id: targetStoreId,
-      storeName: initialConfig?.storeName || targetStoreName || 'suamarcaaqui',
-      slogan: initialConfig?.slogan || 'subtitulo da sua loja',
-      whatsappNumber: initialConfig?.whatsappNumber || 'SeuWhatsApp',
-      whatsappDisplay: initialConfig?.whatsappDisplay || 'SeuWhatsAppWhatsApp',
-      instagram: initialConfig?.instagram || 'suamarcaaqui',
-      address: initialConfig?.address || 'seuendereço',
-      city: initialConfig?.city || 'Brasil',
-      workingHours: initialConfig?.workingHours || 'SEMPRE ABERTO',
-      minOrderValue: initialConfig?.minOrderValue ?? 0.00,
-      mpAccessToken: initialConfig?.mpAccessToken || undefined,
-      telegramBotToken: initialConfig?.telegramBotToken || undefined,
-      telegramChatId: initialConfig?.telegramChatId || undefined,
-    }, targetStoreId);
-
-    if (rpcDataResult) {
-      // Sanitização de segurança pós-RPC: garante que todas as categorias e subcategorias
-      // criadas estejam estritamente padronizadas (Categoria 1, 2... e Subcategoria 1, 2...)
-      await sanitizeStoreCategoriesAndProducts(targetStoreId, sourceStoreId);
-
-      return {
-        success: true,
-        clonedCategories: rpcDataResult.cloned_categories,
-        clonedProducts: rpcDataResult.cloned_products,
-        clonedBanners: rpcDataResult.cloned_banners
-      };
-    }
-
-    // 2. Fallback via Cliente: Garante que a clonagem ocorra perfeitamente mesmo sem a função SQL instalada
-    console.log('[storeCloneService] 🔄 Executando clonagem via Client API com renomeação sequencial...');
-
-    // A) Clona Categorias e Subcategorias com renomeação sequencial padronizada
-    // Padrão:
-    // Categoria 1
-    //   - Subcategoria 1
-    //   - Subcategoria 2
-    // Categoria 2
-    //   - Subcategoria 1
-    // Categoria 3
-    //   - Subcategoria 1
-    //   - Subcategoria 2
-    //   - Subcategoria 3
-    const { data: categoriasOriginais } = await fetchAllCategories(sourceStoreId);
-    let catsCloned = 0;
-    const categoryNameMapping: Record<string, string> = {};
-    const subcategoryMapping: Record<string, string> = {};
-    const fallbackSubcategoryByName: Record<string, string> = {};
-
-    if (categoriasOriginais && categoriasOriginais.length > 0) {
-      const categoriasClonadas = categoriasOriginais.map((cat, catIndex) => {
-        const newCatName = `Categoria ${catIndex + 1}`;
-        categoryNameMapping[cat.name] = newCatName;
-
-        const rawSubcats = normalizeSubcategoryArray(cat.subcategories);
-        const mappedSubcategories: string[] = [];
-
-        rawSubcats.forEach((sub, subIndex) => {
-          const newSubName = `Subcategoria ${subIndex + 1}`;
-          mappedSubcategories.push(newSubName);
-
-          subcategoryMapping[`${cat.name}:::${sub.toLowerCase()}`] = newSubName;
-          subcategoryMapping[`${newCatName}:::${sub.toLowerCase()}`] = newSubName;
-          fallbackSubcategoryByName[sub.toLowerCase()] = newSubName;
-        });
-
-        return {
-          id: `cat_${Date.now()}_${catIndex}_${Math.random().toString(36).substring(2, 6)}`,
-          store_id: targetStoreId,
-          name: newCatName,
-          icon: cat.icon || 'Gift',
-          subcategories: mappedSubcategories,
-          created_at: new Date().toISOString()
-        };
-      });
-
-      // Em seguida, faça o insert no Supabase:
-      let { error: insertCatError } = await supabase
-        .from('categories')
-        .insert(categoriasClonadas);
-
-      // Fallback de segurança caso a coluna id no banco exija inserção individual
-      if (insertCatError) {
-        console.warn('[storeCloneService] Tentando inserção individual de categorias padronizadas...', insertCatError.message);
-        let insertedCount = 0;
-        for (const cat of categoriasClonadas) {
-          const { error: singleErr } = await supabase.from('categories').insert([cat]);
-          if (!singleErr) insertedCount++;
-        }
-        catsCloned = insertedCount;
-      } else {
-        catsCloned = categoriasClonadas.length;
-        console.log(`[storeCloneService] ✅ ${catsCloned} categorias e subcategorias padronizadas inseridas com sucesso.`);
-      }
-    }
-
-    // B) Clona Produtos (atualizando a categoria para "Categoria X" e subcategoria para "Subcategoria Y")
-    const { data: sourceProds } = await fetchAllProducts(sourceStoreId);
-    let prodsCloned = 0;
-    if (sourceProds && sourceProds.length > 0) {
-      for (const prod of sourceProds) {
-        const { id, ...prodData } = prod;
-
-        // Mapeia categoria para "Categoria X"
-        const targetCategoryName = (prod.category && categoryNameMapping[prod.category]) || 'Categoria 1';
-
-        // Mapeia subcategoria para "Subcategoria Y" (nunca mantendo o nome original da matriz)
-        let targetSubcategoryName: string | undefined = undefined;
-        if (prod.subcategory && prod.subcategory.trim()) {
-          const trimmedSub = prod.subcategory.trim().toLowerCase();
-          targetSubcategoryName = subcategoryMapping[`${prod.category}:::${trimmedSub}`]
-            || subcategoryMapping[`${targetCategoryName}:::${trimmedSub}`]
-            || fallbackSubcategoryByName[trimmedSub]
-            || 'Subcategoria 1';
-        }
-
-        await createProductInSupabase({
-          ...prodData,
-          category: targetCategoryName,
-          subcategory: targetSubcategoryName,
-          slug: `${prod.slug || prod.name}-${Math.random().toString(36).substring(2, 5)}`,
-          store_id: targetStoreId
-        }, targetStoreId);
-        prodsCloned++;
-      }
-    }
-
-    // C) Clona Banners
-    const { data: sourceBanners } = await fetchAllBanners(sourceStoreId);
-    let bannersCloned = 0;
-    if (sourceBanners && sourceBanners.length > 0) {
-      for (const ban of sourceBanners) {
-        const { id, ...banData } = ban;
-        await createBannerInSupabase({
-          ...banData,
-          store_id: targetStoreId
-        }, targetStoreId);
-        bannersCloned++;
-      }
-    }
-
-    // D) Configurações Exclusivas da Nova Loja (NUNCA herda dados de contato ou nome da matriz)
-    await saveStoreConfigInSupabase({
-      id: `cfg_${targetStoreId}`,
-      store_id: targetStoreId,
-      storeName: initialConfig?.storeName || targetStoreName || 'suamarcaaqui',
-      slogan: initialConfig?.slogan || 'subtitulo da sua loja',
-      whatsappNumber: initialConfig?.whatsappNumber || 'SeuWhatsApp',
-      whatsappDisplay: initialConfig?.whatsappDisplay || 'SeuWhatsAppWhatsApp',
-      instagram: initialConfig?.instagram || 'suamarcaaqui',
-      address: initialConfig?.address || 'seuendereço',
-      city: initialConfig?.city || 'Brasil',
-      workingHours: initialConfig?.workingHours || 'SEMPRE ABERTO',
-      minOrderValue: initialConfig?.minOrderValue ?? 0.00,
-      mpAccessToken: initialConfig?.mpAccessToken || undefined,
-      telegramBotToken: initialConfig?.telegramBotToken || undefined,
-      telegramChatId: initialConfig?.telegramChatId || undefined,
-    }, targetStoreId);
-
-    console.log(`[storeCloneService] ✅ Clonagem via Client concluída: ${prodsCloned} produtos, ${catsCloned} categorias, ${bannersCloned} banners.`);
-    return {
-      success: true,
-      clonedCategories: catsCloned,
-      clonedProducts: prodsCloned,
-      clonedBanners: bannersCloned
-    };
-  } catch (err: any) {
-    console.error('[storeCloneService] ❌ Erro durante a clonagem:', err);
-    return {
-      success: false,
-      error: err.message || 'Erro inesperado durante a clonagem da loja.'
-    };
-  }
-}
-
-/**
  * Normaliza subcategorias de qualquer formato (array, string JSON, vírgula) em string[]
  */
-function normalizeSubcategoryArray(subcategories: any): string[] {
+export function normalizeSubcategoryArray(subcategories: any): string[] {
   if (Array.isArray(subcategories)) {
     return subcategories.map((s: any) => String(s || '').trim()).filter(Boolean);
   }
@@ -243,92 +34,208 @@ function normalizeSubcategoryArray(subcategories: any): string[] {
 }
 
 /**
- * Garante que mesmo se a Stored Procedure do Supabase for de versão anterior,
- * todas as categorias e subcategorias da nova loja sejam renomeadas sequencialmente:
- * - Categoria 1 (Subcategoria 1, Subcategoria 2...)
- * - Categoria 2 (Subcategoria 1...)
- * - Categoria 3 (Subcategoria 1, Subcategoria 2, Subcategoria 3...)
- * E que nenhum produto permaneça com nomes da matriz.
+ * Clona com fidelidade máxima todos os produtos, categorias reais, banners e configurações
+ * da loja matriz ativa (sourceStoreId) para a nova loja recém-criada (targetStoreId).
  */
-async function sanitizeStoreCategoriesAndProducts(
+export async function cloneStoreTemplate(
+  sourceStoreId: string = 'suamarcaaqui',
   targetStoreId: string,
-  sourceStoreId: string = 'store_default'
-): Promise<void> {
+  targetStoreName?: string,
+  initialConfig?: Partial<StoreConfig>
+): Promise<CloneResult> {
+  console.log(`[storeCloneService] 🧬 Iniciando clonagem fiel da loja matriz "${sourceStoreId}" para "${targetStoreId}"...`);
+
   try {
-    const { data: targetCategories } = await fetchAllCategories(targetStoreId);
-    if (!targetCategories || targetCategories.length === 0) return;
+    // 1. Busca configurações visuais da matriz (cores, layout, benefícios)
+    let matrizThemeSettings: any = null;
+    try {
+      const isBase = sourceStoreId === 'suamarcaaqui' || sourceStoreId === 'store_default';
+      const storeFilter = isBase
+        ? 'slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
+        : `id.eq.${sourceStoreId},slug.eq.${sourceStoreId}`;
 
-    // Busca categorias da matriz para saber os nomes originais de categorias e subcategorias
-    const { data: sourceCategories } = await fetchAllCategories(sourceStoreId);
-    const sourceCatMap = new Map<string, string[]>();
-    if (sourceCategories) {
-      sourceCategories.forEach(c => {
-        sourceCatMap.set(c.name.trim().toLowerCase(), normalizeSubcategoryArray(c.subcategories));
-      });
+      const { data: matrizStore } = await supabase
+        .from('stores')
+        .select('*')
+        .or(storeFilter)
+        .limit(1)
+        .maybeSingle();
+
+      if (matrizStore?.theme_settings) {
+        matrizThemeSettings = typeof matrizStore.theme_settings === 'string'
+          ? JSON.parse(matrizStore.theme_settings)
+          : matrizStore.theme_settings;
+      }
+
+      // Busca também em site_settings da matriz para garantir benefício cards e paleta
+      const { data: matrizSiteSettings } = await supabase
+        .from('site_settings')
+        .select('*')
+        .or(`store_id.eq.${sourceStoreId},store_id.eq.suamarcaaqui,store_id.eq.store_default`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (matrizSiteSettings) {
+        matrizThemeSettings = {
+          ...matrizThemeSettings,
+          primary_color: matrizSiteSettings.primary_color || matrizThemeSettings?.primary_color,
+          secondary_color: matrizSiteSettings.secondary_color || matrizThemeSettings?.secondary_color,
+          color_palette: matrizSiteSettings.color_palette || matrizThemeSettings?.color_palette,
+          theme_layout: matrizSiteSettings.theme_layout || matrizThemeSettings?.theme_layout,
+          benefit_cards: matrizSiteSettings.benefit_cards ? (
+            typeof matrizSiteSettings.benefit_cards === 'string'
+              ? JSON.parse(matrizSiteSettings.benefit_cards)
+              : matrizSiteSettings.benefit_cards
+          ) : matrizThemeSettings?.benefit_cards,
+        };
+      }
+    } catch (themeErr) {
+      console.warn('[storeCloneService] Aviso ao recuperar tema da matriz:', themeErr);
     }
 
-    const catMapping: Record<string, string> = {};
-    const subMapping: Record<string, string> = {};
+    // 2. Salva as configurações iniciais da nova loja (dados digitados + identidade visual da matriz)
+    await saveStoreConfigInSupabase({
+      id: `cfg_${targetStoreId}`,
+      store_id: targetStoreId,
+      storeName: initialConfig?.storeName || targetStoreName || 'suamarcaaqui',
+      slogan: initialConfig?.slogan || 'subtitulo da sua loja',
+      whatsappNumber: initialConfig?.whatsappNumber || 'SeuWhatsApp',
+      whatsappDisplay: initialConfig?.whatsappDisplay || 'SeuWhatsAppWhatsApp',
+      instagram: initialConfig?.instagram || 'suamarcaaqui',
+      address: initialConfig?.address || 'seuendereço',
+      city: initialConfig?.city || 'Brasil',
+      workingHours: initialConfig?.workingHours || 'SEMPRE ABERTO',
+      minOrderValue: initialConfig?.minOrderValue ?? 0.00,
+      mpAccessToken: initialConfig?.mpAccessToken || undefined,
+      telegramBotToken: initialConfig?.telegramBotToken || undefined,
+      telegramChatId: initialConfig?.telegramChatId || undefined,
+      primaryColor: matrizThemeSettings?.primary_color || '#FF1493',
+      colorPalette: matrizThemeSettings?.color_palette || 'pink_pastel',
+      themeLayout: matrizThemeSettings?.theme_layout || 'classic',
+      benefitCards: matrizThemeSettings?.benefit_cards,
+    }, targetStoreId);
 
-    for (let i = 0; i < targetCategories.length; i++) {
-      const cat = targetCategories[i];
-      const newCatName = `Categoria ${i + 1}`;
-      catMapping[cat.name] = newCatName;
+    // Salva também na tabela site_settings da nova loja
+    try {
+      await supabase.from('site_settings').upsert([{
+        store_id: targetStoreId,
+        whatsapp: initialConfig?.whatsappNumber || 'SeuWhatsApp',
+        display_whatsapp: initialConfig?.whatsappDisplay || 'SeuWhatsAppWhatsApp',
+        instagram: initialConfig?.instagram || 'suamarcaaqui',
+        slogan: initialConfig?.slogan || 'subtitulo da sua loja',
+        address: initialConfig?.address || 'seuendereço',
+        business_hours: initialConfig?.workingHours || 'SEMPRE ABERTO',
+        primary_color: matrizThemeSettings?.primary_color || '#FF1493',
+        color_palette: matrizThemeSettings?.color_palette || 'pink_pastel',
+        theme_layout: matrizThemeSettings?.theme_layout || 'classic',
+        benefit_cards: matrizThemeSettings?.benefit_cards,
+        updated_at: new Date().toISOString()
+      }], { onConflict: 'store_id' });
+    } catch (siteErr) {
+      console.warn('[storeCloneService] Aviso ao atualizar site_settings:', siteErr);
+    }
 
-      // Pega as subcategorias da categoria clonada ou da matriz
-      const rawSubcats = normalizeSubcategoryArray(cat.subcategories);
-      const originalSubcats = sourceCatMap.get(cat.name.trim().toLowerCase()) || rawSubcats;
-      const effectiveSubcats = originalSubcats.length > 0 ? originalSubcats : rawSubcats;
+    // 3. Clona Categorias Reais da Matriz (Preservando nomes exatos, ícones e subcategorias)
+    let catsCloned = 0;
+    const { data: categoriasMatriz } = await fetchAllCategories(sourceStoreId);
 
-      const newSubcats: string[] = [];
-      effectiveSubcats.forEach((sub, j) => {
-        const newSubName = `Subcategoria ${j + 1}`;
-        newSubcats.push(newSubName);
-
-        subMapping[`${cat.name}:::${sub.toLowerCase()}`] = newSubName;
-        subMapping[`${newCatName}:::${sub.toLowerCase()}`] = newSubName;
-        subMapping[sub.toLowerCase()] = newSubName;
+    if (categoriasMatriz && categoriasMatriz.length > 0) {
+      console.log(`[storeCloneService] 📂 Clonando ${categoriasMatriz.length} categorias originais da matriz...`);
+      const categoriasParaInserir = categoriasMatriz.map((cat, catIndex) => {
+        const rawSubcats = normalizeSubcategoryArray(cat.subcategories);
+        return {
+          id: `cat_${Date.now()}_${catIndex}_${Math.random().toString(36).substring(2, 6)}`,
+          store_id: targetStoreId,
+          name: cat.name.trim(), // Nome original mantido com fidelidade (ex: "Kits Personalizados")
+          icon: cat.icon || 'Gift',
+          subcategories: rawSubcats,
+          created_at: new Date().toISOString()
+        };
       });
 
-      // Atualiza a categoria na tabela categories
-      await supabase
+      const { error: catInsertError } = await supabase
         .from('categories')
-        .update({
-          name: newCatName,
-          subcategories: newSubcats
-        })
-        .eq('id', cat.id);
+        .insert(categoriasParaInserir);
+
+      if (catInsertError) {
+        console.warn('[storeCloneService] Inserindo categorias individualmente por segurança...', catInsertError.message);
+        for (const c of categoriasParaInserir) {
+          const { error: singleErr } = await supabase.from('categories').insert([c]);
+          if (!singleErr) catsCloned++;
+        }
+      } else {
+        catsCloned = categoriasParaInserir.length;
+      }
+      console.log(`[storeCloneService] ✅ ${catsCloned} categorias clonadas com fidelidade total.`);
     }
 
-    // Atualiza os produtos da nova loja
-    const { data: targetProds } = await fetchAllProducts(targetStoreId);
-    if (targetProds && targetProds.length > 0) {
-      for (const prod of targetProds) {
-        const currentCat = (prod.category || '').trim();
-        const newCategory = catMapping[currentCat] || (currentCat.startsWith('Categoria ') ? currentCat : 'Categoria 1');
+    // 4. Clona Produtos Reais da Matriz (Preservando nomes, categorias, fotos, preços, links digitais e benefícios)
+    let prodsCloned = 0;
+    let { data: produtosMatriz } = await fetchAllProducts(sourceStoreId);
 
-        let newSubcategory = prod.subcategory;
-        if (prod.subcategory && prod.subcategory.trim()) {
-          const rawSub = prod.subcategory.trim().toLowerCase();
-          newSubcategory = subMapping[`${currentCat}:::${rawSub}`]
-            || subMapping[`${newCategory}:::${rawSub}`]
-            || subMapping[rawSub]
-            || (rawSub.startsWith('subcategoria ') ? prod.subcategory : 'Subcategoria 1');
-        }
+    // Fallback: se por acaso a consulta de produtos por storeId retornar vazio, busca produtos com store_id nulo ou base
+    if (!produtosMatriz || produtosMatriz.length === 0) {
+      console.log('[storeCloneService] 🔍 Buscando produtos base com fallback...');
+      const { data: fallbackProds } = await supabase
+        .from('products')
+        .select('*')
+        .or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null')
+        .limit(200);
 
-        if (newCategory !== prod.category || newSubcategory !== prod.subcategory) {
-          await supabase
-            .from('products')
-            .update({
-              category: newCategory,
-              subcategory: newSubcategory
-            })
-            .eq('id', prod.id);
-        }
+      if (fallbackProds && fallbackProds.length > 0) {
+        produtosMatriz = fallbackProds as any;
       }
     }
-    console.log('[storeCloneService] ✅ Categorias e subcategorias pós-RPC padronizadas com sucesso.');
+
+    if (produtosMatriz && produtosMatriz.length > 0) {
+      console.log(`[storeCloneService] 📦 Clonando ${produtosMatriz.length} produtos originais da matriz...`);
+      for (const prod of produtosMatriz) {
+        const { id, ...prodData } = prod;
+
+        await createProductInSupabase({
+          ...prodData,
+          category: (prod.category || '').trim(), // Categoria real mantida
+          subcategory: prod.subcategory ? prod.subcategory.trim() : undefined, // Subcategoria real mantida
+          slug: `${prod.slug || prod.name}-${Math.random().toString(36).substring(2, 6)}`,
+          store_id: targetStoreId
+        }, targetStoreId);
+
+        prodsCloned++;
+      }
+      console.log(`[storeCloneService] ✅ ${prodsCloned} produtos clonados com sucesso para a nova loja.`);
+    }
+
+    // 5. Clona Banners Reais da Matriz
+    let bannersCloned = 0;
+    const { data: sourceBanners } = await fetchAllBanners(sourceStoreId);
+
+    if (sourceBanners && sourceBanners.length > 0) {
+      console.log(`[storeCloneService] 🖼️ Clonando ${sourceBanners.length} banners da matriz...`);
+      for (const ban of sourceBanners) {
+        const { id, ...banData } = ban;
+        await createBannerInSupabase({
+          ...banData,
+          store_id: targetStoreId
+        }, targetStoreId);
+        bannersCloned++;
+      }
+      console.log(`[storeCloneService] ✅ ${bannersCloned} banners clonados.`);
+    }
+
+    console.log(`[storeCloneService] 🎉 Clonagem completa finalizada com sucesso: ${prodsCloned} produtos, ${catsCloned} categorias, ${bannersCloned} banners.`);
+
+    return {
+      success: true,
+      clonedCategories: catsCloned,
+      clonedProducts: prodsCloned,
+      clonedBanners: bannersCloned
+    };
   } catch (err: any) {
-    console.warn('[storeCloneService] ⚠️ Erro ao sanitizar categorias pós-RPC:', err);
+    console.error('[storeCloneService] ❌ Erro durante a clonagem:', err);
+    return {
+      success: false,
+      error: err.message || 'Erro inesperado durante a clonagem da loja.'
+    };
   }
 }

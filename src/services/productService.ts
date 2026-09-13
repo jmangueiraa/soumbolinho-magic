@@ -246,7 +246,7 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     // REQUISITO 2: Quando a rota for de uma loja específica (ex: /loja/suamarcaaqui), filtra OBRIGATORIAMENTE por .eq('store_id', currentStoreId)
     else if (currentStoreId) {
       if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
-        query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default');
+        query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
       } else {
         query = query.eq('store_id', currentStoreId);
       }
@@ -275,35 +275,9 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
       mapped = mapped.filter(p => {
         const sId = (p.store_id || '').toLowerCase().trim();
         if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
-          return sId === 'suamarcaaqui' || sId === 'store_default';
+          return sId === 'suamarcaaqui' || sId === 'store_default' || !sId;
         }
         return sId === currentStoreId.toLowerCase().trim();
-      });
-    }
-
-    // Se for loja cliente e houver produtos com categorias da matriz, ajusta dinamicamente
-    if (!isRootMatriz && mapped.length > 0) {
-      const matrizMap: Record<string, string> = {
-        'kits personalizados': 'Categoria 1',
-        'apliques & adesivos': 'Categoria 2',
-        'sacolinhas': 'Categoria 3',
-        'itens para centro de mesa': 'Categoria 4',
-        'formas & porta bis duplo': 'Categoria 5',
-        'livrinho de colorir & tags de agradecimento': 'Categoria 6',
-        'lembrancinhas': 'Categoria 7',
-        'decoração de mesa e parede': 'Categoria 8',
-      };
-
-      mapped = mapped.map(p => {
-        const catLower = (p.category || '').toLowerCase().trim();
-        if (matrizMap[catLower]) {
-          return {
-            ...p,
-            category: matrizMap[catLower],
-            subcategory: p.subcategory ? 'Subcategoria 1' : undefined
-          };
-        }
-        return p;
       });
     }
 
