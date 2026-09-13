@@ -990,18 +990,7 @@ export const CheckoutModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* INFORMATIVO DO PIX (QUANDO SELECIONADO PIX) */}
-                {paymentMethod === 'pix' && (
-                  <div className="p-3 bg-teal-50/80 border border-teal-200/70 rounded-xl text-xs text-teal-900 space-y-1">
-                    <p className="font-extrabold flex items-center gap-1.5 text-teal-950">
-                      <Zap className="w-3.5 h-3.5 fill-teal-600 text-teal-600" />
-                      Geração Automática na Mesma Tela
-                    </p>
-                    <p className="text-[11px] text-teal-800 leading-relaxed">
-                      Ao clicar no botão abaixo, o <strong>QR Code</strong> e a <strong>Chave Pix Copia e Cola</strong> serão gerados instantaneamente aqui mesmo. Pague no aplicativo do seu banco e seus arquivos serão liberados na hora!
-                    </p>
-                  </div>
-                )}
+
 
               </div>
 
