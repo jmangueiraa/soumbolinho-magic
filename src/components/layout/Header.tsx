@@ -38,17 +38,17 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
       
       {/* 1. Main Header Container */}
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-4">
           
           {/* LADO ESQUERDO: Botão de Menu (Ícone com Cor de Destaque da Marca) */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center shrink-0">
             <button
               onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-              className="flex items-center gap-2 p-2 sm:px-3 sm:py-2 text-xs font-bold rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-white transition-all cursor-pointer"
+              className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 text-xs font-bold rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-white transition-all cursor-pointer shrink-0"
               title="Abrir menu de categorias"
               aria-label="Abrir Menu de Categorias"
             >
-              <Menu className="w-5 h-5 text-theme-primary" />
+              <Menu className="w-5 h-5 text-theme-primary shrink-0" />
               <span className="hidden sm:inline font-semibold">Categorias</span>
               {hasActiveFilters && (
                 <span className="w-2 h-2 rounded-full bg-theme-primary animate-pulse"></span>
@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
           {/* CENTRO / LOGO: Logo Festivo Soumbolinho sem Fundo */}
           <a 
             href={storeHomeUrl} 
-            className="flex items-center group shrink min-w-0 cursor-pointer" 
+            className="flex items-center group shrink min-w-0 cursor-pointer overflow-hidden" 
             onClick={(e) => { 
               e.preventDefault(); 
               window.location.hash = ''; 
@@ -94,18 +94,18 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
           </div>
 
           {/* LADO DIREITO: Botão do Carrinho Estilo Referência */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center shrink-0">
             {/* Botão do Carrinho com borda e badge (ex: R$ 10,00 🛒 1) */}
             <button
               onClick={openCart}
-              className="relative flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-white px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all active:scale-95 group cursor-pointer"
+              className="relative flex items-center gap-1.5 sm:gap-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all active:scale-95 group cursor-pointer shrink-0"
               aria-label="Abrir Carrinho"
             >
-              <span>{totalPrice > 0 ? formatCurrency(totalPrice) : 'R$ 0,00'}</span>
+              <span className="text-[11px] sm:text-sm">{totalPrice > 0 ? formatCurrency(totalPrice) : 'R$ 0,00'}</span>
               <div className="relative flex items-center">
-                <ShoppingBag className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                <ShoppingBag className="w-4 h-4 text-white group-hover:scale-110 transition-transform shrink-0" />
                 {totalItemsCount > 0 && (
-                  <span className="ml-1 bg-theme-primary text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                  <span className="ml-1 bg-theme-primary text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs shrink-0">
                     {totalItemsCount > 99 ? '99+' : totalItemsCount}
                   </span>
                 )}
