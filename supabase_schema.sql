@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS public.store_config (
 );
 
 ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
+ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS mp_access_token TEXT;
 ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
 ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
 ALTER TABLE public.store_config ADD COLUMN IF NOT EXISTS benefit_cards JSONB;

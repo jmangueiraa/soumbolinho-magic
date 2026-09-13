@@ -95,9 +95,38 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
         console.warn('[storeConfigService] Aviso ao buscar site_settings:', e);
       }
 
+      // Consulta complementar na tabela stores para obter credenciais e dados exclusivos da loja
+      let storeRow: any = null;
+      try {
+        const { data: sRow } = await supabase
+          .from('stores')
+          .select('*')
+          .or(`id.eq.${targetStoreId},slug.eq.${targetStoreId}`)
+          .limit(1)
+          .maybeSingle();
+        if (sRow) storeRow = sRow;
+      } catch (e) {
+        console.warn('[storeConfigService] Aviso ao buscar stores:', e);
+      }
+
       if (clientConfig) {
         console.log(`[storeConfigService] ✅ Configurações exclusivas da loja "${storeId}" encontradas:`, clientConfig.store_name);
         const mapped = mapSupabaseConfig(clientConfig);
+
+        // Mescla dados das colunas exclusivas da tabela stores (credenciais e tema)
+        if (storeRow) {
+          if (storeRow.mp_access_token) mapped.mpAccessToken = storeRow.mp_access_token;
+          if (storeRow.telegram_bot_token) mapped.telegramBotToken = storeRow.telegram_bot_token;
+          if (storeRow.telegram_chat_id) mapped.telegramChatId = storeRow.telegram_chat_id;
+          if (storeRow.logo_url && !mapped.logoUrl) mapped.logoUrl = storeRow.logo_url;
+          if (storeRow.whatsapp_number && (!mapped.whatsappNumber || mapped.whatsappNumber === INITIAL_STORE_CONFIG.whatsappNumber)) mapped.whatsappNumber = storeRow.whatsapp_number;
+          if (storeRow.whatsapp_display && (!mapped.whatsappDisplay || mapped.whatsappDisplay === INITIAL_STORE_CONFIG.whatsappDisplay)) mapped.whatsappDisplay = storeRow.whatsapp_display;
+          if (storeRow.instagram && (!mapped.instagram || mapped.instagram === INITIAL_STORE_CONFIG.instagram)) mapped.instagram = storeRow.instagram;
+          if (storeRow.slogan && (!mapped.slogan || mapped.slogan === INITIAL_STORE_CONFIG.slogan)) mapped.slogan = storeRow.slogan;
+          if (storeRow.address && (!mapped.address || mapped.address === INITIAL_STORE_CONFIG.address)) mapped.address = storeRow.address;
+          if (storeRow.working_hours && (!mapped.workingHours || mapped.workingHours === INITIAL_STORE_CONFIG.workingHours)) mapped.workingHours = storeRow.working_hours;
+        }
+
         if (siteThemeData) {
           if (siteThemeData.whatsapp) mapped.whatsappNumber = siteThemeData.whatsapp;
           if (siteThemeData.display_whatsapp) mapped.whatsappDisplay = siteThemeData.display_whatsapp;
@@ -123,13 +152,6 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       }
 
       // Se ainda não houver registro em store_config, busca os dados gravados diretamente na tabela stores
-      const { data: storeRow } = await supabase
-        .from('stores')
-        .select('*')
-        .or(`id.eq.${storeId},slug.eq.${storeId}`)
-        .limit(1)
-        .maybeSingle();
-
       if (storeRow) {
         console.log(`[storeConfigService] 📋 Gerando storeConfig a partir da tabela stores da loja:`, storeRow.name);
         const resolvedName = storeRow.store_name || storeRow.name || 'suamarcaaqui';
@@ -205,8 +227,26 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       if (baseSiteSettings) baseSiteTheme = baseSiteSettings;
     } catch (e) {}
 
+    // Busca dados gravados diretamente na tabela stores da Matriz
+    let matrizStoreRow: any = null;
+    try {
+      const { data: mRow } = await supabase
+        .from('stores')
+        .select('*')
+        .or('is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,custom_domain.ilike.editaveisdocanva.com.br')
+        .limit(1)
+        .maybeSingle();
+      if (mRow) matrizStoreRow = mRow;
+    } catch (e) {}
+
     if (baseData) {
       const mapped = mapSupabaseConfig(baseData);
+      if (matrizStoreRow) {
+        if (matrizStoreRow.mp_access_token) mapped.mpAccessToken = matrizStoreRow.mp_access_token;
+        if (matrizStoreRow.telegram_bot_token) mapped.telegramBotToken = matrizStoreRow.telegram_bot_token;
+        if (matrizStoreRow.telegram_chat_id) mapped.telegramChatId = matrizStoreRow.telegram_chat_id;
+        if (matrizStoreRow.logo_url && !mapped.logoUrl) mapped.logoUrl = matrizStoreRow.logo_url;
+      }
       if (baseSiteTheme) {
         if (baseSiteTheme.whatsapp) mapped.whatsappNumber = baseSiteTheme.whatsapp;
         if (baseSiteTheme.display_whatsapp) mapped.whatsappDisplay = baseSiteTheme.display_whatsapp;
@@ -231,14 +271,6 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       return { data: mapped, error: null };
     }
 
-    // Se ainda não houver registro em store_config, busca os dados gravados diretamente na tabela stores da Matriz
-    const { data: matrizStoreRow } = await supabase
-      .from('stores')
-      .select('*')
-      .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,custom_domain.ilike.editaveisdocanva.com.br')
-      .limit(1)
-      .maybeSingle();
-
     if (matrizStoreRow) {
       const storeTheme = matrizStoreRow.theme_settings || {};
       const resolvedBenefitCards = (baseSiteTheme?.benefit_cards
@@ -257,6 +289,9 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
         city: 'Brasil',
         workingHours: baseSiteTheme?.business_hours || matrizStoreRow.working_hours || 'Segunda a Sábado, 09h às 18h',
         minOrderValue: 0.00,
+        mpAccessToken: matrizStoreRow.mp_access_token || undefined,
+        telegramBotToken: matrizStoreRow.telegram_bot_token || undefined,
+        telegramChatId: matrizStoreRow.telegram_chat_id || undefined,
         benefitCards: resolvedBenefitCards,
         primaryColor: baseSiteTheme?.primary_color || storeTheme.primary_color || '#FF1493',
         themeLayout: baseSiteTheme?.theme_layout || storeTheme.theme_layout || 'classic',
@@ -313,9 +348,67 @@ export async function saveStoreConfigInSupabase(
   };
 
   try {
-    console.log('[storeConfigService] 💾 Executando UPSERT das configurações no Supabase:', payload);
+    console.log('[storeConfigService] 💾 Executando salvamento das configurações no Supabase:', payload);
 
-    // 0. Atualização na tabela site_settings exatamente como solicitado pelo usuário (CRUCIAL: filtrando por store_id)
+    // 1. Sincroniza SEMPRE na tabela stores (onde as credenciais mp_access_token, telegram_bot_token, telegram_chat_id e theme_settings residem com segurança)
+    const isMatrizOrBase = targetStoreId === 'store_default' || targetStoreId === 'suamarcaaqui' || targetStoreId === 'matriz';
+    const storeOrFilter = isMatrizOrBase
+      ? 'is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,custom_domain.ilike.editaveisdocanva.com.br'
+      : `id.eq.${targetStoreId},slug.eq.${targetStoreId}`;
+
+    let storeUpdatedSuccessfully = false;
+    try {
+      const { data: currentStoreRow } = await supabase
+        .from('stores')
+        .select('id, theme_settings')
+        .or(storeOrFilter)
+        .limit(1)
+        .maybeSingle();
+
+      const currentTheme = currentStoreRow?.theme_settings || {};
+      const actualStoreId = currentStoreRow?.id || targetStoreId;
+
+      const storeUpdatePayload: any = {
+        name: config.storeName,
+        store_name: config.storeName,
+        slogan: config.slogan,
+        whatsapp_number: config.whatsappNumber,
+        whatsapp_display: config.whatsappDisplay,
+        instagram: config.instagram,
+        address: config.address,
+        working_hours: config.workingHours,
+        logo_url: config.logoUrl || null,
+        mp_access_token: config.mpAccessToken?.trim() || null,
+        telegram_bot_token: config.telegramBotToken?.trim() || null,
+        telegram_chat_id: config.telegramChatId?.trim() || null,
+        theme_settings: {
+          ...currentTheme,
+          primary_color: config.primaryColor || currentTheme.primary_color,
+          logo_url: config.logoUrl !== undefined ? config.logoUrl : currentTheme.logo_url,
+          benefit_cards: config.benefitCards || DEFAULT_BENEFIT_CARDS,
+          whatsapp_default_message: config.whatsappDefaultMessage,
+          theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
+          color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
+        },
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: storeUpdateErr } = await supabase
+        .from('stores')
+        .update(storeUpdatePayload)
+        .eq('id', actualStoreId);
+
+      if (!storeUpdateErr) {
+        storeUpdatedSuccessfully = true;
+        console.log(`[storeConfigService] ✅ Tabela stores atualizada com sucesso para loja id="${actualStoreId}"!`);
+      } else {
+        console.warn('[storeConfigService] Aviso ao atualizar stores:', storeUpdateErr.message);
+      }
+    } catch (storeEx) {
+      console.warn('[storeConfigService] Exceção ao atualizar stores:', storeEx);
+    }
+
+    // 2. Atualização na tabela site_settings exatamente como solicitado pelo usuário (CRUCIAL: filtrando por store_id)
     try {
       const siteSettingsUpdate = {
         store_id: targetStoreId,
@@ -360,15 +453,16 @@ export async function saveStoreConfigInSupabase(
       console.warn('[storeConfigService] Exceção em site_settings:', siteEx);
     }
 
-    // 1. Tentar upsert na tabela store_config
-    let { error } = await supabase
+    // 3. Tentar upsert na tabela store_config
+    let { error: configError } = await supabase
       .from('store_config')
       .upsert([payload], { onConflict: 'id' });
 
-    // Fallback caso as novas colunas ainda não existam no Supabase
-    if (error && (error.message.includes('column') || error.message.includes('telegram') || error.message.includes('benefit_cards') || error.message.includes('theme_layout') || error.message.includes('color_palette') || error.message.includes('logo_url'))) {
-      console.warn('[storeConfigService] ⚠️ Coluna opcional ausente em store_config, tentando salvar sem elas:', error.message);
+    // Fallback caso as novas colunas ou mp_access_token ainda não existam no schema cache do Supabase
+    if (configError) {
+      console.warn('[storeConfigService] ⚠️ Coluna ausente em store_config, tentando salvar payload limpo:', configError.message);
       const cleanPayload: any = { ...payload };
+      delete cleanPayload.mp_access_token;
       delete cleanPayload.telegram_bot_token;
       delete cleanPayload.telegram_chat_id;
       delete cleanPayload.benefit_cards;
@@ -378,70 +472,24 @@ export async function saveStoreConfigInSupabase(
       delete cleanPayload.whatsapp_default_message;
       delete cleanPayload.logo_url;
       const retry = await supabase.from('store_config').upsert([cleanPayload], { onConflict: 'id' });
-      error = retry.error;
-    }
-
-    // 2. Se falhar por outro motivo, tenta na tabela site_settings
-    if (error) {
-      console.warn('[storeConfigService] Tentando tabela site_settings...', error.message);
-      const res = await supabase
-        .from('site_settings')
-        .upsert([payload], { onConflict: 'id' });
-      error = res.error;
-    }
-
-    // 3. Sincroniza também na tabela stores para manter theme_settings preservado
-    if (targetStoreId && targetStoreId !== 'store_default') {
-      try {
-        const { data: currentStoreRow } = await supabase
-          .from('stores')
-          .select('theme_settings')
-          .eq('id', targetStoreId)
-          .maybeSingle();
-
-        const currentTheme = currentStoreRow?.theme_settings || {};
-
-        await supabase
-          .from('stores')
-          .update({
-            name: config.storeName,
-            store_name: config.storeName,
-            slogan: config.slogan,
-            whatsapp_number: config.whatsappNumber,
-            whatsapp_display: config.whatsappDisplay,
-            instagram: config.instagram,
-            address: config.address,
-            working_hours: config.workingHours,
-            logo_url: config.logoUrl || null,
-            mp_access_token: config.mpAccessToken || null,
-            telegram_bot_token: config.telegramBotToken || null,
-            telegram_chat_id: config.telegramChatId || null,
-            theme_settings: {
-              ...currentTheme,
-              primary_color: config.primaryColor || currentTheme.primary_color,
-              logo_url: config.logoUrl !== undefined ? config.logoUrl : currentTheme.logo_url,
-              benefit_cards: config.benefitCards || DEFAULT_BENEFIT_CARDS,
-              whatsapp_default_message: config.whatsappDefaultMessage,
-              theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
-              color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
-            },
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', targetStoreId);
-      } catch (syncErr) {
-        console.warn('[storeConfigService] Aviso ao sincronizar com stores:', syncErr);
+      if (!retry.error) {
+        configError = null;
+      } else {
+        console.warn('[storeConfigService] Aviso retry store_config:', retry.error.message);
       }
     }
 
-    if (error) {
-      console.error('[storeConfigService] ❌ Erro ao salvar configurações no Supabase:', error);
-      return { success: false, error: error.message };
+    // Se stores foi salvo com sucesso ou store_config foi salvo com sucesso
+    if (!configError || storeUpdatedSuccessfully) {
+      console.log('[storeConfigService] ✅ Configurações e credenciais de API salvas com sucesso!');
+      return { success: true, error: null };
     }
 
-    console.log('[storeConfigService] ✅ Configurações salvas no Supabase!');
-    return { success: true, error: null };
+    console.error('[storeConfigService] ❌ Erro ao salvar configurações no Supabase:', configError);
+    return { success: false, error: configError?.message || 'Erro ao persistir configurações.' };
   } catch (err: any) {
     console.error('[storeConfigService] ❌ Exceção ao salvar configurações:', err);
     return { success: false, error: err.message };
+  }
   }
 }

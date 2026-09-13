@@ -17,11 +17,12 @@ import {
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
+import { supabase } from '../../lib/supabase';
 import { updateStoreDomain } from '../../services/storeManagementService';
 
 export const ApiDomainManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
-  const { currentStore } = useTenant();
+  const { currentStore, refreshTenant } = useTenant();
 
   // Estados de Domínio
   const [customDomainInput, setCustomDomainInput] = useState(currentStore?.custom_domain || '');
@@ -50,10 +51,20 @@ export const ApiDomainManager: React.FC = () => {
   }, [currentStore]);
 
   useEffect(() => {
-    setMpAccessToken(storeConfig.mpAccessToken || currentStore?.mp_access_token || '');
-    setTelegramBotToken(storeConfig.telegramBotToken || currentStore?.telegram_bot_token || '');
-    setTelegramChatId(storeConfig.telegramChatId || currentStore?.telegram_chat_id || '');
-  }, [storeConfig, currentStore]);
+    const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || '';
+    const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || '';
+    const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || '';
+    setMpAccessToken(mp);
+    setTelegramBotToken(tg);
+    setTelegramChatId(chat);
+  }, [
+    storeConfig.mpAccessToken,
+    storeConfig.telegramBotToken,
+    storeConfig.telegramChatId,
+    currentStore?.mp_access_token,
+    currentStore?.telegram_bot_token,
+    currentStore?.telegram_chat_id
+  ]);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -99,26 +110,66 @@ export const ApiDomainManager: React.FC = () => {
     setIsSavingApis(true);
     setApiSaveSuccess(false);
 
+    const cleanMpToken = mpAccessToken.trim();
+    const cleanTgToken = telegramBotToken.trim();
+    const cleanChatId = telegramChatId.trim();
+
     try {
-      localStorage.setItem('encantando_festa_telegram_bot_token', telegramBotToken.trim());
-      localStorage.setItem('encantando_festa_telegram_chat_id', telegramChatId.trim());
+      localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
+      localStorage.setItem('encantando_festa_telegram_bot_token', cleanTgToken);
+      localStorage.setItem('encantando_festa_telegram_chat_id', cleanChatId);
     } catch (e) {
       console.warn(e);
     }
 
+    // 1. Atualiza diretamente na tabela stores pelo Supabase garantindo persistência imediata
+    const targetStoreIdentifier = currentStore?.id;
+    if (targetStoreIdentifier && targetStoreIdentifier !== '__resolving_tenant__') {
+      try {
+        const isMatriz = currentStore.is_matriz || targetStoreIdentifier === 'suamarcaaqui' || targetStoreIdentifier === 'store_default';
+        const filter = isMatriz
+          ? 'is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
+          : `id.eq.${targetStoreIdentifier},slug.eq.${targetStoreIdentifier}`;
+
+        await supabase
+          .from('stores')
+          .update({
+            mp_access_token: cleanMpToken || null,
+            telegram_bot_token: cleanTgToken || null,
+            telegram_chat_id: cleanChatId || null,
+            updated_at: new Date().toISOString(),
+          })
+          .or(filter);
+      } catch (storeErr) {
+        console.warn('[ApiDomainManager] Erro ao salvar credenciais diretamente em stores:', storeErr);
+      }
+    }
+
+    // 2. Atualiza via StoreDataContext (que persiste em stores, site_settings e store_config)
     await updateStoreConfig({
-      mpAccessToken: mpAccessToken.trim(),
-      telegramBotToken: telegramBotToken.trim(),
-      telegramChatId: telegramChatId.trim(),
+      mpAccessToken: cleanMpToken,
+      telegramBotToken: cleanTgToken,
+      telegramChatId: cleanChatId,
     });
+
+    // 3. Atualiza o TenantContext para que currentStore em memória reflita as alterações
+    try {
+      await refreshTenant();
+    } catch (rErr) {
+      console.warn('[ApiDomainManager] Aviso ao atualizar tenant:', rErr);
+    }
 
     setIsSavingApis(false);
     setApiSaveSuccess(true);
+    showNotification('Chaves de API salvas com sucesso!', 'success');
     setTimeout(() => setApiSaveSuccess(false), 3000);
   };
 
   const handleTestTelegram = async () => {
-    if (!telegramBotToken.trim() || !telegramChatId.trim()) {
+    const cleanToken = telegramBotToken.trim();
+    const cleanChat = telegramChatId.trim();
+
+    if (!cleanToken || !cleanChat) {
       setTestTelegramStatus({
         success: false,
         message: 'Preencha o Token do Bot e o Chat ID antes de testar.',
@@ -129,37 +180,64 @@ export const ApiDomainManager: React.FC = () => {
     setTestTelegramLoading(true);
     setTestTelegramStatus(null);
 
+    let sendSuccess = false;
+    let feedbackMsg = '';
+
+    // 1. Tenta via endpoint serverless (/api/notify-abandoned-cart)
     try {
       const res = await fetch('/api/notify-abandoned-cart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action_type: 'test',
-          telegram_bot_token: telegramBotToken.trim(),
-          telegram_chat_id: telegramChatId.trim(),
+          telegram_bot_token: cleanToken,
+          telegram_chat_id: cleanChat,
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setTestTelegramStatus({
-          success: true,
-          message: 'Mensagem de teste enviada com sucesso! Verifique seu Telegram.',
-        });
-      } else {
-        setTestTelegramStatus({
-          success: false,
-          message: data.error || data.warning || 'Não foi possível conectar ao Telegram.',
-        });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          sendSuccess = true;
+          feedbackMsg = 'Mensagem de teste enviada com sucesso! Verifique seu Telegram.';
+        } else {
+          feedbackMsg = data.error || data.warning || 'Não foi possível conectar ao Telegram.';
+        }
       }
-    } catch (err: any) {
-      setTestTelegramStatus({
-        success: false,
-        message: err.message || 'Erro ao tentar enviar notificação para o Telegram.',
-      });
-    } finally {
-      setTestTelegramLoading(false);
+    } catch (apiErr) {
+      console.warn('[ApiDomainManager] Endpoint /api/notify-abandoned-cart indisponível, tentando envio direto...', apiErr);
     }
+
+    // 2. Fallback direto via Telegram Bot API (útil no desenvolvimento local ou caso a API serverless não esteja ativa)
+    if (!sendSuccess) {
+      try {
+        const directRes = await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cleanChat,
+            text: `🔔 *TESTE DE INTEGRAÇÃO DO TELEGRAM*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n✅ *Status:* Bot conectado com sucesso!\n🏪 *Loja:* ${currentStore?.name || 'Sua Loja'}\n📅 *Data/Hora:* ${new Date().toLocaleString('pt-BR')}\n\nTudo pronto! Suas notificações automáticas de pedidos, pagamentos e carrinhos abandonados funcionarão perfeitamente.`,
+            parse_mode: 'Markdown',
+          }),
+        });
+
+        const directData = await directRes.json();
+        if (directData.ok) {
+          sendSuccess = true;
+          feedbackMsg = 'Mensagem de teste enviada com sucesso! Verifique seu Telegram.';
+        } else {
+          feedbackMsg = directData.description || feedbackMsg || 'Erro retornado pela API do Telegram.';
+        }
+      } catch (directErr: any) {
+        feedbackMsg = directErr.message || feedbackMsg || 'Falha ao conectar com o Telegram.';
+      }
+    }
+
+    setTestTelegramStatus({
+      success: sendSuccess,
+      message: feedbackMsg || (sendSuccess ? 'Mensagem de teste enviada com sucesso!' : 'Falha no teste do Telegram.'),
+    });
+    setTestTelegramLoading(false);
   };
 
   const isDomainActive = currentStore?.domain_status === 'active' || currentStore?.domain_status === 'ativo';
