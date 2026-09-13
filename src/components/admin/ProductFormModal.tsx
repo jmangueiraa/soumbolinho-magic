@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, MessageSquare, Gift, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, Gift, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -8,8 +8,6 @@ import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
 import { slugify, generateSlug, generateUniqueSlug } from '../../utils/slug';
 import { supabase } from '../../lib/supabase';
-import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
-import { getAutomaticTestimonials } from '../../utils/automaticProductContent';
 
 export interface FormBonusItem {
   title: string;
@@ -1302,77 +1300,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
-          {/* 5. Depoimentos de Clientes (Prova Social - Sempre 6 Cards) */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <MessageSquare className="w-4 h-4 text-theme-primary" />
-                <span>Depoimentos de Clientes (Prova Social — Sempre 6 Cards)</span>
-              </label>
-              <span className="text-[10px] bg-pink-100/80 text-pink-700 font-bold px-2 py-0.5 rounded-md">
-                {(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length > 0 
-                  ? `${(formData.testimonials || '').split('\n').filter((s) => s.trim().length > 5).length} de 6 cards personalizados`
-                  : 'Padrão da loja (6 depoimentos com foto)'}
-              </span>
-            </div>
 
-            {/* Ações rápidas para carregar ou gerar 6 depoimentos */}
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  const defaultLines = DEFAULT_TESTIMONIALS.map(
-                    (t) => `${t.name} | ${t.text} | ${t.avatar}`
-                  ).join('\n');
-                  setFormData({ ...formData, testimonials: defaultLines });
-                }}
-                className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-[11px] font-bold shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-pink-500" />
-                <span>Carregar 6 Depoimentos Padrão</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const autoTestimonials = getAutomaticTestimonials({
-                    name: formData.name || 'Material Exclusivo',
-                    category: formData.category || '',
-                    description: formData.description || '',
-                    detailed_description: formData.detailed_description || '',
-                  } as any);
-                  const generatedLines = autoTestimonials.map(
-                    (t) => `${t.name} | ${t.text} | ${t.avatar}`
-                  ).join('\n');
-                  setFormData({ ...formData, testimonials: generatedLines });
-                }}
-                className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-[11px] font-bold shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <span>🎯 Gerar 6 para este Produto</span>
-              </button>
-
-              {formData.testimonials && (
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, testimonials: '' })}
-                  className="text-[10px] text-slate-500 hover:text-rose-600 underline ml-auto"
-                >
-                  Limpar (Usar 6 Automáticos)
-                </button>
-              )}
-            </div>
-
-            <textarea
-              rows={4}
-              value={formData.testimonials}
-              onChange={(e) => setFormData({ ...formData, testimonials: e.target.value })}
-              placeholder="Nome | Depoimento | URL da Foto (opcional)&#10;Ex: Valentina Rocha | Amei os arquivos, muito práticos e lindos! | https://..."
-              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
-            />
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              💡 <strong>O sistema cria e exibe SEMPRE exatamente 6 cards de prova social</strong> na página de vendas (grid simétrico com fotos de perfil, 5 estrelas douradas e depoimentos de alta conversão). Se você deixar em branco ou preencher menos de 6, o sistema complementará automaticamente até fechar os 6 cards perfeitos.
-            </p>
-          </div>
 
           {/* 6. Bônus Exclusivos da Página de Vendas (Multi-bônus Dinâmico) */}
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
