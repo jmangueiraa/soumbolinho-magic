@@ -351,16 +351,16 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
             Identidade da Loja
           </h3>
 
-          {/* Logo / Ícone da Loja */}
+          {/* Logo Circular da Loja */}
           <div className="p-4 sm:p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <label className="block text-xs font-bold text-slate-800 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-theme-primary" />
-                  <span>Ícone / Imagem do Logo</span>
+                  <span>Logo Circular</span>
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Envie o ícone ou mascote da sua loja. O nome e o subtítulo continuam ao lado com a tipografia estilizada.
+                  Envie a foto ou arte da sua logo circular. O nome da loja é individual da foto da logo e continua ao lado com a tipografia estilizada.
                 </p>
               </div>
 
@@ -369,17 +369,17 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                   type="button"
                   onClick={() => setFormData({ ...formData, logoUrl: '' })}
                   className="text-[11px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors px-2.5 py-1 rounded-lg hover:bg-rose-50 cursor-pointer"
-                  title="Remover ícone customizado e voltar ao bolinho padrão"
+                  title="Remover logo circular e voltar ao bolinho padrão"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remover Ícone</span>
+                  <span>Remover Logo Circular</span>
                 </button>
               )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              {/* Preview Box com Ícone + Texto */}
-              <div className="w-full sm:w-64 h-24 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center p-3 relative overflow-hidden shrink-0 shadow-inner group">
+              {/* Preview Box com Logo Circular + Nome da Loja Individual */}
+              <div className="w-full sm:w-72 h-24 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center p-3 relative overflow-hidden shrink-0 shadow-inner group">
                 <div className="text-center p-1">
                   <SoumbolinhoLogo 
                     variant="light" 
@@ -389,7 +389,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                     logoUrl={formData.logoUrl} 
                   />
                   <span className="block text-[8.5px] text-zinc-400 mt-1 uppercase tracking-wider font-semibold">
-                    {formData.logoUrl ? '✨ Ícone Customizado' : 'Bolinho Padrão'}
+                    {formData.logoUrl ? '✨ Logo Circular Ativa' : 'Bolinho Padrão'}
                   </span>
                 </div>
                 <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[8px] text-zinc-300 font-bold uppercase tracking-wider">
@@ -423,7 +423,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                     ) : (
                       <>
                         <Upload className="w-4 h-4 text-theme-primary" />
-                        <span>Fazer Upload do Ícone (PNG, JPG, SVG)</span>
+                        <span>Fazer Upload da Logo Circular (PNG, JPG, SVG)</span>
                       </>
                     )}
                   </button>
@@ -437,7 +437,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                     type="url"
                     value={formData.logoUrl}
                     onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                    placeholder="https://exemplo.com/imagens/meu-icone.png"
+                    placeholder="https://exemplo.com/imagens/minha-logo-circular.png"
                     className="w-full text-xs pl-9 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800 placeholder:text-slate-400 font-mono"
                   />
                 </div>
@@ -447,7 +447,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                 )}
 
                 <p className="text-[10.5px] text-slate-400 leading-tight">
-                  💡 O upload substitui apenas a imagem/ícone à esquerda. O nome da loja e o subtítulo continuam ao lado exatamente como configurados.
+                  💡 O nome da loja é individual da foto da logo. Você pode personalizar o nome da loja e o subtítulo separadamente nos campos abaixo, enquanto a sua foto da logo circular é exibida ao lado.
                 </p>
               </div>
             </div>

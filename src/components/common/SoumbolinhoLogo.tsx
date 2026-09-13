@@ -35,21 +35,18 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   const isLight = variant === 'light';
   const isBaseStore = currentStore?.id === 'suamarcaaqui' || currentStore?.id === 'store_default' || currentStore?.slug === 'suamarcaaqui';
 
-  // Se for nova loja ou loja cliente, define "SUAMARCAAQUI" como padrão
-  const resolvedName = (
-    propStoreName ||
-    storeConfig?.storeName ||
-    currentStore?.name ||
-    currentStore?.store_name ||
-    (isBaseStore ? 'SOUMBOLINHO' : 'SUAMARCAAQUI')
-  ).trim();
+  // Nome da loja individual da foto da logo
+  const rawName = propStoreName !== undefined
+    ? propStoreName
+    : (storeConfig?.storeName !== undefined ? storeConfig.storeName : (currentStore?.name || currentStore?.store_name || ''));
 
-  const resolvedSlogan = (
-    propSlogan ||
-    storeConfig?.slogan ||
-    currentStore?.slogan ||
-    (isBaseStore ? 'Papelaria & Festas Digitais' : 'PAPELARIA & FESTAS DIGITAIS')
-  ).trim();
+  const resolvedName = (rawName || (customLogoUrl ? '' : (isBaseStore ? 'SOUMBOLINHO' : 'SUAMARCAAQUI'))).trim();
+
+  const rawSlogan = propSlogan !== undefined
+    ? propSlogan
+    : (storeConfig?.slogan !== undefined ? storeConfig.slogan : (currentStore?.slogan || ''));
+
+  const resolvedSlogan = (rawSlogan || (customLogoUrl ? '' : (isBaseStore ? 'Papelaria & Festas Digitais' : 'PAPELARIA & FESTAS DIGITAIS'))).trim();
 
   const customLogoUrl = (
     propLogoUrl ||
@@ -160,71 +157,75 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
         )}
       </div>
 
-      {/* Tipografia da Marca com Subtítulo Festivo */}
-      <div className="flex flex-col text-left leading-none">
-        <div className="flex items-center tracking-tight">
-          {(() => {
-            const upper = resolvedName.toUpperCase().replace(/\s+/g, ' ').trim();
+      {/* Tipografia da Marca com Subtítulo Festivo (Individual da foto da logo) */}
+      {resolvedName && (
+        <div className="flex flex-col text-left leading-none">
+          <div className="flex items-center tracking-tight">
+            {(() => {
+              const upper = resolvedName.toUpperCase().replace(/\s+/g, ' ').trim();
 
-            // 1. Caso Base Oficial: SOUMBOLINHO
-            if (upper === 'SOUMBOLINHO' || upper === 'SOUM BOLINHO') {
+              // 1. Caso Base Oficial: SOUMBOLINHO
+              if (upper === 'SOUMBOLINHO' || upper === 'SOUM BOLINHO') {
+                return (
+                  <>
+                    <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
+                      SOUM
+                    </span>
+                    <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary ml-0.5">
+                      BOLINHO
+                    </span>
+                  </>
+                );
+              }
+
+              // 2. Caso Nova Loja: SUAMARCAAQUI ou SUA MARCA AQUI
+              if (upper.replace(/\s+/g, '') === 'SUAMARCAAQUI') {
+                return (
+                  <>
+                    <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
+                      SUAMARCA
+                    </span>
+                    <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary">
+                      AQUI
+                    </span>
+                  </>
+                );
+              }
+
+              // 3. Caso Nome com mais de uma palavra (ex: "Doces da Maria")
+              const words = resolvedName.split(' ').filter(Boolean);
+              if (words.length > 1) {
+                const firstPart = words.slice(0, -1).join(' ').toUpperCase();
+                const lastPart = words[words.length - 1].toUpperCase();
+                return (
+                  <>
+                    <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
+                      {firstPart}
+                    </span>
+                    <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary ml-1.5">
+                      {lastPart}
+                    </span>
+                  </>
+                );
+              }
+
+              // 4. Caso Nome de Palavra Única
               return (
-                <>
-                  <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
-                    SOUM
-                  </span>
-                  <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary ml-0.5">
-                    BOLINHO
-                  </span>
-                </>
+                <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary">
+                  {resolvedName.toUpperCase()}
+                </span>
               );
-            }
-
-            // 2. Caso Nova Loja: SUAMARCAAQUI ou SUA MARCA AQUI
-            if (upper.replace(/\s+/g, '') === 'SUAMARCAAQUI') {
-              return (
-                <>
-                  <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
-                    SUAMARCA
-                  </span>
-                  <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary">
-                    AQUI
-                  </span>
-                </>
-              );
-            }
-
-            // 3. Caso Nome com mais de uma palavra (ex: "Doces da Maria")
-            const words = resolvedName.split(' ').filter(Boolean);
-            if (words.length > 1) {
-              const firstPart = words.slice(0, -1).join(' ').toUpperCase();
-              const lastPart = words[words.length - 1].toUpperCase();
-              return (
-                <>
-                  <span className={`font-sans text-lg sm:text-2xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
-                    {firstPart}
-                  </span>
-                  <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary ml-1.5">
-                    {lastPart}
-                  </span>
-                </>
-              );
-            }
-
-            // 4. Caso Nome de Palavra Única
-            return (
-              <span className="font-sans text-lg sm:text-2xl font-black text-theme-primary">
-                {resolvedName.toUpperCase()}
-              </span>
-            );
-          })()}
+            })()}
+          </div>
+          {resolvedSlogan && (
+            <span className={`text-[8px] sm:text-[9.5px] font-bold tracking-[0.18em] uppercase mt-0.5 ${
+              isLight ? 'text-zinc-400' : 'text-slate-500'
+            }`}>
+              {resolvedSlogan}
+            </span>
+          )}
         </div>
-        <span className={`text-[8px] sm:text-[9.5px] font-bold tracking-[0.18em] uppercase mt-0.5 ${
-          isLight ? 'text-zinc-400' : 'text-slate-500'
-        }`}>
-          {resolvedSlogan}
-        </span>
-      </div>
+      )}
     </div>
   );
 };
