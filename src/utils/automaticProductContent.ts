@@ -834,3 +834,69 @@ export function getAutomaticTestimonials(product: Product | null): TestimonialIt
 
   return result.slice(0, 6);
 }
+
+export interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+/**
+ * Gera automaticamente as Perguntas Frequentes (FAQ) de alta conversão
+ * estritamente alinhadas com os Detalhes e Descrição do Produto.
+ */
+export function getAutomaticProductFaq(product: Product | null): FaqItem[] {
+  if (product?.faq && Array.isArray(product.faq) && product.faq.length > 0) {
+    return product.faq;
+  }
+
+  const rawTitle = (product?.name || '').trim();
+  const cleanTitle = rawTitle.replace(/[-_]/g, ' ') || 'este pacote digital';
+
+  // Descrição efetiva do produto exibida na Seção 3 ("Detalhes e Descrição do Produto")
+  const manualDesc = [
+    product?.detailed_description || (product as any)?.detailedDescription || '',
+    product?.description || ''
+  ].filter(Boolean).join('\n').trim();
+
+  const effectiveDesc = manualDesc || getAutomaticProductDescription(product);
+  const textLower = `${cleanTitle} ${(product?.category || '')} ${effectiveDesc}`.toLowerCase();
+
+  const mentionsCorte = textLower.includes('corte') || textLower.includes('silhouette') || textLower.includes('svg') || textLower.includes('tesoura') || textLower.includes('molde');
+  const mentionsConvite = textLower.includes('convite') || textLower.includes('interativo');
+
+  return [
+    {
+      question: `O que exatamente vou receber no pacote ${cleanTitle}?`,
+      answer: `Você receberá os arquivos completos e 100% estruturados de ${cleanTitle} no Canva. O material foi desenvolvido com acabamento refinado e de altíssimo valor percebido, ideal para artesãs, papeleiras, confeiteiras e designers acelerarem sua produção diária.`
+    },
+    {
+      question: 'Consigo alterar nomes, datas, fotos e paleta de cores?',
+      answer: 'Sim! Os arquivos são 100% estruturados e organizados. Você pode alterar facilmente nomes, idades, datas, fotos, fontes e toda a paleta de cores com poucos cliques, tanto pelo computador quanto direto pelo celular.'
+    },
+    {
+      question: 'Preciso ter o Canva Pro para editar?',
+      answer: 'Não! Todos os arquivos foram criados pensando na máxima acessibilidade. Você consegue abrir, personalizar e exportar tudo utilizando apenas a versão 100% GRATUITA do Canva, sem precisar pagar nenhuma mensalidade.'
+    },
+    {
+      question: 'Posso editar direto pelo celular ou preciso de computador?',
+      answer: 'Você tem total liberdade: pode editar tanto direto pelo celular (através do aplicativo oficial e gratuito do Canva) quanto pelo computador ou tablet, com total facilidade e sincronização em tempo real.'
+    },
+    {
+      question: mentionsCorte
+        ? 'O material já vem pronto para impressão e corte (tesoura ou plotter)?'
+        : mentionsConvite
+          ? 'Como funcionam os botões interativos e o envio pelo WhatsApp?'
+          : 'O material já vem pronto para impressão ou uso?',
+      answer: mentionsCorte
+        ? 'Sim! Chega de perder horas criando do zero. O material já vem com acabamento refinado e moldes perfeitamente alinhados, prontos para impressão em altíssima definição (300 DPI) e corte manual na tesoura ou em plotters (Silhouette e Cricut).'
+        : mentionsConvite
+          ? 'Os convites já vêm configurados com botões interativos e clicáveis para WhatsApp e Localização. Basta preencher os dados no Canva e enviar diretamente no WhatsApp dos seus clientes.'
+          : 'Sim! Chega de perder horas montando artes do zero. Os arquivos já vêm com acabamento refinado em altíssima definição (300 DPI), prontos para impressão ou entrega imediata aos seus clientes.'
+    },
+    {
+      question: 'Como recebo o meu acesso após a compra e qual a validade?',
+      answer: 'O envio é imediato e 100% automático! Assim que o seu pagamento por Pix ou Cartão for aprovado, o link de acesso aos arquivos é enviado diretamente para o seu WhatsApp e para o seu E-mail cadastrado. O seu acesso é vitalício, sem mensalidades ou prazo de expiração.'
+    }
+  ];
+}
+

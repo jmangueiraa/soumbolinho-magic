@@ -44,8 +44,8 @@ import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ScarcityCountdownBanner } from '../common/ScarcityCountdownBanner';
 import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
-import { DEFAULT_BONUSES, ProductBonusItem } from '../../data/defaultBonuses';
-import { getAutomaticPackageItems, getAutomaticProductDescription, getAutomaticPlanDetails, getAutomaticTestimonials } from '../../utils/automaticProductContent';
+import { ProductBonusItem } from '../../data/defaultBonuses';
+import { getAutomaticPackageItems, getAutomaticProductDescription, getAutomaticPlanDetails, getAutomaticTestimonials, getAutomaticProductFaq } from '../../utils/automaticProductContent';
 
 interface ProductLandingPageProps {
   productId?: string;
@@ -316,34 +316,9 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     return getAutomaticTestimonials(product);
   }, [product]);
 
-  // FAQ estruturado (perguntas e respostas de alta conversão)
+  // FAQ estruturado (perguntas e respostas de alta conversão estritamente alinhadas à descrição do produto)
   const productFaq = useMemo(() => {
-    if (product?.faq && Array.isArray(product.faq) && product.faq.length > 0) {
-      return product.faq;
-    }
-
-    return [
-      {
-        question: 'Como vou receber o meu acesso após a compra?',
-        answer: 'O envio é imediato e 100% automático! Assim que o pagamento via Pix ou Cartão for aprovado, o link de acesso aos arquivos será enviado diretamente para o seu WhatsApp e para o seu E-mail cadastrado.'
-      },
-      {
-        question: 'Preciso ter a conta Canva Pro para editar?',
-        answer: 'Não! Todos os arquivos foram criados pensando na máxima acessibilidade. Você consegue abrir, editar nomes, cores e elementos na versão 100% GRATUITA do Canva.'
-      },
-      {
-        question: 'Posso editar pelo celular ou preciso de computador?',
-        answer: 'Você pode editar tanto pelo celular (através do aplicativo oficial do Canva) quanto pelo computador ou tablet, com total facilidade.'
-      },
-      {
-        question: 'O acesso tem prazo de validade?',
-        answer: 'Não! O seu acesso é vitalício. Você pode baixar e reutilizar quantas vezes quiser, para quantos clientes e festas precisar.'
-      },
-      {
-        question: 'E se eu tiver alguma dúvida ou dificuldade?',
-        answer: 'Nosso suporte está disponível via WhatsApp para te auxiliar em qualquer dúvida referente ao acesso ou utilização dos arquivos.'
-      }
-    ];
+    return getAutomaticProductFaq(product);
   }, [product]);
 
   // Cálculo de desconto e preços
