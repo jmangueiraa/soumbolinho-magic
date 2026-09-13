@@ -697,8 +697,33 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             </h3>
           </div>
 
-          <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line space-y-4">
-            {productDescription}
+          <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal space-y-4">
+            {productDescription.split(/\n\s*\n/).map((paragraph, pIdx) => {
+              const trimmed = paragraph.trim();
+              if (!trimmed) return null;
+              const lines = trimmed.split('\n');
+              return (
+                <p key={pIdx} className="space-y-1">
+                  {lines.map((line, lIdx) => {
+                    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                    return (
+                      <span key={lIdx} className="block">
+                        {parts.map((part, partIdx) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return (
+                              <strong key={partIdx} className="font-bold text-slate-900">
+                                {part.slice(2, -2)}
+                              </strong>
+                            );
+                          }
+                          return part;
+                        })}
+                      </span>
+                    );
+                  })}
+                </p>
+              );
+            })}
           </div>
         </section>
 

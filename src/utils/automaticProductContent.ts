@@ -14,73 +14,139 @@ export function extractFeaturesFromProductDescription(product: Product | null): 
   if (rawBenefits) {
     if (Array.isArray(rawBenefits)) {
       rawBenefits.forEach((b) => {
-        const clean = String(b || '').trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').trim();
+        const clean = String(b || '').trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').replace(/\*\*/g, '').trim();
         if (clean && clean.length >= 3 && !items.includes(clean)) items.push(clean);
       });
     } else if (typeof rawBenefits === 'string' && rawBenefits.trim()) {
       rawBenefits.split('\n').forEach((line) => {
-        const clean = line.trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').trim();
+        const clean = line.trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').replace(/\*\*/g, '').trim();
         if (clean && clean.length >= 3 && !items.includes(clean)) items.push(clean);
       });
     }
   }
 
-  // 2. Extração inteligente a partir da descrição detalhada e descrição do produto
-  const fullText = [
+  if (items.length >= 6) {
+    return items.slice(0, 6);
+  }
+
+  // 2. Extração inteligente a partir da descrição efetiva do produto (manual ou gerada automaticamente)
+  const manualDesc = [
     product.detailed_description || (product as any).detailedDescription || '',
     product.description || ''
-  ].filter(Boolean).join('\n');
+  ].filter(Boolean).join('\n').trim();
 
-  if (fullText.trim()) {
-    // Normalizar quebras de linha de tags HTML <br>, <p>, <li>
-    const normalizedText = fullText
+  const effectiveDesc = manualDesc || getAutomaticProductDescription(product);
+
+  if (effectiveDesc) {
+    // Normalizar tags HTML e quebras de linha
+    const normalizedText = effectiveDesc
       .replace(/<br\s*[\/]?>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<\/li>/gi, '\n')
       .replace(/<li[^>]*>/gi, '• ')
-      .replace(/<[^>]+>/g, ' '); // remove all other HTML tags
+      .replace(/<[^>]+>/g, ' ');
 
+    // 2A. Se houver tópicos/bullets explícitos na descrição, extrai-os com prioridade
     const lines = normalizedText.split('\n');
     for (const rawLine of lines) {
       const line = rawLine.trim();
       if (!line) continue;
 
-      // Remove marcadores de lista comuns (-, •, *, ✓, ✔, +, ✅, ✨, números como "1. ", "01 - ")
       const isBullet = /^[-•*✓✔+✅✨📦]\s+/.test(line) || /^\d+[\.\-\)]\s+/.test(line);
       const clean = line
         .replace(/^[-•*✓✔+✅✨📦]\s*/, '')
         .replace(/^\d+[\.\-\)]\s*/, '')
+        .replace(/\*\*/g, '')
         .trim();
 
-      // Ignora títulos simples de cabeçalho
       const isHeader = /^(o que est[áa] incluso|o que voc[êe] vai receber|conte[úu]do do pacote|itens inclusos|detalhes|benef[íi]cios|importante|aten[çc][ãa]o|descri[çc][ãa]o|caracter[íi]sticas):?$/i.test(clean);
       if (isHeader) continue;
 
       if (isBullet && clean.length >= 3 && clean.length <= 140) {
         if (!items.includes(clean)) items.push(clean);
-      } else if (!isBullet && line.length >= 4 && line.length <= 100 && !line.endsWith(':') && !line.includes('http')) {
-        if (!items.includes(line)) items.push(line);
       }
     }
 
-    // Se tiver poucas linhas mas o texto for descritivo, tenta dividir por frases/pontos
-    if (items.length < 2 && normalizedText.length > 30) {
-      const sentences = normalizedText
-        .split(/(?<=[.!?])\s+/)
-        .map(s => s.trim().replace(/^[-•*✓✔+✅✨📦]\s*/, ''))
-        .filter(s => s.length >= 8 && s.length <= 120 && !s.includes('http') && !s.endsWith(':'));
+    if (items.length >= 6) {
+      return items.slice(0, 6);
+    }
 
-      for (const sent of sentences) {
-        const clean = sent.replace(/[.!]+$/, '').trim();
-        const isHeader = /^(o que est[áa] incluso|o que voc[êe] vai receber|conte[úu]do do pacote|itens inclusos|detalhes|benef[íi]cios|importante|aten[çc][ãa]o|descri[çc][ãa]o|caracter[íi]sticas):?$/i.test(clean);
-        if (!isHeader && clean.length >= 6 && !items.includes(clean)) {
-          items.push(clean);
+    // 2B. Se a descrição for ou contiver a copy de alta conversão (exibida em "Detalhes e Descrição do Produto")
+    const lower = effectiveDesc.toLowerCase();
+    const hasCanva = lower.includes('canva');
+    const hasArtisas = lower.includes('artesãs') || lower.includes('papeleiras') || lower.includes('confeiteiras') || lower.includes('designers');
+    const hasDevice = lower.includes('computador') || lower.includes('celular');
+    const hasCorte = lower.includes('impressão') || lower.includes('corte');
+    const hasAlterar = lower.includes('alterar') || lower.includes('nomes') || lower.includes('fontes') || lower.includes('fotos');
+
+    if (hasCanva || hasArtisas || hasDevice || hasCorte || hasAlterar) {
+      const standardFeatures = [
+        'Arquivos 100% estruturados e editáveis no Canva',
+        'Edição simples pelo computador ou direto pelo celular',
+        'Altere nomes, datas, fotos, fontes e paleta de cores',
+        'Compatível com a versão 100% gratuita do Canva',
+        'Material pronto para impressão ou corte com acabamento refinado',
+        'Desenvolvido para artesãs, papeleiras, confeiteiras e designers',
+      ];
+
+      for (const feat of standardFeatures) {
+        if (!items.includes(feat)) {
+          items.push(feat);
         }
+        if (items.length >= 6) break;
+      }
+
+      return items.slice(0, 6);
+    }
+
+    // 2C. Para outras descrições em texto corrido (sem bullets e sem a copy padrão):
+    // Divide por frases ou orações lógicas
+    const cleanedText = normalizedText.replace(/\*\*/g, '').replace(/__/g, '');
+    const sentences = cleanedText
+      .split(/(?<=[.!?;\n])\s+|—/)
+      .map(s => s.trim().replace(/^[-•*✓✔+✅✨📦]\s*/, '').replace(/^[–—-]\s*/, ''))
+      .filter(s => s.length >= 10 && s.length <= 110 && !s.includes('http') && !s.endsWith(':'));
+
+    for (const sent of sentences) {
+      let clean = sent.replace(/[.!]+$/, '').trim();
+      clean = clean.replace(/^(você receberá|o pacote contém|material com|desenvolvido com)\s+/i, '');
+      clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+
+      const isHeader = /^(o que est[áa] incluso|o que voc[êe] vai receber|conte[úu]do|detalhes|benef[íi]cios):?$/i.test(clean);
+      if (!isHeader && clean.length >= 10 && !items.includes(clean)) {
+        items.push(clean);
+      }
+      if (items.length >= 6) break;
+    }
+  }
+
+  // 3. Complemento inteligente caso ainda falte algum item
+  if (items.length < 6) {
+    const text = effectiveDesc.toLowerCase();
+    const complements: string[] = [];
+
+    if (text.includes('canva')) {
+      complements.push('Templates 100% editáveis no Canva (versão gratuita ou Pro)');
+    }
+    if (text.includes('impress') || text.includes('corte') || text.includes('molde')) {
+      complements.push('Moldes e arquivos prontos para impressão ou corte');
+    }
+    complements.push(
+      'Compatível com celular, tablet e computador',
+      'Economize horas de trabalho na criação e diagramação',
+      'Acesso vitalício e download imediato no seu e-mail e WhatsApp',
+      'Materiais prontos para imprimir ou enviar para seus clientes'
+    );
+
+    for (const comp of complements) {
+      if (items.length >= 6) break;
+      if (!items.some((it) => it.toLowerCase() === comp.toLowerCase())) {
+        items.push(comp);
       }
     }
   }
 
-  return items;
+  return items.slice(0, 6);
 }
 
 /**
@@ -94,46 +160,7 @@ export function getAutomaticPackageItems(product: Product | null): string[] {
   const extracted = extractFeaturesFromProductDescription(product);
 
   if (extracted.length > 0) {
-    const items = [...extracted.slice(0, 6)];
-
-    // Se tiver menos de 6 itens na descrição, completa de forma inteligente
-    // para atingir sempre os 6 cards elegantes da seção
-    if (items.length < 6) {
-      const name = (product.name || '').toLowerCase();
-      const category = (product.category || '').toLowerCase();
-      const desc = (product.detailed_description || (product as any).detailedDescription || product.description || '').toLowerCase();
-      const text = `${name} ${category} ${desc}`;
-
-      const complements: string[] = [];
-
-      if (text.includes('canva')) {
-        complements.push('Templates 100% editáveis no Canva (versão gratuita ou Pro)');
-      } else {
-        complements.push('Arquivos organizados e prontos para uso imediato');
-      }
-
-      if (text.includes('svg') || text.includes('corte') || text.includes('silhouette') || text.includes('molde') || text.includes('tesoura')) {
-        complements.push('Moldes com linhas de corte e vinco perfeitamente testadas');
-      } else {
-        complements.push('Arquivos em altíssima definição (300 DPI) para impressão perfeita');
-      }
-
-      complements.push(
-        'Compatível com celular, tablet e computador',
-        'Economize horas de trabalho na criação e diagramação',
-        'Acesso vitalício e download imediato no seu e-mail e WhatsApp',
-        'Materiais prontos para imprimir ou enviar para seus clientes'
-      );
-
-      for (const comp of complements) {
-        if (items.length >= 6) break;
-        if (!items.some((it) => it.toLowerCase() === comp.toLowerCase())) {
-          items.push(comp);
-        }
-      }
-    }
-
-    return items.slice(0, 6);
+    return extracted.slice(0, 6);
   }
 
   // 2. Fallback inteligente baseado em categorias/nichos se nenhuma descrição foi informada
@@ -142,21 +169,30 @@ export function getAutomaticPackageItems(product: Product | null): string[] {
   const desc = (product.detailed_description || product.detailedDescription || product.description || '').toLowerCase();
   const text = `${name} ${category} ${desc}`;
 
-  // 1. Topos de Bolo / Cake Toppers / Shaker / 3D
+  // 1. Topos de Bolo / Cake Toppers
   if (
     text.includes('topo') ||
     text.includes('cake') ||
     text.includes('topper') ||
-    text.includes('shaker') ||
     text.includes('bolo')
   ) {
+    if (text.includes('shaker') || text.includes('3d')) {
+      return [
+        'Os temas infantis e comemorativos mais procurados',
+        'Cake Toppers Shaker modernos e exclusivos',
+        'Arquivos SVG e moldes prontos para cortar',
+        'Cake Toppers 3D com acabamento profissional',
+        'Templates 100% editáveis no Canva',
+        'Muitos estilos para qualquer cliente',
+      ];
+    }
     return [
-      'Os temas infantis e comemorativos mais procurados',
-      'Cake Toppers Shaker modernos e exclusivos',
-      'Arquivos SVG e moldes prontos para cortar',
-      'Cake Toppers 3D com acabamento profissional',
-      'Templates 100% editáveis no Canva',
-      'Muitos estilos para qualquer cliente',
+      'Arquivos completos e prontos para impressão ou corte',
+      'Templates 100% editáveis no Canva (versão gratuita)',
+      'Camadas organizadas para alterar nomes, datas e fotos',
+      'Desenvolvido para artesãs, papeleiras e confeiteiras',
+      'Moldes com linhas perfeitas para corte manual ou plotter',
+      'Acesso imediato e vitalício no seu WhatsApp e E-mail',
     ];
   }
 
@@ -381,20 +417,50 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
   const desc = (product?.detailed_description || product?.detailedDescription || product?.description || '').toLowerCase();
   const text = `${name} ${category} ${desc}`;
 
-  // 1. Topos de Bolo / Cake Toppers / Shaker / 3D (Fiel à imagem de referência)
+  // 1. Topos de Bolo / Cake Toppers
   if (
     text.includes('topo') ||
     text.includes('cake') ||
     text.includes('topper') ||
-    text.includes('shaker') ||
     text.includes('bolo')
   ) {
+    if (text.includes('shaker') || text.includes('3d')) {
+      return {
+        basic: {
+          name: 'PLANO BÁSICO',
+          price: basicPrice,
+          features: [
+            '20 Cake Toppers Shaker',
+            'Acesso imediato',
+            'Receba no seu e-mail',
+          ],
+          buttonText: 'Quero o Plano Básico',
+        },
+        complete: {
+          name: 'PLANO COMPLETO',
+          badge: 'MAIS POPULAR',
+          price: completePrice,
+          features: [
+            '100 Cake Toppers Shaker',
+            '600 Cake Toppers 3D',
+            '100 Cake Toppers editáveis no Canva',
+            '82 Arquivos SVG para decorar',
+            'Vídeo aula Cricut e Silhouette',
+            'Vídeo aula montagem',
+            'Todos os bônus exclusivos',
+            'Acesso imediato',
+            'Receba tudo no seu e-mail e WhatsApp',
+          ],
+          buttonText: 'Quero o Pacote Completo',
+        },
+      };
+    }
     return {
       basic: {
         name: 'PLANO BÁSICO',
         price: basicPrice,
         features: [
-          '20 Cake Toppers Shaker',
+          `Arquivos essenciais de ${product?.name || 'Topo de Bolo'}`,
           'Acesso imediato',
           'Receba no seu e-mail',
         ],
@@ -405,12 +471,12 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
         badge: 'MAIS POPULAR',
         price: completePrice,
         features: [
-          '100 Cake Toppers Shaker',
-          '600 Cake Toppers 3D',
-          '100 Cake Toppers editáveis no Canva',
-          '82 Arquivos SVG para decorar',
-          'Vídeo aula Cricut e Silhouette',
-          'Vídeo aula montagem',
+          'Arquivos 100% estruturados e editáveis no Canva',
+          'Edição simples pelo computador ou direto pelo celular',
+          'Altere nomes, datas, fotos, fontes e paleta de cores',
+          'Compatível com a versão 100% gratuita do Canva',
+          'Material pronto para impressão ou corte com acabamento refinado',
+          'Desenvolvido para artesãs, papeleiras, confeiteiras e designers',
           'Todos os bônus exclusivos',
           'Acesso imediato',
           'Receba tudo no seu e-mail e WhatsApp',
