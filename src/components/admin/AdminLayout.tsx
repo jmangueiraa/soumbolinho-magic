@@ -86,7 +86,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
               <SoumbolinhoLogo variant="dark" size="sm" />
             ) : (
               <div className="font-festive font-black text-lg text-slate-900 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-theme-light text-theme-primary flex items-center justify-center font-sans font-black text-sm">
+                <span className="w-8 h-8 rounded-full bg-theme-light text-theme-primary flex items-center justify-center font-sans font-black text-sm border border-theme-primary/20">
                   {storeDisplayName.charAt(0).toUpperCase()}
                 </span>
                 <span className="truncate max-w-[200px]">{storeDisplayName}</span>

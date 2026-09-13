@@ -73,22 +73,25 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
   return (
     <div className={`inline-flex items-center gap-2.5 select-none bg-transparent ${className}`}>
-      {/* Ícone da Marca: Imagem enviada pelo usuário (mantendo o texto) ou SVG Mini Bolo Festivo */}
-      <div className="logo-container relative flex items-center justify-center shrink-0 bg-transparent">
+      {/* Ícone da Marca: Imagem enviada pelo usuário (arredondada / circular) ou SVG Mini Bolo Festivo */}
+      <div className="logo-container relative flex items-center justify-center shrink-0">
         {customLogoUrl && !imageError ? (
-          <img
-            src={customLogoUrl}
-            alt={resolvedName}
-            onError={() => setImageError(true)}
-            className={`logo-image ${sizeClasses} w-auto object-contain drop-shadow-sm transition-transform duration-200 group-hover:scale-105`}
-          />
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/20 shadow-sm bg-white/10`}>
+            <img
+              src={customLogoUrl}
+              alt={resolvedName}
+              onError={() => setImageError(true)}
+              className="logo-image w-full h-full object-cover rounded-full drop-shadow-sm transition-transform duration-200 group-hover:scale-105"
+            />
+          </div>
         ) : (
-          <svg
-            className={`${sizeClasses} w-auto aspect-square drop-shadow-sm`}
-            viewBox="0 0 100 100"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white/10 dark:bg-zinc-800 border border-white/15 shadow-sm p-1`}>
+            <svg
+              className="w-full h-full aspect-square drop-shadow-sm"
+              viewBox="0 0 100 100"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
           {/* Brilhos / Estrelas Flutuantes */}
           <path
             d="M20 28L22 22L28 20L22 18L20 12L18 18L12 20L18 22L20 28Z"
@@ -153,6 +156,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
             </linearGradient>
           </defs>
         </svg>
+          </div>
         )}
       </div>
 

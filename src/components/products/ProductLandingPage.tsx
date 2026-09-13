@@ -442,14 +442,14 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             {/* COLUNA ESQUERDA: Galeria de Mídia (Foto Principal + Miniaturas) */}
             <div className="lg:col-span-7 space-y-4">
               
-              {/* Moldura da Mídia Ativa (Clique para ampliar) */}
+              {/* Moldura da Mídia Ativa (Ajuste perfeito sem cortes e sem bordas vazias) */}
               <div 
                 onClick={() => {
                   if (currentMedia) {
                     openProductZoom(activeMediaIndex);
                   }
                 }}
-                className="relative w-full aspect-square bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-inner flex items-center justify-center group cursor-zoom-in transition-all"
+                className="relative w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center group cursor-zoom-in transition-all bg-white"
                 title="Clique na imagem para ampliar e ver detalhes"
               >
                 {currentMedia ? (
@@ -462,19 +462,21 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                       loop
                       playsInline
                       onError={() => setMediaError(true)}
-                      className="w-full h-full object-cover"
+                      className="w-full h-auto object-contain rounded-2xl block"
                     />
                   ) : (
                     <img
                       src={currentMedia.url}
                       alt={product.name}
                       onError={() => setMediaError(true)}
-                      className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                      className="w-full h-auto object-contain rounded-2xl block group-hover:scale-[1.01] transition-transform duration-300"
                       loading="eager"
                     />
                   )
                 ) : (
-                  <ProductImagePlaceholder iconClassName="w-16 h-16 text-slate-300" showText={false} />
+                  <div className="w-full aspect-square flex items-center justify-center bg-slate-50">
+                    <ProductImagePlaceholder iconClassName="w-16 h-16 text-slate-300" showText={false} />
+                  </div>
                 )}
 
                 {/* Badges Flutuantes */}
