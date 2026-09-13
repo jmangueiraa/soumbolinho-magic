@@ -39,7 +39,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({ item }) => {
               src={imageSrc}
               alt={item.product.name}
               onError={() => setImageError(true)}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain p-0.5"
             />
           ) : (
             <ProductImagePlaceholder 

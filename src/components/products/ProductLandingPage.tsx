@@ -24,7 +24,8 @@ import {
   CheckCircle2,
   HelpCircle,
   Award,
-  Smartphone
+  Smartphone,
+  ZoomIn
 } from 'lucide-react';
 import { Product } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
@@ -43,6 +44,7 @@ import { PaymentFeedbackModal } from '../cart/PaymentFeedbackModal';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ScarcityCountdownBanner } from '../common/ScarcityCountdownBanner';
+import { ProductImageZoomModal } from './ProductImageZoomModal';
 import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
 import { ProductBonusItem } from '../../data/defaultBonuses';
 import { getAutomaticPackageItems, getAutomaticProductDescription, getAutomaticPlanDetails, getAutomaticTestimonials, getAutomaticProductFaq } from '../../utils/automaticProductContent';
@@ -72,6 +74,10 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
+  const [zoomMediaList, setZoomMediaList] = useState<Array<{ url: string; isVideo?: boolean }>>([]);
+  const [zoomIndex, setZoomIndex] = useState<number>(0);
+  const [zoomTitle, setZoomTitle] = useState<string>('');
 
 
   // Injeção de variáveis CSS de tema (--primary-color)
@@ -162,6 +168,20 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   }, [product]);
 
   const currentMedia = mediaList[activeMediaIndex] || mediaList[0] || null;
+
+  const openProductZoom = (index: number = activeMediaIndex) => {
+    setZoomMediaList(mediaList);
+    setZoomIndex(index);
+    setZoomTitle(product?.name || '');
+    setIsZoomOpen(true);
+  };
+
+  const openSingleImageZoom = (url: string, title: string) => {
+    setZoomMediaList([{ url, isVideo: false }]);
+    setZoomIndex(0);
+    setZoomTitle(title);
+    setIsZoomOpen(true);
+  };
 
   const handleBack = () => {
     if (propOnBack) {
@@ -422,8 +442,16 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             {/* COLUNA ESQUERDA: Galeria de Mídia (Foto Principal + Miniaturas) */}
             <div className="lg:col-span-7 space-y-4">
               
-              {/* Moldura da Mídia Ativa */}
-              <div className="relative w-full aspect-square bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-inner flex items-center justify-center group">
+              {/* Moldura da Mídia Ativa (Clique para ampliar) */}
+              <div 
+                onClick={() => {
+                  if (currentMedia) {
+                    openProductZoom(activeMediaIndex);
+                  }
+                }}
+                className="relative w-full aspect-square bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-inner flex items-center justify-center group cursor-zoom-in transition-all"
+                title="Clique na imagem para ampliar e ver detalhes"
+              >
                 {currentMedia ? (
                   currentMedia.isVideo ? (
                     <video
@@ -434,14 +462,14 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                       loop
                       playsInline
                       onError={() => setMediaError(true)}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   ) : (
                     <img
                       src={currentMedia.url}
                       alt={product.name}
                       onError={() => setMediaError(true)}
-                      className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                      className="w-full h-full object-contain group-hover:scale-103 transition-transform duration-300 p-1"
                       loading="eager"
                     />
                   )
@@ -450,7 +478,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 )}
 
                 {/* Badges Flutuantes */}
-                <div className="absolute top-3.5 left-3.5 flex flex-col gap-1.5 z-10">
+                <div className="absolute top-3.5 left-3.5 flex flex-col gap-1.5 z-10 pointer-events-none">
                   <span className="inline-flex items-center gap-1 bg-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
                     <Sparkles className="w-3.5 h-3.5" />
                     {product.badge || 'Mais Vendido'}
@@ -462,8 +490,32 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                   </span>
                 </div>
 
+                {/* Botão Flutuante de Zoom / Ampliar */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openProductZoom(activeMediaIndex);
+                  }}
+                  className="absolute top-3.5 right-3.5 z-10 inline-flex items-center gap-1.5 bg-slate-950/85 hover:bg-slate-900 text-white backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-md border border-white/10 transition-all hover:scale-105 active:scale-95 cursor-pointer group-hover:bg-slate-900"
+                  title="Ampliar imagem e ver detalhes"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Ampliar</span>
+                </button>
+
+                {/* Dica visual suave no hover */}
+                {!currentMedia?.isVideo && (
+                  <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
+                    <span className="bg-slate-950/85 backdrop-blur-md text-white text-xs font-semibold px-4 py-2 rounded-full border border-white/15 shadow-xl flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                      <ZoomIn className="w-4 h-4 text-pink-400" />
+                      Clique para ver detalhes
+                    </span>
+                  </div>
+                )}
+
                 {/* Selo de Garantia no canto inferior */}
-                <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1 pointer-events-none z-10">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>Garantia de {guaranteeDays} dias</span>
                 </div>
@@ -491,7 +543,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                         <img
                           src={item.url}
                           alt={`Thumbnail ${idx + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain p-0.5"
                         />
                       )}
                     </button>
@@ -751,11 +803,15 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
                     {/* Imagem ou Mockup do Bônus */}
                     {bonus.imageUrl ? (
-                      <div className="w-full h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/60 relative group-hover:scale-[1.02] transition-transform">
+                      <div 
+                        onClick={() => openSingleImageZoom(bonus.imageUrl, bonus.title)}
+                        className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden bg-slate-50 border border-slate-200/60 relative group-hover:scale-[1.02] transition-transform cursor-zoom-in flex items-center justify-center p-1.5"
+                        title="Clique para ampliar o bônus"
+                      >
                         <img
                           src={bonus.imageUrl}
                           alt={bonus.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           loading="lazy"
                         />
                       </div>
@@ -1116,6 +1172,19 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       <CartDrawer />
       <CheckoutModal />
       <PaymentFeedbackModal />
+      <ProductImageZoomModal
+        isOpen={isZoomOpen}
+        onClose={() => setIsZoomOpen(false)}
+        mediaList={zoomMediaList}
+        activeIndex={zoomIndex}
+        onIndexChange={(idx) => {
+          setZoomIndex(idx);
+          if (zoomMediaList === mediaList) {
+            setActiveMediaIndex(idx);
+          }
+        }}
+        productName={zoomTitle || product?.name || ''}
+      />
       <Toast />
       <FloatingWhatsApp />
 

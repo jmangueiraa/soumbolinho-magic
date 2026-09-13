@@ -112,7 +112,7 @@ export const BannersManager: React.FC = () => {
               <img
                 src={mainBanner.imageUrl}
                 alt={mainBanner.altText || 'Banner'}
-                className="w-full h-auto max-h-[300px] object-cover rounded-2xl block"
+                className="w-full h-auto max-h-[300px] object-contain rounded-2xl block mx-auto p-1"
               />
             ) : (
               <div className="p-12 text-center text-slate-400 text-xs">

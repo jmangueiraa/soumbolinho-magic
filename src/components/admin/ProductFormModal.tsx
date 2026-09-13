@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, CheckCircle2, FileText, Gift, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -83,8 +83,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     description: '',
     detailed_description: '',
     gallery_images: '',
-    benefits: '',
-    testimonials: '',
     bonuses: '',
     checkout_url: '',
     guarantee_days: 7,
@@ -214,22 +212,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const rawGallery = product.galleryImages || product.gallery_images || [];
       const galleryStr = Array.isArray(rawGallery) ? rawGallery.join('\n') : String(rawGallery || '');
-      const rawBenefits = product.benefits;
-      const benefitsStr = Array.isArray(rawBenefits) ? rawBenefits.join('\n') : String(rawBenefits || '');
-      const rawTestimonials = (product as any).testimonials || (product as any).depoimentos;
-      let testimonialsStr = '';
-      if (Array.isArray(rawTestimonials)) {
-        testimonialsStr = rawTestimonials
-          .filter(Boolean)
-          .map((t: any) => {
-            if (typeof t === 'string') return t;
-            return `${t.name || ''} | ${t.text || ''}${t.avatar ? ' | ' + t.avatar : ''}`;
-          })
-          .join('\n');
-      } else if (typeof rawTestimonials === 'string') {
-        testimonialsStr = rawTestimonials;
-      }
-
       let rawBonuses = (product as any).bonuses || (product as any).bonus;
       if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && typeof window !== 'undefined' && window.localStorage && product?.id) {
         try {
@@ -266,8 +248,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: product.description || '',
         detailed_description: product.detailed_description || product.detailedDescription || product.description || '',
         gallery_images: galleryStr,
-        benefits: benefitsStr,
-        testimonials: testimonialsStr,
         bonuses: bonusesStr,
         checkout_url: product.checkout_url || product.checkoutUrl || '',
         guarantee_days: product.guarantee_days || 7,
@@ -300,8 +280,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: '',
         detailed_description: '',
         gallery_images: '',
-        benefits: '',
-        testimonials: '',
         bonuses: '',
         checkout_url: '',
         guarantee_days: 7,
@@ -488,27 +466,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         .map((s) => s.trim())
         .filter((s) => s.length > 5);
 
-      // Processamento de benefícios
-      const parsedBenefits = formData.benefits
-        .split('\n')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 2);
-
-      // Processamento de depoimentos personalizados
-      const parsedTestimonials = (formData.testimonials || '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 5)
-        .map((line) => {
-          const parts = line.split('|').map((p) => p.trim());
-          return {
-            name: parts[0] || 'Cliente Satisfeita',
-            text: parts[1] || parts[0],
-            avatar: parts[2] || '',
-            rating: 5,
-          };
-        });
-
       // Processamento de bônus exclusivos
       const rawBonusesInput = (formData.bonuses || '').trim();
       const parsedBonuses = rawBonusesInput
@@ -551,8 +508,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         detailedDescription: formData.detailed_description.trim() || undefined,
         gallery_images: parsedGallery.length > 0 ? parsedGallery : undefined,
         galleryImages: parsedGallery.length > 0 ? parsedGallery : undefined,
-        benefits: parsedBenefits.length > 0 ? parsedBenefits : undefined,
-        testimonials: parsedTestimonials.length > 0 ? parsedTestimonials : undefined,
+        benefits: undefined,
+        testimonials: undefined,
         bonuses: parsedBonuses.length > 0 ? parsedBonuses : [],
         checkout_url: formData.checkout_url.trim() || undefined,
         checkoutUrl: formData.checkout_url.trim() || undefined,
@@ -587,7 +544,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: '',
         detailed_description: '',
         gallery_images: '',
-        benefits: '',
         checkout_url: '',
         guarantee_days: 7,
         is_digital: false,
@@ -937,10 +893,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       autoPlay
                       loop
                       playsInline
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   ) : (
-                    <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={mediaPreview} alt="Preview" className="w-full h-full object-contain" />
                   )
                 ) : (
                   <div className="flex flex-col items-center justify-center text-slate-300">
@@ -1237,28 +1193,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </p>
           </div>
 
-          {/* 3. Benefícios (O que você vai receber) */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Benefícios / O que você vai receber (Um por linha)
-              </label>
-              <span className="text-[10px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
-                {formData.benefits.split('\n').filter((s) => s.trim().length > 2).length} benefício(s)
-              </span>
-            </div>
-            <textarea
-              rows={4}
-              value={formData.benefits}
-              onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-              placeholder="100% editável no Canva gratuito&#10;Arquivos em alta definição 300 DPI&#10;Acesso vitalício e envio imediato no WhatsApp"
-              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 resize-none"
-            />
-            <p className="text-[11px] text-slate-500">
-              Cada linha digitada será exibida como um card com ícone de verificação verde na seção <strong>"O que você vai receber"</strong>.
-            </p>
-          </div>
 
           {/* 4. Descrição Detalhada & Prazo de Garantia */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -1415,7 +1349,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                               <img
                                 src={item.imageUrl}
                                 alt={item.title}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-contain p-0.5"
                                 onError={(e) => {
                                   (e.target as HTMLElement).style.display = 'none';
                                 }}

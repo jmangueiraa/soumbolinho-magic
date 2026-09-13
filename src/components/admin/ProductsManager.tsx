@@ -174,7 +174,7 @@ export const ProductsManager: React.FC = () => {
                           {(() => {
                             const img = (product.image || product.image_url || product.imageUrl || product.photo_url || '').trim();
                             return img ? (
-                              <img src={img} alt={product.name} className="w-full h-full object-cover" />
+                              <img src={img} alt={product.name} className="w-full h-full object-contain p-0.5" />
                             ) : (
                               <ProductImagePlaceholder showText={false} iconClassName="w-5 h-5" />
                             );

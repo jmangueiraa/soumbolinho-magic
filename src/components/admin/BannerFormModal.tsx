@@ -294,8 +294,8 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
               </label>
 
               {imagePreview && (
-                <div className="w-full h-32 rounded-xl overflow-hidden bg-white border border-slate-200 mb-2">
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <div className="w-full h-36 rounded-xl overflow-hidden bg-white border border-slate-200 mb-2 flex items-center justify-center p-1">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
                 </div>
               )}
 
