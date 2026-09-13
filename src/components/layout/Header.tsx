@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 
             }}
           >
-            <SoumbolinhoLogo variant="light" size="md" />
+            <SoumbolinhoLogo variant="light" size="md" onlyLogo={Boolean(storeConfig?.onlyLogo)} />
           </a>
 
           {/* BARRA DE PESQUISA (Desktop) */}

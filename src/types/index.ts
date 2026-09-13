@@ -138,6 +138,7 @@ export interface StoreConfig {
   whatsappDefaultMessage?: string;
   themeLayout?: ThemeLayoutType;
   colorPalette?: ColorPaletteType;
+  onlyLogo?: boolean;
 }
 
 export type DomainStatus = 'pending_dns' | 'active' | 'unconfigured' | 'ativo' | 'pendente';

@@ -9,6 +9,7 @@ interface SoumbolinhoLogoProps {
   storeName?: string;
   slogan?: string;
   logoUrl?: string;
+  onlyLogo?: boolean;
 }
 
 export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
@@ -18,6 +19,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   storeName: propStoreName,
   slogan: propSlogan,
   logoUrl: propLogoUrl,
+  onlyLogo = false,
 }) => {
   let currentStore: any = null;
   let storeConfig: any = null;
@@ -35,6 +37,14 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   const isLight = variant === 'light';
   const isBaseStore = currentStore?.id === 'suamarcaaqui' || currentStore?.id === 'store_default' || currentStore?.slug === 'suamarcaaqui';
 
+  const customLogoUrl = (
+    propLogoUrl ||
+    storeConfig?.logoUrl ||
+    currentStore?.logo_url ||
+    currentStore?.theme_settings?.logo_url ||
+    ''
+  ).trim();
+
   // Nome da loja individual da foto da logo
   const rawName = propStoreName !== undefined
     ? propStoreName
@@ -47,14 +57,6 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     : (storeConfig?.slogan !== undefined ? storeConfig.slogan : (currentStore?.slogan || ''));
 
   const resolvedSlogan = (rawSlogan || (customLogoUrl ? '' : (isBaseStore ? 'Papelaria & Festas Digitais' : 'PAPELARIA & FESTAS DIGITAIS'))).trim();
-
-  const customLogoUrl = (
-    propLogoUrl ||
-    storeConfig?.logoUrl ||
-    currentStore?.logo_url ||
-    currentStore?.theme_settings?.logo_url ||
-    ''
-  ).trim();
 
   const [imageError, setImageError] = useState(false);
 
@@ -158,7 +160,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
       </div>
 
       {/* Tipografia da Marca com Subtítulo Festivo (Alinhamento perfeito sem quebras ou distorções) */}
-      {resolvedName && (
+      {!onlyLogo && !storeConfig?.onlyLogo && resolvedName && (
         <div className="flex flex-col text-left leading-none min-w-0">
           <div className="flex items-center tracking-tight whitespace-nowrap">
             {(() => {

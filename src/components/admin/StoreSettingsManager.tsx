@@ -75,6 +75,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
     benefitCards: storeConfig.benefitCards && storeConfig.benefitCards.length > 0 
       ? storeConfig.benefitCards 
       : DEFAULT_BENEFIT_CARDS,
+    onlyLogo: storeConfig.onlyLogo ?? false,
   });
 
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -99,6 +100,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
       benefitCards: storeConfig.benefitCards && storeConfig.benefitCards.length > 0 
         ? storeConfig.benefitCards 
         : (prev.benefitCards || DEFAULT_BENEFIT_CARDS),
+      onlyLogo: storeConfig.onlyLogo !== undefined ? storeConfig.onlyLogo : prev.onlyLogo,
     }));
 
     // Leitura direta da tabela site_settings para garantia de dados frescos
@@ -259,6 +261,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
       minOrderValue: numMin,
       benefitCards: formData.benefitCards,
       whatsappDefaultMessage: defaultMsg,
+      onlyLogo: formData.onlyLogo,
     });
   };
 
@@ -378,21 +381,20 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              {/* Preview Box com Logo Circular + Nome da Loja Individual */}
-              <div className="w-full sm:w-72 h-24 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center p-3 relative overflow-hidden shrink-0 shadow-inner group">
-                <div className="text-center p-1">
+              {/* Preview Box com Apenas a Logo Circular (Sem Textos) */}
+              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-2 relative overflow-hidden shrink-0 shadow-inner group">
+                <div className="flex flex-col items-center justify-center">
                   <SoumbolinhoLogo 
                     variant="light" 
-                    size="sm" 
-                    storeName={formData.storeName} 
-                    slogan={formData.slogan} 
+                    size="lg" 
+                    onlyLogo={true}
                     logoUrl={formData.logoUrl} 
                   />
-                  <span className="block text-[8.5px] text-zinc-400 mt-1 uppercase tracking-wider font-semibold">
-                    {formData.logoUrl ? '✨ Logo Circular Ativa' : 'Bolinho Padrão'}
+                  <span className="block text-[8px] text-zinc-400 mt-1.5 uppercase tracking-wider font-semibold text-center">
+                    {formData.logoUrl ? '✨ Logo Circular' : 'Bolinho Padrão'}
                   </span>
                 </div>
-                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[8px] text-zinc-300 font-bold uppercase tracking-wider">
+                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[7.5px] text-zinc-300 font-bold uppercase tracking-wider">
                   Prévia
                 </div>
               </div>
@@ -449,6 +451,19 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                 <p className="text-[10.5px] text-slate-400 leading-tight">
                   💡 O nome da loja é individual da foto da logo. Você pode personalizar o nome da loja e o subtítulo separadamente nos campos abaixo, enquanto a sua foto da logo circular é exibida ao lado.
                 </p>
+
+                {/* Opção para exibir apenas a logo circular no cabeçalho */}
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData.onlyLogo)}
+                    onChange={(e) => setFormData({ ...formData, onlyLogo: e.target.checked })}
+                    className="w-4 h-4 text-theme-primary rounded border-slate-300 focus:ring-theme-primary cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-slate-700">
+                    Exibir apenas a logo circular no topo da loja (ocultar nome em texto)
+                  </span>
+                </label>
               </div>
             </div>
           </div>
