@@ -361,9 +361,28 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
     completePrice = Math.round(basicPrice * 2.2);
   }
 
+  // Verifica se o produto possui bônus configurados
+  let rawBonuses = product?.bonuses;
+  if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && typeof window !== 'undefined' && window.localStorage && product?.id) {
+    try {
+      const cached = localStorage.getItem(`soumbolinho_bonuses_${product.id}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          rawBonuses = parsed;
+        }
+      }
+    } catch {}
+  }
+
+  const hasBonuses = Boolean(
+    (Array.isArray(rawBonuses) && rawBonuses.length > 0) ||
+    (typeof rawBonuses === 'string' && rawBonuses.trim().length > 0)
+  );
+
   // Itens de fechamento padrão de alta conversão presentes no modelo
   const standardClosing = [
-    'Todos os bônus exclusivos',
+    ...(hasBonuses ? ['Todos os bônus exclusivos'] : []),
     'Acesso imediato',
     'Receba tudo no seu e-mail e WhatsApp',
   ];
@@ -447,7 +466,7 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
             '82 Arquivos SVG para decorar',
             'Vídeo aula Cricut e Silhouette',
             'Vídeo aula montagem',
-            'Todos os bônus exclusivos',
+            ...(hasBonuses ? ['Todos os bônus exclusivos'] : []),
             'Acesso imediato',
             'Receba tudo no seu e-mail e WhatsApp',
           ],
@@ -477,7 +496,7 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
           'Compatível com a versão 100% gratuita do Canva',
           'Material pronto para impressão ou corte com acabamento refinado',
           'Desenvolvido para artesãs, papeleiras, confeiteiras e designers',
-          'Todos os bônus exclusivos',
+          ...(hasBonuses ? ['Todos os bônus exclusivos'] : []),
           'Acesso imediato',
           'Receba tudo no seu e-mail e WhatsApp',
         ],
@@ -519,7 +538,7 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
           'Arquivos 100% editáveis no Canva gratuito',
           'Fontes e elementos inclusos sem custos extras',
           'Vídeo aula passo a passo de montagem rápida',
-          'Todos os bônus exclusivos inclusos',
+          ...(hasBonuses ? ['Todos os bônus exclusivos inclusos'] : []),
           'Acesso vitalício e imediato',
           'Receba tudo no seu e-mail e WhatsApp',
         ],
@@ -555,7 +574,7 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
           'Templates 100% editáveis no Canva no celular e PC',
           'Design moderno em alta resolução com fontes inclusas',
           'Vídeo aula prática de edição e compartilhamento',
-          'Todos os bônus exclusivos inclusos',
+          ...(hasBonuses ? ['Todos os bônus exclusivos inclusos'] : []),
           'Acesso vitalício e imediato',
           'Receba tudo no seu e-mail e WhatsApp',
         ],
@@ -594,7 +613,7 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
           'Capas 100% editáveis no Canva gratuito',
           'Gabaritos de furação, linhas de dobra e laminação',
           'Vídeo aulas passo a passo de encadernação profissional',
-          'Todos os bônus exclusivos inclusos',
+          ...(hasBonuses ? ['Todos os bônus exclusivos inclusos'] : []),
           'Acesso vitalício e imediato',
           'Receba tudo no seu e-mail e WhatsApp',
         ],
@@ -626,7 +645,7 @@ export function getAutomaticPlanDetails(product: Product | null): PlanDetails {
         'Modelos 100% editáveis no Canva gratuito ou Pro',
         'Moldes e gabaritos prontos para imprimir e cortar',
         'Vídeo aulas práticas passo a passo',
-        'Todos os bônus exclusivos inclusos',
+        ...(hasBonuses ? ['Todos os bônus exclusivos inclusos'] : []),
         'Acesso vitalício e imediato',
         'Receba tudo no seu e-mail e WhatsApp',
       ],

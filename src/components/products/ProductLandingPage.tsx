@@ -198,7 +198,9 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       addToCart(
         product,
         1,
-        'Plano Completo (Acesso Imediato + Todos os Bônus)',
+        productBonuses.length > 0
+          ? 'Plano Completo (Acesso Imediato + Todos os Bônus)'
+          : 'Plano Completo (Acesso Imediato e Vitalício)',
         planDetails.complete.price,
         true
       );
@@ -306,7 +308,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         }
       }
     }
-    return DEFAULT_BONUSES;
+    return [];
   }, [product]);
 
   // Depoimentos estruturados (garante SEMPRE exatamente 6 cards de prova social)
