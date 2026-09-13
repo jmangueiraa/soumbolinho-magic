@@ -462,14 +462,14 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                       loop
                       playsInline
                       onError={() => setMediaError(true)}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <img
                       src={currentMedia.url}
                       alt={product.name}
                       onError={() => setMediaError(true)}
-                      className="w-full h-full object-contain group-hover:scale-103 transition-transform duration-300 p-1"
+                      className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                       loading="eager"
                     />
                   )
@@ -543,7 +543,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                         <img
                           src={item.url}
                           alt={`Thumbnail ${idx + 1}`}
-                          className="w-full h-full object-contain p-0.5"
+                          className="w-full h-full object-cover"
                         />
                       )}
                     </button>
@@ -805,13 +805,13 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                     {bonus.imageUrl ? (
                       <div 
                         onClick={() => openSingleImageZoom(bonus.imageUrl, bonus.title)}
-                        className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden bg-slate-50 border border-slate-200/60 relative group-hover:scale-[1.02] transition-transform cursor-zoom-in flex items-center justify-center p-1.5"
+                        className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/60 relative group-hover:scale-[1.02] transition-transform cursor-zoom-in flex items-center justify-center"
                         title="Clique para ampliar o bônus"
                       >
                         <img
                           src={bonus.imageUrl}
                           alt={bonus.title}
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-cover"
                           loading="lazy"
                         />
                       </div>

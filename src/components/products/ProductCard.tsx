@@ -72,7 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
               loop
               playsInline
               onError={() => setImageError(true)}
-              className="w-full h-full object-contain group-hover:scale-103 transition-transform duration-300 p-0.5"
+              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
             />
           ) : (
             <img
@@ -82,7 +82,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
                 console.warn(`[ProductCard] Erro ao carregar mídia para ${product.name}:`, mediaUrl);
                 setImageError(true);
               }}
-              className="w-full h-full object-contain group-hover:scale-103 transition-transform duration-300 p-0.5"
+              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
               loading="lazy"
             />
           )

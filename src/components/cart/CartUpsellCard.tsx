@@ -134,7 +134,7 @@ export const CartUpsellCard: React.FC<CartUpsellCardProps> = ({ className = '' }
             <img
               src={imageSrc}
               alt={targetProduct.name}
-              className="w-full h-full object-contain p-0.5"
+              className="w-full h-full object-cover"
             />
           ) : (
             <ProductImagePlaceholder 

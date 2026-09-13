@@ -381,7 +381,7 @@ export const ProductImageZoomModal: React.FC<ProductImageZoomModalProps> = ({
                 <img
                   src={item.url}
                   alt={`Miniatura ${idx + 1}`}
-                  className="w-full h-full object-contain p-0.5"
+                  className="w-full h-full object-cover"
                 />
               )}
             </button>
