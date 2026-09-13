@@ -704,166 +704,104 @@ export function getAutomaticTestimonials(product: Product | null): TestimonialIt
     }
   }
 
-  // Base contextual com 6 depoimentos de alta conversão adaptados ao nicho do produto
-  const name = (product?.name || '').toLowerCase();
-  const category = (product?.category || '').toLowerCase();
-  const desc = (product?.detailed_description || product?.detailedDescription || product?.description || '').toLowerCase();
-  const text = `${name} ${category} ${desc}`;
+  // Nome limpo e amigável do produto para menção natural nos depoimentos
+  const rawTitle = (product?.name || '').trim();
+  const cleanTitle = rawTitle.replace(/[-_]/g, ' ') || 'este material';
 
-  let contextualTestimonials: TestimonialItem[] = DEFAULT_TESTIMONIALS;
+  // Descrição efetiva exibida na Seção 3 ("Detalhes e Descrição do Produto")
+  const manualDesc = [
+    product?.detailed_description || (product as any)?.detailedDescription || '',
+    product?.description || ''
+  ].filter(Boolean).join('\n').trim();
 
-  if (
-    text.includes('topo') ||
-    text.includes('cake') ||
-    text.includes('topper') ||
-    text.includes('shaker') ||
-    text.includes('bolo')
-  ) {
-    contextualTestimonials = [
-      {
-        id: 'val-1',
-        name: 'Valentina Rocha',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Amei a facilidade dos moldes! Consegui montar meus primeiros cake toppers no mesmo dia e o acabamento ficou impecável. Super recomendo!',
-      },
-      {
-        id: 'cam-2',
-        name: 'Camila Fernandes',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Economizei horas de criação. Os temas são lindos, modernos e minhas clientes ficaram apaixonadas pelos topos 3D e Shaker.',
-      },
-      {
-        id: 'sof-3',
-        name: 'Sofia Martins',
-        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Editar no Canva pelo celular foi uma virada de chave no meu ateliê. Mudo nomes e idades em menos de 2 minutos!',
-      },
-      {
-        id: 'mar-4',
-        name: 'Mariana Lopes',
-        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'A variedade de arquivos é incrível. Nunca mais precisei comprar topo avulso, tenho modelos prontos para qualquer festa ou comemoração.',
-      },
-      {
-        id: 'dan-5',
-        name: 'Daniela Torres',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Os arquivos em SVG cortam perfeitamente na Silhouette e tesoura. Sem falhas, sem perda de papel. Valeu cada centavo!',
-      },
-      {
-        id: 'ale-6',
-        name: 'Alessandra Garcia',
-        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Entrega instantânea e suporte maravilhoso. Já fiz várias encomendas essa semana usando esse material lindo!',
-      },
-    ];
-  } else if (
-    text.includes('caixa') ||
-    text.includes('lembranc') ||
-    text.includes('milk') ||
-    text.includes('cone') ||
-    text.includes('sacola')
-  ) {
-    contextualTestimonials = [
-      {
-        id: 'val-1',
-        name: 'Valentina Rocha',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Os moldes de caixas e lembrancinhas têm linhas de corte e vinco perfeitamente alinhadas. Montagem rápida e sem dor de cabeça.',
-      },
-      {
-        id: 'cam-2',
-        name: 'Camila Fernandes',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'As caixinhas ficam firmes e muito bem estruturadas. Minhas clientes elogiaram bastante o acabamento final das festas.',
-      },
-      {
-        id: 'sof-3',
-        name: 'Sofia Martins',
-        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Templates no Canva fáceis demais de personalizar. Troco temas, fotos e cores em poucos cliques no computador ou no celular.',
-      },
-      {
-        id: 'mar-4',
-        name: 'Mariana Lopes',
-        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'A alta resolução (300 DPI) faz toda a diferença na impressão. As cores saem vivas e a montagem encaixa certinho.',
-      },
-      {
-        id: 'dan-5',
-        name: 'Daniela Torres',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Cortei tanto na plotter quanto com a tesoura e deu super certo. Agilizou meu tempo de produção pela metade!',
-      },
-      {
-        id: 'ale-6',
-        name: 'Alessandra Garcia',
-        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Material completíssimo! O melhor investimento que fiz para o meu negócio de papelaria personalizada.',
-      },
-    ];
-  } else if (
-    text.includes('convite') ||
-    text.includes('virtual') ||
-    text.includes('interativo')
-  ) {
-    contextualTestimonials = [
-      {
-        id: 'val-1',
-        name: 'Valentina Rocha',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Os convites interativos com botões clicáveis para WhatsApp deixaram meus clientes maravilhados. Todos elogiam a praticidade!',
-      },
-      {
-        id: 'cam-2',
-        name: 'Camila Fernandes',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Muito fácil de editar no Canva. Em menos de 5 minutos o convite já estava pronto para enviar pelo celular.',
-      },
-      {
-        id: 'sof-3',
-        name: 'Sofia Martins',
-        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'A qualidade das artes e fontes é de alto nível. Meus pedidos de convites aumentaram muito depois que adquiri o pacote.',
-      },
-      {
-        id: 'mar-4',
-        name: 'Mariana Lopes',
-        avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Já fiz convites para aniversário infantil, 15 anos e batizado. Todos os modelos são modernos e sofisticados.',
-      },
-      {
-        id: 'dan-5',
-        name: 'Daniela Torres',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'O melhor é não precisar de nenhum programa pago ou pesado. Faço tudo direto no Canva gratuito.',
-      },
-      {
-        id: 'ale-6',
-        name: 'Alessandra Garcia',
-        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&h=300&q=80',
-        rating: 5,
-        text: 'Acesso imediato no e-mail logo após a confirmação do pagamento. Excelente compra, recomendo de olhos fechados!',
-      },
-    ];
+  const effectiveDesc = manualDesc || getAutomaticProductDescription(product);
+  const textLower = `${cleanTitle} ${(product?.category || '')} ${effectiveDesc}`.toLowerCase();
+
+  const mentionsShaker = textLower.includes('shaker');
+  const mentions3D = textLower.includes('3d');
+  const mentionsSvg = textLower.includes('svg') || textLower.includes('silhouette');
+  const mentionsCaixa = textLower.includes('caixa') || textLower.includes('lembranc') || textLower.includes('maleta') || textLower.includes('milk');
+  const mentionsConvite = textLower.includes('convite') || textLower.includes('interativo');
+  const mentionsAgenda = textLower.includes('agenda') || textLower.includes('planner') || textLower.includes('caderno');
+
+  // Depoimento 1 (Valentina): Facilidade de edição no Canva e arquivos organizados
+  let valText = `Os arquivos de ${cleanTitle} são super organizados e 100% estruturados no Canva! Consegui alterar os nomes, fotos e paleta de cores em poucos minutos direto pelo celular. O resultado ficou impecável!`;
+  if (mentionsConvite) {
+    valText = `Os convites interativos de ${cleanTitle} são sensacionais! Editei pelo celular no Canva em poucos minutos e os botões clicáveis funcionaram perfeitamente. Meus clientes amaram!`;
+  } else if (mentionsCaixa) {
+    valText = `Os moldes de ${cleanTitle} têm linhas de corte e vinco perfeitamente alinhadas. Muito fácil de editar no Canva e a montagem foi super rápida!`;
   }
+
+  // Depoimento 2 (Camila): Economia de tempo, fim de perder horas do zero, aceleração da produção
+  let camText = `Chega de perder horas montando artes do zero! O material de ${cleanTitle} já vem com acabamento refinado e pronto para impressão ou corte, acelerando demais minha produção diária.`;
+  if (mentionsShaker && mentions3D) {
+    camText = `Economizei horas de criação! Os temas de ${cleanTitle} são modernos e minhas clientes ficaram apaixonadas pelo acabamento dos modelos 3D e Shaker.`;
+  } else if (mentionsAgenda) {
+    camText = `Os miolos e capas de ${cleanTitle} economizaram dias de diagramação no meu ateliê. A qualidade das páginas em alta resolução é espetacular!`;
+  }
+
+  // Depoimento 3 (Sofia): Versão gratuita do Canva no celular e computador + alto valor percebido
+  const sofText = `Uso apenas a versão gratuita do Canva e funcionou com total facilidade tanto pelo celular quanto no computador. As artes de ${cleanTitle} têm um altíssimo valor percebido pelos clientes!`;
+
+  // Depoimento 4 (Mariana): Desenvolvido para artesãs, papeleiras, confeiteiras e designers
+  let marText = `Sou artesã e esse pacote de ${cleanTitle} facilitou demais a minha rotina de encomendas. Material profissional, limpo e de facílimo manuseio. Super recomendo!`;
+  if (textLower.includes('confeiteira') || textLower.includes('bolo')) {
+    marText = `Trabalho com confeitaria e papelaria, e esse material de ${cleanTitle} elevou o padrão das minhas encomendas. Muito prático de personalizar e imprimir!`;
+  }
+
+  // Depoimento 5 (Daniela): Pronto para impressão ou corte com precisão
+  let danText = `O material já vem pronto para impressão e corte com acabamento impecável. As cores saíram vibrantes e não tive nenhum desperdício de papel. Valeu cada centavo!`;
+  if (mentionsSvg) {
+    danText = `Os arquivos cortam perfeitamente na Silhouette e tesoura. Sem falhas, sem perda de papel e com encaixe perfeito. Valeu cada centavo!`;
+  }
+
+  // Depoimento 6 (Alessandra): Acesso imediato no WhatsApp e E-mail + suporte
+  const aleText = `O acesso aos arquivos de ${cleanTitle} foi liberado imediatamente após a confirmação do pagamento no meu WhatsApp e E-mail. Suporte excelente e material de altíssima qualidade!`;
+
+  const contextualTestimonials: TestimonialItem[] = [
+    {
+      id: 'val-1',
+      name: 'Valentina Rocha',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&h=300&q=80',
+      rating: 5,
+      text: valText,
+    },
+    {
+      id: 'cam-2',
+      name: 'Camila Fernandes',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&h=300&q=80',
+      rating: 5,
+      text: camText,
+    },
+    {
+      id: 'sof-3',
+      name: 'Sofia Martins',
+      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&h=300&q=80',
+      rating: 5,
+      text: sofText,
+    },
+    {
+      id: 'mar-4',
+      name: 'Mariana Lopes',
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&h=300&q=80',
+      rating: 5,
+      text: marText,
+    },
+    {
+      id: 'dan-5',
+      name: 'Daniela Torres',
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&h=300&q=80',
+      rating: 5,
+      text: danText,
+    },
+    {
+      id: 'ale-6',
+      name: 'Alessandra Garcia',
+      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&h=300&q=80',
+      rating: 5,
+      text: aleText,
+    },
+  ];
 
   // GARANTIA DOS 6 CARDS:
   // Se o lojista cadastrou menos de 6 depoimentos personalizados,
