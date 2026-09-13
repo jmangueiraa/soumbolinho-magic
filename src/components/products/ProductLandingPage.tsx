@@ -440,9 +440,42 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             
             {/* COLUNA ESQUERDA: Galeria de Mídia (Foto Principal + Miniaturas) */}
-            <div className="lg:col-span-7 space-y-4">
+            <div className="lg:col-span-7 space-y-3 sm:space-y-4">
               
-              {/* Moldura da Mídia Ativa (Ajuste perfeito sem cortes e sem bordas vazias) */}
+              {/* Barra Superior com as 3 Informações (Fora da imagem para visão 100% limpa da arte) */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* 1. Badge Mais Vendido */}
+                  <span className="inline-flex items-center gap-1.5 bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider px-3 py-1.5 rounded-xl shadow-xs">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {product.badge || 'Mais Vendido'}
+                  </span>
+
+                  {/* 2. Badge Download Imediato */}
+                  <span className="inline-flex items-center gap-1.5 bg-slate-950 text-white font-bold text-xs uppercase tracking-wide px-3 py-1.5 rounded-xl shadow-xs">
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    Download Imediato
+                  </span>
+                </div>
+
+                {/* 3. Botão de Ampliar / Zoom */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (currentMedia) {
+                      openProductZoom(activeMediaIndex);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs border border-white/10 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Ampliar imagem e ver detalhes"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Ampliar</span>
+                </button>
+              </div>
+
+              {/* Moldura da Mídia Ativa (100% Limpa, sem elementos sobrepostos atrapalhando a visão) */}
               <div 
                 onClick={() => {
                   if (currentMedia) {
@@ -478,49 +511,6 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                     <ProductImagePlaceholder iconClassName="w-16 h-16 text-slate-300" showText={false} />
                   </div>
                 )}
-
-                {/* Badges Flutuantes */}
-                <div className="absolute top-3.5 left-3.5 flex flex-col gap-1.5 z-10 pointer-events-none">
-                  <span className="inline-flex items-center gap-1 bg-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {product.badge || 'Mais Vendido'}
-                  </span>
-
-                  <span className="inline-flex items-center gap-1 bg-slate-950/85 backdrop-blur-xs text-white font-bold text-[10px] uppercase tracking-wide px-2.5 py-0.5 rounded-md shadow-xs">
-                    <Download className="w-3 h-3 text-cyan-400" />
-                    Download Imediato
-                  </span>
-                </div>
-
-                {/* Botão Flutuante de Zoom / Ampliar */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openProductZoom(activeMediaIndex);
-                  }}
-                  className="absolute top-3.5 right-3.5 z-10 inline-flex items-center gap-1.5 bg-slate-950/85 hover:bg-slate-900 text-white backdrop-blur-md text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-md border border-white/10 transition-all hover:scale-105 active:scale-95 cursor-pointer group-hover:bg-slate-900"
-                  title="Ampliar imagem e ver detalhes"
-                >
-                  <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Ampliar</span>
-                </button>
-
-                {/* Dica visual suave no hover */}
-                {!currentMedia?.isVideo && (
-                  <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
-                    <span className="bg-slate-950/85 backdrop-blur-md text-white text-xs font-semibold px-4 py-2 rounded-full border border-white/15 shadow-xl flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                      <ZoomIn className="w-4 h-4 text-pink-400" />
-                      Clique para ver detalhes
-                    </span>
-                  </div>
-                )}
-
-                {/* Selo de Garantia no canto inferior */}
-                <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-xs border border-slate-200 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1 pointer-events-none z-10">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Garantia de {guaranteeDays} dias</span>
-                </div>
               </div>
 
               {/* Grade de Miniaturas / Thumbnails da Galeria */}
@@ -553,8 +543,8 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 </div>
               )}
 
-              {/* Prova Social de Avaliação */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+              {/* Prova Social de Avaliação e Selo de Garantia (Totalmente fora da foto) */}
+              <div className="flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <div className="flex text-amber-400">
                     {[...Array(5)].map((_, i) => (
@@ -562,8 +552,14 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                     ))}
                   </div>
                   <span className="font-bold text-slate-800">4.9 / 5.0</span>
+                  <span className="text-slate-400 hidden sm:inline">•</span>
+                  <span className="text-slate-500 font-medium hidden sm:inline">Mais de 140 clientes satisfeitas</span>
                 </div>
-                <span className="text-slate-500 font-medium">Mais de 140 clientes satisfeitas</span>
+
+                <div className="inline-flex items-center gap-1 text-slate-700 font-bold bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Garantia de {guaranteeDays} dias</span>
+                </div>
               </div>
             </div>
 
@@ -803,17 +799,17 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                       </span>
                     </div>
 
-                    {/* Imagem ou Mockup do Bônus */}
+                    {/* Imagem ou Mockup do Bônus (Exibição completa sem cortes e sem bordas) */}
                     {bonus.imageUrl ? (
                       <div 
                         onClick={() => openSingleImageZoom(bonus.imageUrl, bonus.title)}
-                        className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/60 relative group-hover:scale-[1.02] transition-transform cursor-zoom-in flex items-center justify-center"
+                        className="relative w-full rounded-2xl overflow-hidden border border-slate-200/60 group-hover:scale-[1.02] transition-transform cursor-zoom-in flex items-center justify-center bg-white shadow-2xs"
                         title="Clique para ampliar o bônus"
                       >
                         <img
                           src={bonus.imageUrl}
                           alt={bonus.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-auto object-contain rounded-2xl block"
                           loading="lazy"
                         />
                       </div>

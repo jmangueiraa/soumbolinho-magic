@@ -61,8 +61,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
       onClick={handleCardClick}
       className="group bg-white rounded-md sm:rounded-lg border border-slate-200 p-2.5 sm:p-3.5 flex flex-col justify-between h-full shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer relative"
     >
-      {/* 1. Mídia de Destaque no Topo do Card (Foto ou Vídeo) */}
-      <div className="relative w-full aspect-square bg-slate-50 rounded-sm overflow-hidden mb-2.5 sm:mb-3 flex items-center justify-center">
+      {/* 1. Mídia de Destaque no Topo do Card (Exibição completa sem cortes e sem bordas) */}
+      <div className="relative w-full rounded-sm overflow-hidden mb-2.5 sm:mb-3 flex items-center justify-center bg-white">
         {hasValidMedia ? (
           isVideo ? (
             <video
@@ -72,7 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
               loop
               playsInline
               onError={() => setImageError(true)}
-              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+              className="w-full h-auto object-contain rounded-sm block group-hover:scale-103 transition-transform duration-300"
             />
           ) : (
             <img
@@ -82,15 +82,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
                 console.warn(`[ProductCard] Erro ao carregar mídia para ${product.name}:`, mediaUrl);
                 setImageError(true);
               }}
-              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+              className="w-full h-auto object-contain rounded-sm block group-hover:scale-103 transition-transform duration-300"
               loading="lazy"
             />
           )
         ) : (
-          <ProductImagePlaceholder 
-            iconClassName="w-8 h-8 text-slate-300" 
-            showText={false} 
-          />
+          <div className="w-full aspect-square flex items-center justify-center bg-slate-50">
+            <ProductImagePlaceholder 
+              iconClassName="w-8 h-8 text-slate-300" 
+              showText={false} 
+            />
+          </div>
         )}
 
         {/* Botão de Copiar Link do Produto (Canto Superior Direito) */}

@@ -42,7 +42,7 @@ export const BannerSlider: React.FC = () => {
             <img
               src={activeBanner.imageUrl}
               alt={activeBanner.altText || 'Banner Principal'}
-              className="w-full h-auto max-h-[520px] object-contain block mx-auto transition-transform duration-700 group-hover:scale-[1.01]"
+              className="w-full h-auto object-contain block mx-auto transition-transform duration-700 group-hover:scale-[1.01]"
               style={{
                 filter: 'contrast(1.02) saturate(1.04)',
               }}
