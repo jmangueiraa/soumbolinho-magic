@@ -109,7 +109,7 @@ export const MasterLayout: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm sm:text-base tracking-tight text-white">
-                  Painel Mestre SaaS
+                  AJPSTORE
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
                   Super Admin

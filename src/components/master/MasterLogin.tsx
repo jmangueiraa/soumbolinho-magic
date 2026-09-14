@@ -66,7 +66,7 @@ export const MasterLogin: React.FC<MasterLoginProps> = ({
             </span>
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight pt-1">
-            Painel Mestre de Vendas
+            AJPSTORE
           </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
             Acesso exclusivo do proprietário da plataforma para gerenciar lojas de clientes e domínios próprios
@@ -104,7 +104,7 @@ export const MasterLogin: React.FC<MasterLoginProps> = ({
             className="w-full py-3.5 bg-gradient-to-r from-[#FF1493] to-pink-600 hover:from-pink-500 hover:to-pink-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-[#FF1493]/20 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <ShieldCheck className="w-4 h-4 text-pink-100" />
-            <span>Acessar Painel Mestre</span>
+            <span>Acessar AJPSTORE</span>
           </button>
 
           {/* Quick Dev Login */}
