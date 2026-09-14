@@ -65,6 +65,7 @@ export const StoresList: React.FC<StoresListProps> = ({
   const [customDateInput, setCustomDateInput] = useState<string>('');
   const [isSavingDays, setIsSavingDays] = useState(false);
   const [isSettingMatrizId, setIsSettingMatrizId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleSetAsMatriz = async (store: Store) => {
     const storeName = store.name || store.store_name || store.slug;
@@ -177,11 +178,6 @@ export const StoresList: React.FC<StoresListProps> = ({
   };
 
   const handleToggleSubscription = async (store: Store) => {
-    const isBase = store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
-    if (isBase) {
-      alert('A assinatura da loja matriz padrão SUAMARCAAQUI é vitalícia e não pode ser suspensa.');
-      return;
-    }
     const isSuspended = store.subscription_status === 'suspended' || store.isExpired;
     const nextStatus: 'active' | 'suspended' = isSuspended ? 'active' : 'suspended';
     const ok = window.confirm(
@@ -194,11 +190,6 @@ export const StoresList: React.FC<StoresListProps> = ({
   };
 
   const handleToggleStatus = async (store: Store) => {
-    const isBase = store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
-    if (isBase) {
-      alert('A loja matriz padrão SUAMARCAAQUI não pode ser desativada.');
-      return;
-    }
     const nextStatus = !store.is_active;
     const ok = window.confirm(`Deseja realmente ${nextStatus ? 'ativar' : 'pausar'} a loja "${store.name}"?`);
     if (!ok) return;
@@ -208,16 +199,27 @@ export const StoresList: React.FC<StoresListProps> = ({
   };
 
   const handleDelete = async (store: Store) => {
-    const isBase = store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
-    if (isBase) {
-      alert('A loja matriz padrão SUAMARCAAQUI não pode ser excluída.');
-      return;
-    }
-    const ok = window.confirm(`ATENÇÃO: Deseja realmente excluir a loja "${store.name}"? Todos os produtos e dados vinculados serão removidos permanentemente.`);
+    const storeName = store.name || store.store_name || store.slug || 'esta loja';
+    const isMatriz = Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
+    const confirmMsg = isMatriz
+      ? `🚨 ATENÇÃO: Deseja realmente excluir permanentemente a conta "${storeName}" (${store.slug})?\n\nEsta loja está configurada como Matriz/Base. Todos os produtos, categorias, pedidos e configurações vinculados a esta conta serão removidos do banco de dados.`
+      : `ATENÇÃO: Deseja realmente excluir permanentemente a loja "${storeName}"?\n\nTodos os produtos e dados vinculados serão removidos do banco de dados.`;
+
+    const ok = window.confirm(confirmMsg);
     if (!ok) return;
 
-    await deleteStore(store.id);
-    onRefresh();
+    setDeletingId(store.id);
+    try {
+      const res = await deleteStore(store.id, store.slug);
+      if (!res.success) {
+        alert(`❌ Erro ao excluir conta: ${res.error}`);
+      } else {
+        alert(`✅ Conta / Loja "${storeName}" excluída com sucesso!`);
+        onRefresh();
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleOpenEditDays = (store: Store) => {
@@ -742,30 +744,37 @@ export const StoresList: React.FC<StoresListProps> = ({
                     </button>
 
                     {/* Pausar / Ativar Loja */}
-                    {!isBaseStore && (
-                      <button
-                        onClick={() => handleToggleStatus(store)}
-                        className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                          store.is_active
-                            ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 border-slate-200'
-                            : 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                        }`}
-                        title={store.is_active ? 'Pausar Loja' : 'Ativar Loja'}
-                      >
-                        <Power className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleToggleStatus(store)}
+                      className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                        store.is_active
+                          ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 border-slate-200'
+                          : 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                      title={store.is_active ? 'Pausar Loja' : 'Ativar Loja'}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
 
-                    {/* Excluir */}
-                    {!isBaseStore && (
-                      <button
-                        onClick={() => handleDelete(store)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition-colors cursor-pointer"
-                        title="Excluir Loja"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    {/* Excluir Loja / Conta */}
+                    <button
+                      onClick={() => handleDelete(store)}
+                      disabled={deletingId === store.id}
+                      className="px-3 py-2 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50/80 hover:border-rose-600 rounded-xl border border-rose-200 transition-all cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold shadow-2xs"
+                      title="Excluir Conta / Loja permanentemente"
+                    >
+                      {deletingId === store.id ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Excluindo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Excluir</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
                 </div>

@@ -75,13 +75,6 @@ export const StoreFront: React.FC = () => {
       if (!isMounted) return;
 
       if (error || !data) {
-        if (cleanSlug === 'suamarcaaqui') {
-          const { ensureMatrizStoreExists } = await import('./services/storeManagementService');
-          const createdMatriz = await ensureMatrizStoreExists();
-          setNotFound(false);
-          switchStore(createdMatriz);
-          return;
-        }
         console.warn('[StoreFront] Loja não encontrada para slug:', cleanSlug);
         setNotFound(true);
       } else {

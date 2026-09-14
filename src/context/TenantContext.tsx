@@ -238,11 +238,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         } else {
           if (storeSlugParam === 'suamarcaaqui' || storeSlugParam === 'store_default') {
-            const { ensureMatrizStoreExists } = await import('../services/storeManagementService');
-            const createdMatriz = await ensureMatrizStoreExists();
-            setCurrentStore(normalizeStore(createdMatriz));
-            setTenantNotFound(false);
-            setTenantError(null);
+            console.warn('[TenantResolver] Loja não encontrada ou excluída:', storeSlugParam);
+            setTenantNotFound(true);
+            setTenantError('Esta loja foi excluída ou não existe.');
             setIsResolvingTenant(false);
             return;
           }
@@ -357,31 +355,31 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // 3. Raiz da plataforma / Matriz (editaveisdocanva.com.br ou acesso sem slug de loja)
       setTenantNotFound(false);
+      // Prioridade 1: Busca loja marcada como matriz no Supabase
       const { data: matrizFromDb } = await supabase
         .from('stores')
         .select('*')
-        .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,id.eq.matriz,slug.eq.matriz,custom_domain.ilike.editaveisdocanva.com.br')
+        .or('is_matriz.eq.true,slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,id.eq.matriz,slug.eq.matriz,custom_domain.ilike.editaveisdocanva.com.br')
         .limit(1)
         .maybeSingle();
 
       if (matrizFromDb) {
-        console.log('[TenantResolver] 🏬 Loja Matriz Oficial carregada diretamente do Supabase:', matrizFromDb.name);
+        console.log('[TenantResolver] 🏬 Loja Matriz carregada diretamente do Supabase:', matrizFromDb.name);
         setCurrentStore(normalizeStore(matrizFromDb));
       } else {
-        const { data: defaultFromDb } = await supabase
+        // Prioridade 2: Busca a loja mais recente cadastrada no Supabase
+        const { data: anyStoreFromDb } = await supabase
           .from('stores')
           .select('*')
-          .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,custom_domain.ilike.suamarcaaqui.com.br,id.eq.store_default')
+          .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        if (defaultFromDb) {
-          console.log('[TenantResolver] 🏬 Loja Modelo carregada diretamente do Supabase:', defaultFromDb.name);
-          setCurrentStore(normalizeStore(defaultFromDb));
+        if (anyStoreFromDb) {
+          console.log('[TenantResolver] 🏬 Loja ativa carregada diretamente do Supabase:', anyStoreFromDb.name);
+          setCurrentStore(normalizeStore(anyStoreFromDb));
         } else {
-          const { ensureMatrizStoreExists } = await import('../services/storeManagementService');
-          const createdMatriz = await ensureMatrizStoreExists();
-          setCurrentStore(normalizeStore(createdMatriz));
+          setCurrentStore(DEFAULT_STORE);
         }
       }
 
