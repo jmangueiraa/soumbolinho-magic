@@ -168,6 +168,21 @@ export const ApiDomainManager: React.FC = () => {
     const cleanMpToken = mpAccessToken.trim();
     const cleanTgToken = telegramBotToken.trim();
     const cleanChatId = telegramChatId.trim();
+    const cleanMeToken = melhorEnvioToken.trim();
+
+    // Salva configuração do Melhor Envio via shippingService
+    try {
+      const storeId = currentStore?.id || 'suamarcaaqui';
+      const currentShipping = await fetchShippingConfig(storeId);
+      const updatedShipping = {
+        ...currentShipping,
+        melhorEnvioEnabled,
+        melhorEnvioToken: cleanMeToken,
+      };
+      await saveShippingConfig(storeId, updatedShipping);
+    } catch (meErr) {
+      console.warn('[ApiDomainManager] Erro ao salvar Melhor Envio:', meErr);
+    }
 
     // 1. Grava no localStorage imediatamente para persistência garantida no navegador
     const storeKey = currentStore?.id || 'default';
@@ -212,6 +227,11 @@ export const ApiDomainManager: React.FC = () => {
             mp_access_token: cleanMpToken || null,
             telegram_bot_token: cleanTgToken || null,
             telegram_chat_id: cleanChatId || null,
+            shipping_config: {
+              ...(currentStore.theme_settings?.shipping_config || {}),
+              melhorEnvioEnabled,
+              melhorEnvioToken: cleanMeToken,
+            },
           },
           updated_at: new Date().toISOString(),
         };
