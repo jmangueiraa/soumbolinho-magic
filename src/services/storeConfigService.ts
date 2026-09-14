@@ -233,18 +233,26 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       const { data: mRow } = await supabase
         .from('stores')
         .select('*')
-        .or('is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,custom_domain.ilike.editaveisdocanva.com.br')
+        .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,slug.eq.matriz,slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.editaveisdocanva.com.br')
         .limit(1)
         .maybeSingle();
       if (mRow) matrizStoreRow = mRow;
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[storeConfigService] Aviso ao consultar stores da matriz:', e);
+    }
 
     if (baseData) {
       const mapped = mapSupabaseConfig(baseData);
       if (matrizStoreRow) {
         if (matrizStoreRow.mp_access_token) mapped.mpAccessToken = matrizStoreRow.mp_access_token;
+        else if (matrizStoreRow.theme_settings?.mp_access_token) mapped.mpAccessToken = matrizStoreRow.theme_settings.mp_access_token;
+
         if (matrizStoreRow.telegram_bot_token) mapped.telegramBotToken = matrizStoreRow.telegram_bot_token;
+        else if (matrizStoreRow.theme_settings?.telegram_bot_token) mapped.telegramBotToken = matrizStoreRow.theme_settings.telegram_bot_token;
+
         if (matrizStoreRow.telegram_chat_id) mapped.telegramChatId = matrizStoreRow.telegram_chat_id;
+        else if (matrizStoreRow.theme_settings?.telegram_chat_id) mapped.telegramChatId = matrizStoreRow.theme_settings.telegram_chat_id;
+
         if (matrizStoreRow.logo_url && !mapped.logoUrl) mapped.logoUrl = matrizStoreRow.logo_url;
       }
       if (baseSiteTheme) {
@@ -268,6 +276,23 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           }
         }
       }
+
+      // Fallback em localStorage se ainda não estiver presente:
+      try {
+        if (!mapped.mpAccessToken) {
+          const lsMp = localStorage.getItem('encantando_festa_mp_access_token');
+          if (lsMp) mapped.mpAccessToken = lsMp;
+        }
+        if (!mapped.telegramBotToken) {
+          const lsTg = localStorage.getItem('encantando_festa_telegram_bot_token');
+          if (lsTg) mapped.telegramBotToken = lsTg;
+        }
+        if (!mapped.telegramChatId) {
+          const lsChat = localStorage.getItem('encantando_festa_telegram_chat_id');
+          if (lsChat) mapped.telegramChatId = lsChat;
+        }
+      } catch {}
+
       return { data: mapped, error: null };
     }
 
@@ -289,9 +314,9 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
         city: 'Brasil',
         workingHours: baseSiteTheme?.business_hours || matrizStoreRow.working_hours || 'Segunda a Sábado, 09h às 18h',
         minOrderValue: 0.00,
-        mpAccessToken: matrizStoreRow.mp_access_token || undefined,
-        telegramBotToken: matrizStoreRow.telegram_bot_token || undefined,
-        telegramChatId: matrizStoreRow.telegram_chat_id || undefined,
+        mpAccessToken: matrizStoreRow.mp_access_token || matrizStoreRow.theme_settings?.mp_access_token || undefined,
+        telegramBotToken: matrizStoreRow.telegram_bot_token || matrizStoreRow.theme_settings?.telegram_bot_token || undefined,
+        telegramChatId: matrizStoreRow.telegram_chat_id || matrizStoreRow.theme_settings?.telegram_chat_id || undefined,
         benefitCards: resolvedBenefitCards,
         primaryColor: baseSiteTheme?.primary_color || storeTheme.primary_color || '#FF1493',
         themeLayout: baseSiteTheme?.theme_layout || storeTheme.theme_layout || 'classic',
@@ -299,6 +324,22 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
         whatsappDefaultMessage: baseSiteTheme?.whatsapp_default_message || storeTheme.whatsapp_default_message || undefined,
         logoUrl: baseSiteTheme?.logo_url || storeTheme.logo_url || matrizStoreRow.logo_url || undefined,
       };
+
+      try {
+        if (!mapped.mpAccessToken) {
+          const lsMp = localStorage.getItem('encantando_festa_mp_access_token');
+          if (lsMp) mapped.mpAccessToken = lsMp;
+        }
+        if (!mapped.telegramBotToken) {
+          const lsTg = localStorage.getItem('encantando_festa_telegram_bot_token');
+          if (lsTg) mapped.telegramBotToken = lsTg;
+        }
+        if (!mapped.telegramChatId) {
+          const lsChat = localStorage.getItem('encantando_festa_telegram_chat_id');
+          if (lsChat) mapped.telegramChatId = lsChat;
+        }
+      } catch {}
+
       return { data: mapped, error: null };
     }
 
@@ -351,16 +392,16 @@ export async function saveStoreConfigInSupabase(
     console.log('[storeConfigService] 💾 Executando salvamento das configurações no Supabase:', payload);
 
     // 1. Sincroniza SEMPRE na tabela stores (onde as credenciais mp_access_token, telegram_bot_token, telegram_chat_id e theme_settings residem com segurança)
-    const isMatrizOrBase = targetStoreId === 'store_default' || targetStoreId === 'suamarcaaqui' || targetStoreId === 'matriz';
+    const isMatrizOrBase = targetStoreId === 'store_default' || targetStoreId === 'suamarcaaqui' || targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva';
     const storeOrFilter = isMatrizOrBase
-      ? 'is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,custom_domain.ilike.editaveisdocanva.com.br'
+      ? 'slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,slug.eq.matriz,slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.editaveisdocanva.com.br'
       : `id.eq.${targetStoreId},slug.eq.${targetStoreId}`;
 
     let storeUpdatedSuccessfully = false;
     try {
       const { data: currentStoreRow } = await supabase
         .from('stores')
-        .select('id, theme_settings')
+        .select('id, slug, theme_settings')
         .or(storeOrFilter)
         .limit(1)
         .maybeSingle();
@@ -389,6 +430,9 @@ export async function saveStoreConfigInSupabase(
           whatsapp_default_message: config.whatsappDefaultMessage,
           theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
           color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
+          mp_access_token: config.mpAccessToken?.trim() || null,
+          telegram_bot_token: config.telegramBotToken?.trim() || null,
+          telegram_chat_id: config.telegramChatId?.trim() || null,
         },
         updated_at: new Date().toISOString()
       };
@@ -402,7 +446,14 @@ export async function saveStoreConfigInSupabase(
         storeUpdatedSuccessfully = true;
         console.log(`[storeConfigService] ✅ Tabela stores atualizada com sucesso para loja id="${actualStoreId}"!`);
       } else {
-        console.warn('[storeConfigService] Aviso ao atualizar stores:', storeUpdateErr.message);
+        console.warn('[storeConfigService] Aviso ao atualizar stores por id:', storeUpdateErr.message);
+        if (currentStoreRow?.slug) {
+          const { error: slugErr } = await supabase
+            .from('stores')
+            .update(storeUpdatePayload)
+            .eq('slug', currentStoreRow.slug);
+          if (!slugErr) storeUpdatedSuccessfully = true;
+        }
       }
     } catch (storeEx) {
       console.warn('[storeConfigService] Exceção ao atualizar stores:', storeEx);

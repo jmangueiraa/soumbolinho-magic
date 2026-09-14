@@ -99,6 +99,9 @@ export function normalizeStore(s: any): Store {
     owner_email: s.owner_email || s.client_email || null,
     client_email: s.client_email || s.owner_email || null,
     admin_password: s.admin_password || (isBase ? 'admin' : null),
+    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || null,
+    telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || null,
+    telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || null,
   };
 }
 

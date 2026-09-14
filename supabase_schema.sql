@@ -49,6 +49,7 @@ ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS working_hours TEXT DEFAULT 'S
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS mp_access_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS is_matriz BOOLEAN DEFAULT FALSE;
 
 -- Atualizar CHECK constraint para aceitar tanto 'active' quanto 'ativo', 'pending_dns', 'pendente'
 ALTER TABLE public.stores DROP CONSTRAINT IF EXISTS stores_domain_status_check;

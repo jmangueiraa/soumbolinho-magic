@@ -30,12 +30,36 @@ export const ApiDomainManager: React.FC = () => {
   const [domainStatusMsg, setDomainStatusMsg] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Estados de APIs
-  const [mpAccessToken, setMpAccessToken] = useState(storeConfig.mpAccessToken || currentStore?.mp_access_token || '');
+  // Estados de APIs com inicialização resiliente
+  const [mpAccessToken, setMpAccessToken] = useState(() => {
+    return (
+      storeConfig.mpAccessToken ||
+      currentStore?.mp_access_token ||
+      currentStore?.theme_settings?.mp_access_token ||
+      localStorage.getItem('encantando_festa_mp_access_token') ||
+      ''
+    );
+  });
   const [showMpToken, setShowMpToken] = useState(false);
-  const [telegramBotToken, setTelegramBotToken] = useState(storeConfig.telegramBotToken || currentStore?.telegram_bot_token || '');
+  const [telegramBotToken, setTelegramBotToken] = useState(() => {
+    return (
+      storeConfig.telegramBotToken ||
+      currentStore?.telegram_bot_token ||
+      currentStore?.theme_settings?.telegram_bot_token ||
+      localStorage.getItem('encantando_festa_telegram_bot_token') ||
+      ''
+    );
+  });
   const [showTgToken, setShowTgToken] = useState(false);
-  const [telegramChatId, setTelegramChatId] = useState(storeConfig.telegramChatId || currentStore?.telegram_chat_id || '');
+  const [telegramChatId, setTelegramChatId] = useState(() => {
+    return (
+      storeConfig.telegramChatId ||
+      currentStore?.telegram_chat_id ||
+      currentStore?.theme_settings?.telegram_chat_id ||
+      localStorage.getItem('encantando_festa_telegram_chat_id') ||
+      ''
+    );
+  });
   
   const [isSavingApis, setIsSavingApis] = useState(false);
   const [apiSaveSuccess, setApiSaveSuccess] = useState(false);
@@ -51,19 +75,21 @@ export const ApiDomainManager: React.FC = () => {
   }, [currentStore]);
 
   useEffect(() => {
-    const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || '';
-    const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || '';
-    const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || '';
-    setMpAccessToken(mp);
-    setTelegramBotToken(tg);
-    setTelegramChatId(chat);
+    const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || currentStore?.theme_settings?.mp_access_token || localStorage.getItem('encantando_festa_mp_access_token') || '';
+    const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || currentStore?.theme_settings?.telegram_bot_token || localStorage.getItem('encantando_festa_telegram_bot_token') || '';
+    const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || currentStore?.theme_settings?.telegram_chat_id || localStorage.getItem('encantando_festa_telegram_chat_id') || '';
+
+    if (mp) setMpAccessToken(mp);
+    if (tg) setTelegramBotToken(tg);
+    if (chat) setTelegramChatId(chat);
   }, [
     storeConfig.mpAccessToken,
     storeConfig.telegramBotToken,
     storeConfig.telegramChatId,
     currentStore?.mp_access_token,
     currentStore?.telegram_bot_token,
-    currentStore?.telegram_chat_id
+    currentStore?.telegram_chat_id,
+    currentStore?.theme_settings,
   ]);
 
   const copyToClipboard = (text: string, key: string) => {
@@ -114,55 +140,82 @@ export const ApiDomainManager: React.FC = () => {
     const cleanTgToken = telegramBotToken.trim();
     const cleanChatId = telegramChatId.trim();
 
+    // 1. Grava no localStorage imediatamente para persistência garantida no navegador
     try {
-      localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
-      localStorage.setItem('encantando_festa_telegram_bot_token', cleanTgToken);
-      localStorage.setItem('encantando_festa_telegram_chat_id', cleanChatId);
+      if (cleanMpToken) localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
+      else localStorage.removeItem('encantando_festa_mp_access_token');
+
+      if (cleanTgToken) localStorage.setItem('encantando_festa_telegram_bot_token', cleanTgToken);
+      else localStorage.removeItem('encantando_festa_telegram_bot_token');
+
+      if (cleanChatId) localStorage.setItem('encantando_festa_telegram_chat_id', cleanChatId);
+      else localStorage.removeItem('encantando_festa_telegram_chat_id');
     } catch (e) {
-      console.warn(e);
+      console.warn('[ApiDomainManager] LocalStorage indisponível:', e);
     }
 
-    // 1. Atualiza diretamente na tabela stores pelo Supabase garantindo persistência imediata
+    // 2. Atualiza diretamente na tabela stores pelo Supabase garantindo persistência imediata
     const targetStoreIdentifier = currentStore?.id;
     if (targetStoreIdentifier && targetStoreIdentifier !== '__resolving_tenant__') {
       try {
-        const isMatriz = currentStore.is_matriz || targetStoreIdentifier === 'suamarcaaqui' || targetStoreIdentifier === 'store_default';
-        const filter = isMatriz
-          ? 'is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
-          : `id.eq.${targetStoreIdentifier},slug.eq.${targetStoreIdentifier}`;
-
-        await supabase
-          .from('stores')
-          .update({
+        const storePayload = {
+          mp_access_token: cleanMpToken || null,
+          telegram_bot_token: cleanTgToken || null,
+          telegram_chat_id: cleanChatId || null,
+          theme_settings: {
+            ...(currentStore.theme_settings || {}),
             mp_access_token: cleanMpToken || null,
             telegram_bot_token: cleanTgToken || null,
             telegram_chat_id: cleanChatId || null,
-            updated_at: new Date().toISOString(),
-          })
-          .or(filter);
+          },
+          updated_at: new Date().toISOString(),
+        };
+
+        // Salva por ID
+        const { error: errId } = await supabase
+          .from('stores')
+          .update(storePayload)
+          .eq('id', targetStoreIdentifier);
+
+        if (errId) {
+          console.warn('[ApiDomainManager] Aviso ao salvar stores por id:', errId.message);
+        }
+
+        // Salva também por slug se disponível
+        if (currentStore.slug) {
+          await supabase
+            .from('stores')
+            .update(storePayload)
+            .eq('slug', currentStore.slug);
+        }
       } catch (storeErr) {
         console.warn('[ApiDomainManager] Erro ao salvar credenciais diretamente em stores:', storeErr);
       }
     }
 
-    // 2. Atualiza via StoreDataContext (que persiste em stores, site_settings e store_config)
+    // 3. Atualiza via StoreDataContext (que persiste em stores, site_settings e store_config)
     await updateStoreConfig({
       mpAccessToken: cleanMpToken,
       telegramBotToken: cleanTgToken,
       telegramChatId: cleanChatId,
     });
 
-    // 3. Atualiza o TenantContext para que currentStore em memória reflita as alterações
+    // 4. Atualiza o TenantContext para que currentStore em memória reflita as alterações
     try {
       await refreshTenant();
     } catch (rErr) {
       console.warn('[ApiDomainManager] Aviso ao atualizar tenant:', rErr);
     }
 
+    // Mantém os estados locais preenchidos
+    setMpAccessToken(cleanMpToken);
+    setTelegramBotToken(cleanTgToken);
+    setTelegramChatId(cleanChatId);
+
     setIsSavingApis(false);
     setApiSaveSuccess(true);
     showNotification('Chaves de API salvas com sucesso!', 'success');
-    setTimeout(() => setApiSaveSuccess(false), 3000);
+    setTimeout(() => setApiSaveSuccess(false), 3500);
   };
 
   const handleTestTelegram = async () => {
