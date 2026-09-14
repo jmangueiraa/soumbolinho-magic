@@ -62,14 +62,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!botToken || !chatId) {
       try {
         const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbwxubnwaeywstnmlrqg.supabase.co';
-        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_HuPfQyg25rtcXPQhDN5OHw_NbYRnpvq';
+        const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id3h1Ym53YWV5d3N0bm1scnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyODAwNDEsImV4cCI6MjEwMzg1NjA0MX0.gGa7ZDgiDuN_NNiNK7i7nHEVtaBQ8nEuOPSz0eIn4D4';
         
+        const reqHeaders: Record<string, string> = {
+          'apikey': supabaseKey,
+        };
+        if (!supabaseKey.startsWith('sb_publishable_') && !supabaseKey.startsWith('sb_secret_')) {
+          reqHeaders['Authorization'] = `Bearer ${supabaseKey}`;
+        }
+
         // 1. Tenta consultar na tabela stores (busca em colunas raiz e também dentro de theme_settings JSONB)
         const resStores = await fetch(`${supabaseUrl}/rest/v1/stores?select=*&limit=10`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`
-          }
+          headers: reqHeaders
         });
         if (resStores.ok) {
           const storeRows = await resStores.json();
@@ -91,10 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 2. Se ainda faltar algum, tenta em store_config
         if (!botToken || !chatId) {
           const resConfig = await fetch(`${supabaseUrl}/rest/v1/store_config?select=*&limit=10`, {
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`
-            }
+            headers: reqHeaders
           });
           if (resConfig.ok) {
             const configRows = await resConfig.json();
