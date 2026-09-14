@@ -14,13 +14,15 @@ import {
   EyeOff, 
   ShieldCheck,
   Link2,
-  Truck
+  Truck,
+  MapPin,
+  Sparkles
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { updateStoreDomain } from '../../services/storeManagementService';
-import { fetchShippingConfig, saveShippingConfig } from '../../services/shippingService';
+import { fetchShippingConfig, saveShippingConfig, lookupCep } from '../../services/shippingService';
 
 export const ApiDomainManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
@@ -69,10 +71,86 @@ export const ApiDomainManager: React.FC = () => {
   const [isSavingApis, setIsSavingApis] = useState(false);
   const [apiSaveSuccess, setApiSaveSuccess] = useState(false);
 
-  // Estados Melhor Envio
-  const [melhorEnvioEnabled, setMelhorEnvioEnabled] = useState(false);
+  // Estados Melhor Envio & Frete via API
+  const [originCep, setOriginCep] = useState('01001-000');
+  const [originCityState, setOriginCityState] = useState('');
+  const [melhorEnvioEnabled, setMelhorEnvioEnabled] = useState(true);
   const [melhorEnvioToken, setMelhorEnvioToken] = useState('');
   const [showMeToken, setShowMeToken] = useState(false);
+  const [testMeLoading, setTestMeLoading] = useState(false);
+  const [testMeResults, setTestMeResults] = useState<{
+    success: boolean;
+    message: string;
+    quotes?: any[];
+  } | null>(null);
+
+  const handleOriginCepChange = async (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 8);
+    const masked = clean.length > 5 ? `${clean.slice(0, 5)}-${clean.slice(5)}` : clean;
+    setOriginCep(masked);
+
+    if (clean.length === 8) {
+      const { address } = await lookupCep(clean);
+      if (address) {
+        setOriginCityState(`${address.city} - ${address.state}`);
+      }
+    } else {
+      setOriginCityState('');
+    }
+  };
+
+  const handleTestMelhorEnvio = async () => {
+    if (!melhorEnvioToken.trim()) {
+      setTestMeResults({
+        success: false,
+        message: 'Cole o Token do Melhor Envio antes de testar.',
+      });
+      return;
+    }
+
+    setTestMeLoading(true);
+    setTestMeResults(null);
+
+    try {
+      const res = await fetch('/api/calculate-shipping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destination_cep: '01310100', // Av. Paulista, SP
+          origin_cep: originCep.replace(/\D/g, '') || '01001000',
+          melhor_envio_token: melhorEnvioToken.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.options) && data.options.length > 0) {
+          setTestMeResults({
+            success: true,
+            message: `API conectada com sucesso! ${data.options.length} opções cotadas para CEP 01310-100:`,
+            quotes: data.options,
+          });
+        } else {
+          setTestMeResults({
+            success: false,
+            message: data.error || 'Não foi possível cotar com o token fornecido.',
+          });
+        }
+      } else {
+        setTestMeResults({
+          success: false,
+          message: 'Falha ao consultar a API do Melhor Envio. Verifique se o token é válido.',
+        });
+      }
+    } catch (err: any) {
+      setTestMeResults({
+        success: false,
+        message: 'Erro ao conectar ao serviço de cotação.',
+      });
+    } finally {
+      setTestMeLoading(false);
+    }
+  };
 
   // Teste de Telegram
   const [testTelegramLoading, setTestTelegramLoading] = useState(false);
@@ -111,8 +189,15 @@ export const ApiDomainManager: React.FC = () => {
       try {
         const sc = await fetchShippingConfig(storeId);
         if (sc) {
-          setMelhorEnvioEnabled(!!sc.melhorEnvioEnabled);
+          setMelhorEnvioEnabled(sc.melhorEnvioEnabled !== false);
           setMelhorEnvioToken(sc.melhorEnvioToken || '');
+          if (sc.originCep) {
+            setOriginCep(sc.originCep);
+            const { address } = await lookupCep(sc.originCep);
+            if (address) {
+              setOriginCityState(`${address.city} - ${address.state}`);
+            }
+          }
         }
       } catch (err) {
         console.warn('[ApiDomainManager] Erro ao carregar config de frete/Melhor Envio:', err);
@@ -176,6 +261,7 @@ export const ApiDomainManager: React.FC = () => {
       const currentShipping = await fetchShippingConfig(storeId);
       const updatedShipping = {
         ...currentShipping,
+        originCep: originCep.trim() || '01001-000',
         melhorEnvioEnabled,
         melhorEnvioToken: cleanMeToken,
       };
@@ -229,6 +315,7 @@ export const ApiDomainManager: React.FC = () => {
             telegram_chat_id: cleanChatId || null,
             shipping_config: {
               ...(currentStore.theme_settings?.shipping_config || {}),
+              originCep: originCep.trim() || '01001-000',
               melhorEnvioEnabled,
               melhorEnvioToken: cleanMeToken,
             },
@@ -717,7 +804,7 @@ export const ApiDomainManager: React.FC = () => {
           </div>
         </div>
 
-        {/* 2.3 Integração Melhor Envio */}
+        {/* 2.3 Integração Melhor Envio (Cotação 100% via API) */}
         <div className="p-4 sm:p-5 bg-orange-50/60 rounded-3xl border border-orange-200 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
@@ -728,11 +815,11 @@ export const ApiDomainManager: React.FC = () => {
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <span>Integração Melhor Envio</span>
                   <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">
-                    Opcional / API
+                    Cotação 100% via API
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Cotação automática via API com Jadlog, Correios, Loggi e Latam Cargo.
+                  Cálculo automático em tempo real com Jadlog, Correios (PAC/SEDEX), Loggi e Latam Cargo.
                 </p>
               </div>
             </div>
@@ -741,11 +828,11 @@ export const ApiDomainManager: React.FC = () => {
               {melhorEnvioToken ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
                   <Check className="w-3 h-3" />
-                  Token Configurado
+                  API Conectada
                 </span>
               ) : (
                 <span className="text-[11px] bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full font-semibold">
-                  Opcional
+                  Pendente
                 </span>
               )}
 
@@ -762,7 +849,34 @@ export const ApiDomainManager: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* CEP de Origem da Loja */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-orange-600" />
+                <span>CEP de Origem (Postagem da Loja) *</span>
+              </label>
+              <input
+                type="text"
+                value={originCep}
+                onChange={(e) => handleOriginCepChange(e.target.value)}
+                placeholder="00000-000"
+                maxLength={9}
+                className="w-full text-xs font-mono px-3.5 py-2.5 bg-white border border-orange-200 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800"
+              />
+              {originCityState ? (
+                <p className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  <span>{originCityState}</span>
+                </p>
+              ) : (
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Endereço de onde suas encomendas saem para entrega.
+                </p>
+              )}
+            </div>
+
+            {/* Token da API */}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">
                 Token da API do Melhor Envio (Bearer Token)
@@ -772,7 +886,7 @@ export const ApiDomainManager: React.FC = () => {
                   type={showMeToken ? "text" : "password"}
                   value={melhorEnvioToken}
                   onChange={(e) => setMelhorEnvioToken(e.target.value)}
-                  placeholder="Cole o seu Token de Acesso gerado no painel do Melhor Envio..."
+                  placeholder="Cole o seu Token de Acesso gerado no Melhor Envio..."
                   className="w-full text-xs font-mono px-3.5 py-2.5 bg-white border border-orange-200 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 pr-10"
                 />
                 <button
@@ -784,10 +898,68 @@ export const ApiDomainManager: React.FC = () => {
                   {showMeToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                Caso o token não esteja preenchido ou a API do Melhor Envio fique indisponível, o sistema utiliza automaticamente com 100% de segurança as regras de frete fixo cadastradas na aba <strong>Frete & Envio</strong>.
+              <p className="text-[10px] text-slate-500 mt-1">
+                Gere em: <a href="https://melhorenvio.com.br/painel/gerenciar/tokens" target="_blank" rel="noopener noreferrer" className="text-orange-600 underline font-bold">Painel do Melhor Envio &gt; Tokens</a>.
               </p>
             </div>
+          </div>
+
+          {/* Feedback de Teste da API do Melhor Envio */}
+          {testMeResults && (
+            <div className={`p-3.5 rounded-2xl border text-xs space-y-2 animate-in fade-in ${
+              testMeResults.success
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}>
+              <div className="flex items-center gap-2 font-bold">
+                {testMeResults.success ? (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{testMeResults.message}</span>
+              </div>
+              {testMeResults.quotes && testMeResults.quotes.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  {testMeResults.quotes.map((q: any, idx: number) => (
+                    <div key={idx} className="bg-white/80 border border-emerald-200/80 p-2.5 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="font-bold block text-slate-900">{q.name}</span>
+                        <span className="text-[10px] text-slate-500">{q.deadline}</span>
+                      </div>
+                      <span className="font-black text-emerald-700">
+                        R$ {Number(q.price).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Botão de Teste da API */}
+          <div className="pt-1 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-[11px] text-slate-500">
+              💡 Todas as cotações no carrinho e na página do produto serão calculadas <strong>100% via API</strong>.
+            </p>
+            <button
+              type="button"
+              onClick={handleTestMelhorEnvio}
+              disabled={testMeLoading}
+              className="px-4 py-2 bg-white hover:bg-orange-100 text-orange-700 border border-orange-300 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              {testMeLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Cotando via API...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                  <span>Testar Cotação da API</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

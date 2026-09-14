@@ -217,18 +217,8 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
       return { data: [], error: error.message };
     }
 
-    // Garante que a loja modelo SUAMARCAAQUI esteja cadastrada e presente na tabela stores
+    // Retorna as lojas cadastradas no banco sem recriar artificialmente lojas excluídas
     let allStores = stores ? [...stores] : [];
-    const hasMatrizInList = allStores.some(
-      (st) => st.slug === 'suamarcaaqui' || st.id === 'suamarcaaqui' || st.id === 'store_default'
-    );
-
-    if (!hasMatrizInList) {
-      const matrizStore = await ensureMatrizStoreExists();
-      if (matrizStore) {
-        allStores.unshift(matrizStore);
-      }
-    }
 
     // Busca contagem de produtos por loja
     const { data: productsData } = await supabase
@@ -632,25 +622,113 @@ export async function toggleStoreActive(
 }
 
 /**
- * 5. Exclui uma loja e todos os seus dados vinculados (CASCADE)
+ * 5. Exclui uma loja e todos os seus dados vinculados (CASCADE seguro)
+ * Permite a exclusão de qualquer conta/loja (incluindo matriz/suamarcaaqui) solicitada pelo Super Admin.
  */
 export async function deleteStore(
-  storeId: string
+  storeId: string,
+  storeSlug?: string
 ): Promise<{ success: boolean; error: string | null }> {
-  if (storeId === 'suamarcaaqui' || storeId === 'store_default') {
-    return { success: false, error: 'A loja base padrão SUAMARCAAQUI não pode ser excluída.' };
-  }
-
   try {
-    const { error } = await supabase
+    console.log(`[storeManagementService] 🗑️ Iniciando exclusão completa da conta/loja "${storeId}"...`);
+
+    // Coleta identificadores associados (id e slug) para garantir limpeza total
+    let resolvedSlug = storeSlug;
+    if (!resolvedSlug) {
+      const { data: st } = await supabase
+        .from('stores')
+        .select('id, slug')
+        .eq('id', storeId)
+        .maybeSingle();
+      if (st) {
+        resolvedSlug = st.slug;
+      }
+    }
+
+    const identifiers = [storeId];
+    if (resolvedSlug && !identifiers.includes(resolvedSlug)) {
+      identifiers.push(resolvedSlug);
+    }
+    if (storeId === 'suamarcaaqui' || resolvedSlug === 'suamarcaaqui') {
+      if (!identifiers.includes('store_default')) identifiers.push('store_default');
+      if (!identifiers.includes('store_editaveisdocanva')) identifiers.push('store_editaveisdocanva');
+      if (!identifiers.includes('matriz')) identifiers.push('matriz');
+    }
+
+    console.log('[storeManagementService] 🧹 Identificadores para exclusão em cascata:', identifiers);
+
+    // 1. Limpeza em cascata de todas as tabelas filhas vinculadas a estes identificadores
+    for (const id of identifiers) {
+      try { await supabase.from('products').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('categories').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('banners').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('coupons').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('orders').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('store_users').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('store_config').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('store_config').delete().eq('id', `cfg_${id}`); } catch (e) {}
+      try { await supabase.from('store_analytics').delete().eq('store_id', id); } catch (e) {}
+      try { await supabase.from('site_settings').delete().eq('store_id', id); } catch (e) {}
+    }
+
+    // 2. Exclui o registro da tabela stores
+    let deleteError: any = null;
+    for (const id of identifiers) {
+      const { error } = await supabase
+        .from('stores')
+        .delete()
+        .or(`id.eq.${id},slug.eq.${id}`);
+
+      if (error && error.code !== 'PGRST116') {
+        deleteError = error;
+      }
+    }
+
+    // Tentativa direta por ID
+    const { error: directErr } = await supabase
       .from('stores')
       .delete()
       .eq('id', storeId);
 
-    if (error) return { success: false, error: error.message };
+    if (directErr && deleteError) {
+      console.error('[storeManagementService] ❌ Erro ao deletar loja de stores:', directErr);
+      return { success: false, error: directErr.message || deleteError.message };
+    }
+
+    // 3. Se a loja excluída era a Matriz, promove a próxima loja disponível para ser a nova Matriz
+    try {
+      const { data: remainingStores } = await supabase
+        .from('stores')
+        .select('id, is_matriz')
+        .order('created_at', { ascending: false });
+
+      if (remainingStores && remainingStores.length > 0) {
+        const hasMatriz = remainingStores.some((s) => Boolean(s.is_matriz));
+        if (!hasMatriz) {
+          await supabase
+            .from('stores')
+            .update({ is_matriz: true })
+            .eq('id', remainingStores[0].id);
+        }
+      }
+    } catch (promErr) {
+      console.warn('[storeManagementService] Aviso ao promover nova matriz:', promErr);
+    }
+
+    // Limpa identificadores temporários de preview local
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('preview_store_id');
+        sessionStorage.removeItem('current_store_slug');
+        localStorage.removeItem(`store_${storeId}_mp_access_token`);
+      }
+    } catch (e) {}
+
+    console.log(`[storeManagementService] ✅ Loja "${storeId}" excluída com sucesso de todas as tabelas!`);
     return { success: true, error: null };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    console.error('[storeManagementService] ❌ Erro inesperado ao excluir loja:', err);
+    return { success: false, error: err.message || 'Erro ao excluir loja.' };
   }
 }
 

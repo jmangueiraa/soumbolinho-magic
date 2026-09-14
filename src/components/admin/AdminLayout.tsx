@@ -13,7 +13,6 @@ import {
   Palette,
   TrendingUp,
   Ticket,
-  Truck,
   Menu,
   X
 } from 'lucide-react';
@@ -27,12 +26,11 @@ import { BannersManager } from './BannersManager';
 import { ButtonsLayoutManager } from './ButtonsLayoutManager';
 import { ApiDomainManager } from './ApiDomainManager';
 import { CouponsManager } from './CouponsManager';
-import { ShippingManager } from './ShippingManager';
 import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
 
-type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'coupons' | 'shipping' | 'settings' | 'layout' | 'api-domain';
+type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'coupons' | 'settings' | 'layout' | 'api-domain';
 
 interface AdminLayoutProps {
   onBackToStore: () => void;
@@ -76,7 +74,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
       title: 'Vendas & Operação',
       items: [
         { id: 'coupons' as AdminTab, label: 'Cupons & Promoções', icon: Ticket },
-        { id: 'shipping' as AdminTab, label: 'Frete & Envio', icon: Truck },
       ],
     },
     {
@@ -318,7 +315,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
             {activeTab === 'categories' && <CategoriesManager />}
             {activeTab === 'banners' && <BannersManager />}
             {activeTab === 'coupons' && <CouponsManager />}
-            {activeTab === 'shipping' && <ShippingManager />}
             {activeTab === 'settings' && (
               <StoreSettingsManager 
                 onNavigateToApiDomain={() => setActiveTab('api-domain')} 

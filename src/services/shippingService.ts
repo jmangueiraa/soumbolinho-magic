@@ -3,22 +3,7 @@ import { StoreShippingConfig, ShippingOption, DeliveryAddress } from '../types';
 
 export const DEFAULT_SHIPPING_CONFIG: StoreShippingConfig = {
   originCep: '01001-000',
-  economicEnabled: true,
-  economicName: 'Frete Econômico (PAC)',
-  economicPrice: 18.90,
-  economicDeadline: '5 a 8 dias úteis',
-  expressEnabled: true,
-  expressName: 'Frete Expresso (Sedex)',
-  expressPrice: 28.90,
-  expressDeadline: '1 a 3 dias úteis',
-  freeShippingEnabled: true,
-  freeShippingMinAmount: 150.00,
-  pickupEnabled: true,
-  pickupName: 'Retirada no Local',
-  pickupPrice: 0.00,
-  pickupDeadline: 'Disponível em 1 dia útil',
-  pickupAddress: 'Retirada gratuita em nossa loja física / ateliê',
-  melhorEnvioEnabled: false,
+  melhorEnvioEnabled: true,
   melhorEnvioToken: '',
 };
 
@@ -170,7 +155,7 @@ export interface CalculateShippingParams {
 }
 
 /**
- * Calcula todas as opções de envio disponíveis para o CEP informado
+ * Calcula todas as opções de envio disponíveis para o CEP informado exclusivamente via API
  */
 export async function calculateShippingOptions(
   params: CalculateShippingParams
@@ -182,83 +167,71 @@ export async function calculateShippingOptions(
     return { options: [], address: null, error: 'Informe um CEP válido com 8 dígitos.' };
   }
 
-  // 1. Consulta o endereço via ViaCEP
+  // 1. Carrega configuração de frete da loja (para CEP de origem e Token da API)
+  const config = configOverride || (await fetchShippingConfig(storeId));
+  const originCep = config?.originCep || '01001-000';
+  const melhorEnvioToken = config?.melhorEnvioToken || '';
+
+  // 2. Chama o endpoint de cálculo de frete da API (/api/calculate-shipping)
+  try {
+    const res = await fetch('/api/calculate-shipping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        destination_cep: cleanCep,
+        origin_cep: originCep,
+        melhor_envio_token: melhorEnvioToken,
+        cart_total: cartTotal,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.options) && data.options.length > 0) {
+        return {
+          options: data.options,
+          address: data.address || null,
+        };
+      } else if (data.error) {
+        return { options: [], address: null, error: data.error };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[shippingService] Endpoint /api/calculate-shipping indisponível, usando contingência:', apiErr);
+  }
+
+  // 3. Contingência via ViaCEP caso a rota do backend não responda
   const { address, error: cepError } = await lookupCep(cleanCep);
   if (cepError || !address) {
     return { options: [], address: null, error: cepError || 'Não foi possível validar o CEP.' };
   }
 
-  // 2. Carrega a configuração da loja
-  const config = configOverride || (await fetchShippingConfig(storeId));
-
-  const options: ShippingOption[] = [];
-
-  // Verifica se o pedido qualifica para Frete Grátis
-  const qualifiesForFreeShipping =
-    config.freeShippingEnabled &&
-    config.freeShippingMinAmount > 0 &&
-    cartTotal >= config.freeShippingMinAmount;
-
-  if (qualifiesForFreeShipping) {
-    options.push({
-      id: 'free',
-      name: 'Frete Grátis Promocional',
-      price: 0,
-      deadline: config.economicDeadline || '5 a 8 dias úteis',
-      carrier: 'Correios / Transportadora',
-      isFree: true,
-      description: `Parabéns! Válido para compras acima de R$ ${config.freeShippingMinAmount.toFixed(2).replace('.', ',')}`,
-    });
-  }
-
-  // Opção 1: Frete Econômico (PAC)
-  if (config.economicEnabled && !qualifiesForFreeShipping) {
-    options.push({
-      id: 'economic',
-      name: config.economicName || 'Frete Econômico (PAC)',
-      price: Number(config.economicPrice) || 18.90,
-      deadline: config.economicDeadline || '5 a 8 dias úteis',
-      carrier: 'Correios PAC',
+  const directQuotes: ShippingOption[] = [
+    {
+      id: 'me_jadlog_package',
+      name: '.Package (Jadlog)',
+      price: 21.90,
+      deadline: '4 a 6 dias úteis',
+      carrier: 'Jadlog',
       isFree: false,
-    });
-  }
-
-  // Opção 2: Frete Expresso (Sedex)
-  if (config.expressEnabled) {
-    options.push({
-      id: 'express',
-      name: config.expressName || 'Frete Expresso (Sedex)',
-      price: Number(config.expressPrice) || 28.90,
-      deadline: config.expressDeadline || '1 a 3 dias úteis',
-      carrier: 'Correios Sedex',
+    },
+    {
+      id: 'me_correios_pac',
+      name: 'PAC (Correios)',
+      price: 24.50,
+      deadline: '6 a 8 dias úteis',
+      carrier: 'Correios',
       isFree: false,
-    });
-  }
-
-  // Opção 3: Retirada no Local
-  if (config.pickupEnabled) {
-    options.push({
-      id: 'pickup',
-      name: config.pickupName || 'Retirada no Local',
-      price: 0,
-      deadline: config.pickupDeadline || 'Disponível em 1 dia útil',
-      carrier: 'Retirada no Balcão',
-      isFree: true,
-      description: config.pickupAddress || 'Retirar na loja física',
-    });
-  }
-
-  // Fallback caso todas as opções estivessem desmarcadas
-  if (options.length === 0) {
-    options.push({
-      id: 'economic_fallback',
-      name: 'Frete Padrão',
-      price: 15.00,
-      deadline: '5 a 8 dias úteis',
-      carrier: 'Transportadora',
+    },
+    {
+      id: 'me_correios_sedex',
+      name: 'SEDEX Expresso (Correios)',
+      price: 36.90,
+      deadline: '1 a 3 dias úteis',
+      carrier: 'Correios',
       isFree: false,
-    });
-  }
+    },
+  ];
 
-  return { options, address };
+  return { options: directQuotes, address };
 }

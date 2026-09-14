@@ -108,23 +108,23 @@ export interface ShippingOption {
 
 export interface StoreShippingConfig {
   originCep: string;
-  economicEnabled: boolean;
-  economicName: string;
-  economicPrice: number;
-  economicDeadline: string;
-  expressEnabled: boolean;
-  expressName: string;
-  expressPrice: number;
-  expressDeadline: string;
-  freeShippingEnabled: boolean;
-  freeShippingMinAmount: number;
-  pickupEnabled: boolean;
-  pickupName: string;
-  pickupPrice: number;
-  pickupDeadline: string;
-  pickupAddress: string;
   melhorEnvioEnabled?: boolean;
   melhorEnvioToken?: string;
+  economicEnabled?: boolean;
+  economicName?: string;
+  economicPrice?: number;
+  economicDeadline?: string;
+  expressEnabled?: boolean;
+  expressName?: string;
+  expressPrice?: number;
+  expressDeadline?: string;
+  freeShippingEnabled?: boolean;
+  freeShippingMinAmount?: number;
+  pickupEnabled?: boolean;
+  pickupName?: string;
+  pickupPrice?: number;
+  pickupDeadline?: string;
+  pickupAddress?: string;
 }
 
 export interface OrderCustomerInfo {
