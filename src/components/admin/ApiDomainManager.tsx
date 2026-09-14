@@ -13,12 +13,14 @@ import {
   Eye, 
   EyeOff, 
   ShieldCheck,
-  Link2
+  Link2,
+  Truck
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { updateStoreDomain } from '../../services/storeManagementService';
+import { fetchShippingConfig, saveShippingConfig } from '../../services/shippingService';
 
 export const ApiDomainManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
@@ -67,6 +69,11 @@ export const ApiDomainManager: React.FC = () => {
   const [isSavingApis, setIsSavingApis] = useState(false);
   const [apiSaveSuccess, setApiSaveSuccess] = useState(false);
 
+  // Estados Melhor Envio
+  const [melhorEnvioEnabled, setMelhorEnvioEnabled] = useState(false);
+  const [melhorEnvioToken, setMelhorEnvioToken] = useState('');
+  const [showMeToken, setShowMeToken] = useState(false);
+
   // Teste de Telegram
   const [testTelegramLoading, setTestTelegramLoading] = useState(false);
   const [testTelegramStatus, setTestTelegramStatus] = useState<{ success: boolean; message: string } | null>(null);
@@ -96,6 +103,23 @@ export const ApiDomainManager: React.FC = () => {
     currentStore?.telegram_chat_id,
     currentStore?.theme_settings,
   ]);
+
+  // Carrega configurações de frete (Melhor Envio) associadas à loja
+  useEffect(() => {
+    async function loadShipping() {
+      const storeId = currentStore?.id || 'suamarcaaqui';
+      try {
+        const sc = await fetchShippingConfig(storeId);
+        if (sc) {
+          setMelhorEnvioEnabled(!!sc.melhorEnvioEnabled);
+          setMelhorEnvioToken(sc.melhorEnvioToken || '');
+        }
+      } catch (err) {
+        console.warn('[ApiDomainManager] Erro ao carregar config de frete/Melhor Envio:', err);
+      }
+    }
+    loadShipping();
+  }, [currentStore?.id]);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);

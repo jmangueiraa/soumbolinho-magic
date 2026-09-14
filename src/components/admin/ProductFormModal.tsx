@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2, Truck } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2, Truck, Wand2, Check, Tag, Zap } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -8,6 +8,7 @@ import { uploadProductImage } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
 import { slugify, generateSlug, generateUniqueSlug } from '../../utils/slug';
 import { supabase } from '../../lib/supabase';
+import { generateProductWithAi } from '../../services/aiProductService';
 
 export interface FormBonusItem {
   title: string;
@@ -105,6 +106,69 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; price?: string; category?: string; slug?: string }>({});
   const [showBonusRawText, setShowBonusRawText] = useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiPreviewData, setAiPreviewData] = useState<{
+    title: string;
+    description: string;
+    benefits: string[];
+    urgency_hook: string;
+    call_to_action: string;
+    suggested_badge?: string;
+    suggested_tags?: string[];
+  } | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  const handleGenerateAi = async (sourceField?: 'name' | 'description' | 'detailed') => {
+    const rawInput = formData.name.trim() || formData.description.trim();
+    if (!rawInput) {
+      showNotification('Digite o nome básico do produto para a IA criar o conteúdo de vendas.', 'info');
+      return;
+    }
+
+    setIsGeneratingAi(true);
+    try {
+      const currentCatName = categories.find((c) => c.id === formData.category)?.name || '';
+      const response = await generateProductWithAi({
+        product_name: rawInput,
+        category: currentCatName,
+        is_digital: formData.is_digital,
+        extra_context: formData.description ? `Descrição atual: ${formData.description}` : undefined,
+      });
+
+      if (response && response.data) {
+        setAiPreviewData(response.data);
+        setIsAiModalOpen(true);
+      } else {
+        showNotification('Não foi possível obter sugestões da IA no momento.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Erro ao gerar com IA:', err);
+      showNotification('Erro ao conectar com a IA. Tente novamente.', 'error');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const handleApplyAiData = () => {
+    if (!aiPreviewData) return;
+
+    const compiledDetailed = `${aiPreviewData.description}\n\n✨ Principais Benefícios e Diferenciais:\n${(aiPreviewData.benefits || []).map((b) => '• ' + b).join('\n')}\n\n⚡ ${aiPreviewData.urgency_hook || 'Garanta agora com valor promocional por tempo limitado!'}\n\n👉 ${aiPreviewData.call_to_action || 'Clique no botão acima e garanta o seu!'}`;
+
+    setFormData((prev) => ({
+      ...prev,
+      name: aiPreviewData.title || prev.name,
+      slug: isSlugManual ? prev.slug : slugify(aiPreviewData.title || prev.name),
+      description: aiPreviewData.description || prev.description,
+      detailed_description: prev.detailed_description ? prev.detailed_description : compiledDetailed,
+    }));
+
+    if (errors.name) {
+      setErrors((prev) => ({ ...prev, name: undefined }));
+    }
+
+    setIsAiModalOpen(false);
+    showNotification('✨ Título, descrição e copy gerados pela IA aplicados com sucesso!', 'success');
+  };
 
   // Manipuladores visuais para adicionar múltiplos bônus com facilidade
   const currentBonusItems = useMemo(() => parseBonusesString(formData.bonuses), [formData.bonuses]);
@@ -672,9 +736,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <div className="space-y-4 animate-in fade-in-50 duration-150">
               {/* Nome do Produto */}
               <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Nome do Produto *
-            </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-800">
+                    Nome do Produto *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateAi('name')}
+                    disabled={isGeneratingAi}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+                    title="Gerar título e copy com Inteligência Artificial"
+                  >
+                    {isGeneratingAi ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                    )}
+                    <span>Gerar com IA</span>
+                  </button>
+                </div>
             <input
               type="text"
               required
@@ -1073,9 +1153,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           {/* Descrição */}
           <div className="pt-2 border-t border-slate-200">
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Descrição / Resumo do Produto
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-800">
+                Descrição / Resumo do Produto
+              </label>
+              <button
+                type="button"
+                onClick={() => handleGenerateAi('description')}
+                disabled={isGeneratingAi}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+                title="Otimizar descrição com Inteligência Artificial"
+              >
+                {isGeneratingAi ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                )}
+                <span>Gerar com IA</span>
+              </button>
+            </div>
             <textarea
               rows={2}
               value={formData.description}
@@ -1221,10 +1317,26 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {/* 4. Descrição Detalhada & Prazo de Garantia */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="sm:col-span-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-              <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-theme-primary" />
-                Texto Detalhado da Página de Vendas (Copy)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-theme-primary" />
+                  Texto Detalhado da Página de Vendas (Copy)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleGenerateAi('detailed')}
+                  disabled={isGeneratingAi}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+                  title="Gerar copy persuasiva com Inteligência Artificial"
+                >
+                  {isGeneratingAi ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                  )}
+                  <span>Otimizar Copy com IA</span>
+                </button>
+              </div>
               <textarea
                 rows={4}
                 value={formData.detailed_description}
@@ -1569,6 +1681,129 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         </form>
 
       </div>
+
+      {/* Modal de Prévia e Aplicação de Copy com IA */}
+      {isAiModalOpen && aiPreviewData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-purple-100 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white p-4 sm:p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-yellow-300" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black">Copy de Vendas Gerada com IA</h3>
+                  <p className="text-[11px] text-purple-200">Estruturada com benefícios, urgência e gatilhos mentais</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAiModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Título Sugerido */}
+              <div className="bg-purple-50/70 border border-purple-100 rounded-2xl p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-purple-700 flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-purple-600" />
+                    Título Comercial Chamativo
+                  </span>
+                  {aiPreviewData.suggested_badge && (
+                    <span className="text-[10px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold">
+                      {aiPreviewData.suggested_badge}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-bold text-slate-900 leading-snug">
+                  {aiPreviewData.title}
+                </p>
+              </div>
+
+              {/* Resumo Comercial */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[10px] uppercase font-black tracking-wider text-slate-600">
+                  Descrição Curta / Resumo do Catálogo
+                </span>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  {aiPreviewData.description}
+                </p>
+              </div>
+
+              {/* Benefícios */}
+              {aiPreviewData.benefits && aiPreviewData.benefits.length > 0 && (
+                <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-emerald-800 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    Benefícios & Diferenciais
+                  </span>
+                  <ul className="space-y-1">
+                    {aiPreviewData.benefits.map((b, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5 text-xs text-slate-700">
+                        <span className="text-emerald-500 font-bold">•</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Urgência & CTA */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3">
+                  <span className="text-[10px] uppercase font-bold text-amber-800 block mb-0.5">Gatilho de Urgência</span>
+                  <p className="text-[11px] text-amber-900 font-medium">{aiPreviewData.urgency_hook}</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3">
+                  <span className="text-[10px] uppercase font-bold text-blue-800 block mb-0.5">Chamada para Ação (CTA)</span>
+                  <p className="text-[11px] text-blue-900 font-medium">{aiPreviewData.call_to_action}</p>
+                </div>
+              </div>
+
+              {/* Tags sugeridas */}
+              {aiPreviewData.suggested_tags && aiPreviewData.suggested_tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 items-center pt-1">
+                  <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-slate-400" />
+                    Tags:
+                  </span>
+                  {aiPreviewData.suggested_tags.map((tag, idx) => (
+                    <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsAiModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer"
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyAiData}
+                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 transition-all active:scale-98 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                <span>Aplicar ao Produto</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
