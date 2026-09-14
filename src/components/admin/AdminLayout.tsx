@@ -11,7 +11,8 @@ import {
   Info,
   Globe,
   Palette,
-  TrendingUp
+  TrendingUp,
+  Ticket
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -22,11 +23,12 @@ import { StoreSettingsManager } from './StoreSettingsManager';
 import { BannersManager } from './BannersManager';
 import { ButtonsLayoutManager } from './ButtonsLayoutManager';
 import { ApiDomainManager } from './ApiDomainManager';
+import { CouponsManager } from './CouponsManager';
 import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
 
-type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'settings' | 'layout' | 'api-domain';
+type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'coupons' | 'settings' | 'layout' | 'api-domain';
 
 interface AdminLayoutProps {
   onBackToStore: () => void;
@@ -174,6 +176,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
           </button>
 
           <button
+            onClick={() => setActiveTab('coupons')}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+              activeTab === 'coupons'
+                ? 'bg-black text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <Ticket className="w-4 h-4 text-theme-primary" />
+            <span>Cupons & Promoções</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('settings')}
             className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 ${
               activeTab === 'settings'
@@ -251,6 +265,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
         {activeTab === 'products' && <ProductsManager />}
         {activeTab === 'categories' && <CategoriesManager />}
         {activeTab === 'banners' && <BannersManager />}
+        {activeTab === 'coupons' && <CouponsManager />}
         {activeTab === 'settings' && (
           <StoreSettingsManager 
             onNavigateToApiDomain={() => setActiveTab('api-domain')} 

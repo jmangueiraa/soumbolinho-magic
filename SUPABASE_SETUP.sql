@@ -297,6 +297,23 @@ VALUES ('admin@editaveisdocanva.com.br')
 ON CONFLICT (email) DO NOTHING;
 
 
+-- 9.1 TABELA DE CUPONS DE DESCONTO E PROMOÇÕES (coupons)
+CREATE TABLE IF NOT EXISTS public.coupons (
+    id TEXT PRIMARY KEY,
+    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+    discount_value NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    min_order_value NUMERIC(10,2) DEFAULT 0.00,
+    max_uses INTEGER,
+    uses_count INTEGER DEFAULT 0,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+
 -- 10. SEGURANÇA E POLÍTICAS RLS (Row Level Security)
 -- Habilita RLS e libera acesso público completo para a aplicação
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
@@ -339,6 +356,10 @@ ALTER TABLE public.master_admins ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public master_admins access" ON public.master_admins;
 CREATE POLICY "Public master_admins access" ON public.master_admins FOR ALL USING (true) WITH CHECK (true);
 
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public coupons access" ON public.coupons;
+CREATE POLICY "Public coupons access" ON public.coupons FOR ALL USING (true) WITH CHECK (true);
+
 
 -- 11. HABILITAR SUPABASE REALTIME
 DO $$
@@ -351,6 +372,7 @@ BEGIN
     BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.site_settings; EXCEPTION WHEN OTHERS THEN NULL; END;
     BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.orders; EXCEPTION WHEN OTHERS THEN NULL; END;
     BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.store_visits; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.coupons; EXCEPTION WHEN OTHERS THEN NULL; END;
 END $$;
 
 

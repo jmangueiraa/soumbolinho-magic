@@ -25,6 +25,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { createOrderInSupabase } from '../../services/orderService';
 import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
 import { notifyTelegram } from '../../services/telegramNotificationService';
+import { validateAndApplyCoupon, incrementCouponUses } from '../../services/couponService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
 import { Toast } from '../common/Toast';
@@ -72,6 +73,7 @@ export const CheckoutPage: React.FC = () => {
   const [isCouponOpen, setIsCouponOpen] = useState(false);
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
+  const [couponFeedback, setCouponFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [formErrors, setFormErrors] = useState<{ 
     name?: string; 
@@ -213,16 +215,27 @@ export const CheckoutPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCode.trim()) return;
 
-    if (couponCode.trim().toUpperCase() === 'FESTA10' || couponCode.trim().toUpperCase() === 'PRIMEIRACOMPRA') {
-      const disc = totalPrice * 0.1;
-      setDiscount(disc);
+    const targetStoreId = currentStore?.id || 'suamarcaaqui';
+    const result = await validateAndApplyCoupon(couponCode, targetStoreId, totalPrice);
+
+    if (result.valid) {
+      setDiscount(result.discountAmount);
       setCouponApplied(true);
+      setCouponFeedback({ 
+        message: result.successMessage || 'Cupom aplicado com sucesso!', 
+        type: 'success' 
+      });
     } else {
-      alert('Cupom inválido ou expirado.');
+      setDiscount(0);
+      setCouponApplied(false);
+      setCouponFeedback({ 
+        message: result.error || 'Cupom inválido ou expirado.', 
+        type: 'error' 
+      });
     }
   };
 
@@ -303,6 +316,11 @@ export const CheckoutPage: React.FC = () => {
         throw new Error(pref.error || 'Não foi possível gerar o link de pagamento do Mercado Pago.');
       }
 
+      // 5. Incrementa contador de uso do cupom se aplicado
+      if (couponApplied && couponCode) {
+        incrementCouponUses(couponCode, targetStoreId);
+      }
+
       console.log('[CheckoutPage] ➡️ Redirecionando para Checkout Pro:', pref.init_point);
       // Redirecionamento direto para a tela de pagamento do Mercado Pago
       window.location.href = pref.init_point;
@@ -325,6 +343,27 @@ export const CheckoutPage: React.FC = () => {
     hashParams.get('status') ||
     hashParams.get('payment_status')
   );
+
+  // Aplicação automática de cupom via parâmetro de URL (?cupom=CODIGO ou ?coupon=CODIGO)
+  useEffect(() => {
+    const urlCoupon = searchParams?.get('cupom') || searchParams?.get('coupon') || hashParams.get('cupom') || hashParams.get('coupon');
+    if (urlCoupon && !couponApplied && totalPrice > 0) {
+      const cleanUrlCode = urlCoupon.toUpperCase().trim();
+      setCouponCode(cleanUrlCode);
+      setIsCouponOpen(true);
+      const targetStoreId = currentStore?.id || 'suamarcaaqui';
+      validateAndApplyCoupon(cleanUrlCode, targetStoreId, totalPrice).then((res) => {
+        if (res.valid) {
+          setDiscount(res.discountAmount);
+          setCouponApplied(true);
+          setCouponFeedback({ 
+            message: res.successMessage || 'Cupom aplicado com sucesso!', 
+            type: 'success' 
+          });
+        }
+      });
+    }
+  }, [totalPrice, currentStore?.id]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FFFBFD] text-slate-800">
@@ -580,21 +619,28 @@ export const CheckoutPage: React.FC = () => {
                     <span className="text-theme-primary font-bold hover:underline">Inserir código</span>
                   </button>
                 ) : (
-                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="CUPOM"
-                      className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary/20 uppercase"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                    >
-                      Aplicar
-                    </button>
-                  </form>
+                  <div>
+                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        placeholder="CUPOM"
+                        className="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary/20 uppercase font-mono font-bold"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                      >
+                        Aplicar
+                      </button>
+                    </form>
+                    {couponFeedback && (
+                      <p className={`text-[11px] font-bold mt-2 ${couponFeedback.type === 'success' ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {couponFeedback.message}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
