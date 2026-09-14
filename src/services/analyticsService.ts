@@ -126,12 +126,6 @@ export async function fetchStoreMetrics(storeId: string): Promise<StoreMetrics> 
     }
   } catch {}
 
-  // Garante ao menos um baseline mínimo para demonstração caso nova loja
-  if (totalVisits === 0) {
-    totalVisits = 12;
-    todayVisits = 4;
-  }
-
   // 2. Pedidos no Supabase
   let ordersList: any[] = [];
   try {
@@ -224,7 +218,7 @@ export async function fetchStoreMetrics(storeId: string): Promise<StoreMetrics> 
           productName: p.name,
           price: Number(p.price) || 0,
           imageUrl: p.image_url || p.image || '',
-          views: Math.max(1, 15 - idx * 2), // Views estimadas iniciais
+          views: 0,
         }));
       }
     } catch {}
