@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Package, 
   FolderTree, 
@@ -95,7 +95,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
   }, [storeConfig.primaryColor, storeConfig.colorPalette, storeConfig.themeLayout, currentStore]);
 
-  if (isResolvingTenant || isStoreDataLoading || currentStore.id === '__resolving_tenant__') {
+  const hasInitialLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!isResolvingTenant && !isStoreDataLoading && currentStore.id !== '__resolving_tenant__') {
+      hasInitialLoadedRef.current = true;
+    }
+  }, [isResolvingTenant, isStoreDataLoading, currentStore.id]);
+
+  if (!hasInitialLoadedRef.current && (isResolvingTenant || isStoreDataLoading || currentStore.id === '__resolving_tenant__')) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-3 font-sans">
         <div className="w-8 h-8 border-3 border-pink-500 border-t-transparent rounded-full animate-spin" />

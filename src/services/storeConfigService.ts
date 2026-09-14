@@ -417,16 +417,22 @@ export async function saveStoreConfigInSupabase(
   try {
     console.log('[storeConfigService] 💾 Executando salvamento das configurações no Supabase:', payload);
 
-    const isMatrizOrBase = 
+    const isEditaveis = 
+      targetStoreId === 'store_editaveisdocanva' || 
+      targetStoreId === 'editaveisdocanva' || 
+      targetStoreId === 'editaveis-do-canva' ||
+      (typeof window !== 'undefined' && window.location.hostname.toLowerCase().includes('editaveisdocanva'));
+
+    const isMatrizOrBase = !isEditaveis && (
       targetStoreId === 'ajpstore' || 
       targetStoreId === 'store_ajpstore' || 
-      targetStoreId === 'store_default' || 
-      targetStoreId === 'suamarcaaqui';
-    const isEditaveis = targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'editaveisdocanva';
+      targetStoreId === 'suamarcaaqui'
+    );
+
     const storeOrFilter = isMatrizOrBase
       ? 'slug.eq.ajpstore,id.eq.store_ajpstore,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
       : isEditaveis
-      ? 'slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%'
+      ? 'slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva,id.eq.store_default'
       : `id.eq.${targetStoreId},slug.eq.${targetStoreId}`;
 
     let storeUpdatedSuccessfully = false;
@@ -510,6 +516,28 @@ export async function saveStoreConfigInSupabase(
           const colMatch = slugErr.message?.match(/Could not find the '([^']+)' column/i);
           if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
             delete slugPayload[colMatch[1]];
+            continue;
+          }
+          break;
+        }
+      }
+
+      if (isEditaveis) {
+        let editaveisPayload = { ...storeUpdatePayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { error: eErr } = await supabase
+            .from('stores')
+            .update(editaveisPayload)
+            .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva');
+
+          if (!eErr) {
+            storeUpdatedSuccessfully = true;
+            console.log('[storeConfigService] ✅ Tabela stores atualizada via variantes Editáveis!');
+            break;
+          }
+          const colMatch = eErr.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete editaveisPayload[colMatch[1]];
             continue;
           }
           break;

@@ -28,7 +28,7 @@ import { testWhatsAppNotification } from '../../services/whatsappNotificationSer
 
 export const ApiDomainManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
-  const { currentStore, refreshTenant } = useTenant();
+  const { currentStore, refreshTenant, updateCurrentStore } = useTenant();
 
   // Estados de Domínio
   const [customDomainInput, setCustomDomainInput] = useState(currentStore?.custom_domain || '');
@@ -303,17 +303,30 @@ export const ApiDomainManager: React.FC = () => {
     const cleanMpToken = mpAccessToken.trim();
     const storeKey = currentStore?.id || 'default';
     const storeSlug = currentStore?.slug;
+    const storeDomain = currentStore?.custom_domain;
+    const cleanHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase().trim().replace(/^www\./, '') : '';
+    const isEditaveisContext = 
+      cleanHostname.includes('editaveisdocanva') || 
+      (storeDomain && storeDomain.toLowerCase().includes('editaveisdocanva')) ||
+      storeSlug === 'editaveisdocanva' ||
+      storeKey === 'store_editaveisdocanva';
 
     try {
       console.log(`[ApiDomainManager] 💾 Salvando exclusivamente Access Token do Mercado Pago para loja: ${storeKey}...`);
 
-      // 1. Grava no localStorage imediatamente
+      // 1. Grava no localStorage imediatamente sob todas as chaves redundantes
       if (cleanMpToken) {
         localStorage.setItem(`store_${storeKey}_mp_access_token`, cleanMpToken);
+        if (storeSlug) localStorage.setItem(`store_${storeSlug}_mp_access_token`, cleanMpToken);
+        localStorage.setItem('store_store_editaveisdocanva_mp_access_token', cleanMpToken);
+        localStorage.setItem('store_editaveisdocanva_mp_access_token', cleanMpToken);
         localStorage.setItem('mp_access_token', cleanMpToken);
         localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
       } else {
         localStorage.removeItem(`store_${storeKey}_mp_access_token`);
+        if (storeSlug) localStorage.removeItem(`store_${storeSlug}_mp_access_token`);
+        localStorage.removeItem('store_store_editaveisdocanva_mp_access_token');
+        localStorage.removeItem('store_editaveisdocanva_mp_access_token');
         localStorage.removeItem('mp_access_token');
         localStorage.removeItem('encantando_festa_mp_access_token');
       }
@@ -370,6 +383,28 @@ export const ApiDomainManager: React.FC = () => {
             break;
           }
         }
+
+        // Se for contexto de Editáveis do Canva, salva em todas as variantes da loja no Supabase
+        if (isEditaveisContext) {
+          let editPayload = { ...storePayload };
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const { error: errEdit } = await supabase
+              .from('stores')
+              .update(editPayload)
+              .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva');
+
+            if (!errEdit) {
+              console.log('[ApiDomainManager] ✅ Mercado Pago atualizado em stores via variantes Editáveis!');
+              break;
+            }
+            const colMatch = errEdit.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete editPayload[colMatch[1]];
+              continue;
+            }
+            break;
+          }
+        }
       }
 
       // 3. Atualiza via StoreDataContext (que persiste em store_config e site_settings)
@@ -377,9 +412,18 @@ export const ApiDomainManager: React.FC = () => {
         mpAccessToken: cleanMpToken,
       });
 
-      // 4. Atualiza tenant context em memória
+      // 4. Atualiza tenant context em memória sem recarregar a interface
       try {
-        await refreshTenant();
+        if (updateCurrentStore) {
+          updateCurrentStore({
+            mp_access_token: cleanMpToken || null,
+            theme_settings: {
+              ...(currentStore?.theme_settings || {}),
+              mp_access_token: cleanMpToken || null,
+            }
+          });
+        }
+        await refreshTenant(true); // silent refresh
       } catch (e) {}
 
       setMpSaveSuccess(true);
@@ -394,8 +438,10 @@ export const ApiDomainManager: React.FC = () => {
     }
   };
 
-  const handleSaveApis = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveApis = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     setIsSavingApis(true);
     setApiSaveSuccess(false);
 
@@ -407,31 +453,44 @@ export const ApiDomainManager: React.FC = () => {
     const cleanWaUrl = whatsappApiUrl.trim();
     const cleanWaToken = whatsappApiToken.trim();
     const cleanWaPhone = whatsappNotifyPhone.trim();
+    const storeKey = currentStore?.id || 'default';
+    const storeSlug = currentStore?.slug;
+    const storeDomain = currentStore?.custom_domain;
+    const cleanHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase().trim().replace(/^www\./, '') : '';
+    const isEditaveisContext = 
+      cleanHostname.includes('editaveisdocanva') || 
+      (storeDomain && storeDomain.toLowerCase().includes('editaveisdocanva')) ||
+      storeSlug === 'editaveisdocanva' ||
+      storeKey === 'store_editaveisdocanva';
 
     // Salva configuração do Melhor Envio via shippingService
     try {
-      const storeId = currentStore?.id || 'suamarcaaqui';
-      const currentShipping = await fetchShippingConfig(storeId);
+      const currentShipping = await fetchShippingConfig(storeKey);
       const updatedShipping = {
         ...currentShipping,
         originCep: originCep.trim() || '01001-000',
         melhorEnvioEnabled,
         melhorEnvioToken: cleanMeToken,
       };
-      await saveShippingConfig(storeId, updatedShipping);
+      await saveShippingConfig(storeKey, updatedShipping);
     } catch (meErr) {
       console.warn('[ApiDomainManager] Erro ao salvar Melhor Envio:', meErr);
     }
 
     // 1. Grava no localStorage imediatamente para persistência garantida no navegador
-    const storeKey = currentStore?.id || 'default';
     try {
       if (cleanMpToken) {
         localStorage.setItem(`store_${storeKey}_mp_access_token`, cleanMpToken);
+        if (storeSlug) localStorage.setItem(`store_${storeSlug}_mp_access_token`, cleanMpToken);
+        localStorage.setItem('store_store_editaveisdocanva_mp_access_token', cleanMpToken);
+        localStorage.setItem('store_editaveisdocanva_mp_access_token', cleanMpToken);
         localStorage.setItem('mp_access_token', cleanMpToken);
         localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
       } else {
         localStorage.removeItem(`store_${storeKey}_mp_access_token`);
+        if (storeSlug) localStorage.removeItem(`store_${storeSlug}_mp_access_token`);
+        localStorage.removeItem('store_store_editaveisdocanva_mp_access_token');
+        localStorage.removeItem('store_editaveisdocanva_mp_access_token');
         localStorage.removeItem('mp_access_token');
         localStorage.removeItem('encantando_festa_mp_access_token');
       }
@@ -466,8 +525,7 @@ export const ApiDomainManager: React.FC = () => {
     }
 
     // 2. Atualiza diretamente na tabela stores com tratamento adaptativo de colunas
-    const targetStoreIdentifier = currentStore?.id;
-    if (targetStoreIdentifier && targetStoreIdentifier !== '__resolving_tenant__') {
+    if (storeKey && storeKey !== '__resolving_tenant__') {
       try {
         const storePayload: any = {
           mp_access_token: cleanMpToken || null,
@@ -502,14 +560,13 @@ export const ApiDomainManager: React.FC = () => {
           const { error: errId } = await supabase
             .from('stores')
             .update(idPayload)
-            .eq('id', targetStoreIdentifier);
+            .eq('id', storeKey);
 
           if (!errId) {
             console.log('[ApiDomainManager] ✅ Tabela stores atualizada por ID com sucesso!');
             break;
           }
 
-          console.warn(`[ApiDomainManager] Tentativa ${attempt + 1} de atualizar stores por ID:`, errId.message);
           const colMatch = errId.message?.match(/Could not find the '([^']+)' column/i);
           if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
             delete idPayload[colMatch[1]];
@@ -519,13 +576,13 @@ export const ApiDomainManager: React.FC = () => {
         }
 
         // Salva também por slug se disponível
-        if (currentStore.slug) {
+        if (storeSlug) {
           let slugPayload = { ...storePayload };
           for (let attempt = 0; attempt < 8; attempt++) {
             const { error: errSlug } = await supabase
               .from('stores')
               .update(slugPayload)
-              .eq('slug', currentStore.slug);
+              .eq('slug', storeSlug);
 
             if (!errSlug) {
               console.log('[ApiDomainManager] ✅ Tabela stores atualizada por slug com sucesso!');
@@ -535,6 +592,29 @@ export const ApiDomainManager: React.FC = () => {
             const colMatch = errSlug.message?.match(/Could not find the '([^']+)' column/i);
             if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
               delete slugPayload[colMatch[1]];
+              continue;
+            }
+            break;
+          }
+        }
+
+        // Salva também por variantes de Editáveis se aplicável
+        if (isEditaveisContext) {
+          let editPayload = { ...storePayload };
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const { error: errEdit } = await supabase
+              .from('stores')
+              .update(editPayload)
+              .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva');
+
+            if (!errEdit) {
+              console.log('[ApiDomainManager] ✅ Tabela stores atualizada via variantes Editáveis!');
+              break;
+            }
+
+            const colMatch = errEdit.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete editPayload[colMatch[1]];
               continue;
             }
             break;
@@ -556,9 +636,30 @@ export const ApiDomainManager: React.FC = () => {
       whatsappNotifyPhone: cleanWaPhone,
     });
 
-    // 4. Atualiza o TenantContext para que currentStore em memória reflita as alterações
+    // 4. Atualiza o TenantContext silenciosamente sem recarregar a tela
     try {
-      await refreshTenant();
+      if (updateCurrentStore) {
+        updateCurrentStore({
+          mp_access_token: cleanMpToken || null,
+          telegram_bot_token: cleanTgToken || null,
+          telegram_chat_id: cleanChatId || null,
+          whatsapp_api_provider: cleanWaProvider || null,
+          whatsapp_api_url: cleanWaUrl || null,
+          whatsapp_api_token: cleanWaToken || null,
+          whatsapp_notify_phone: cleanWaPhone || null,
+          theme_settings: {
+            ...(currentStore?.theme_settings || {}),
+            mp_access_token: cleanMpToken || null,
+            telegram_bot_token: cleanTgToken || null,
+            telegram_chat_id: cleanChatId || null,
+            whatsapp_api_provider: cleanWaProvider || null,
+            whatsapp_api_url: cleanWaUrl || null,
+            whatsapp_api_token: cleanWaToken || null,
+            whatsapp_notify_phone: cleanWaPhone || null,
+          }
+        });
+      }
+      await refreshTenant(true); // silent refresh
     } catch (rErr) {
       console.warn('[ApiDomainManager] Aviso ao atualizar tenant:', rErr);
     }
@@ -812,7 +913,7 @@ export const ApiDomainManager: React.FC = () => {
       </div>
 
       {/* 2. FORMULÁRIO DE CHAVES DE API */}
-      <form onSubmit={handleSaveApis} className="bg-white p-6 sm:p-8 rounded-3xl border border-[#FFA6DF]/40 shadow-sm space-y-6">
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#FFA6DF]/40 shadow-sm space-y-6">
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -885,6 +986,10 @@ export const ApiDomainManager: React.FC = () => {
                     handleSaveMpOnly();
                   }
                 }}
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                name="mp_token_field"
                 placeholder="APP_USR-0000000000000000-000000-00000000000000000000000000000000-000000000"
                 className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-sky-300 rounded-2xl outline-none focus:ring-2 focus:ring-[#009EE3] font-mono text-slate-800 pr-10"
               />
@@ -1089,6 +1194,10 @@ export const ApiDomainManager: React.FC = () => {
                         type={showWaToken ? "text" : "password"}
                         value={whatsappApiToken}
                         onChange={(e) => setWhatsappApiToken(e.target.value)}
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        name="wa_token_callmebot"
                         placeholder="Ex: 123456"
                         className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800 pr-10"
                       />
@@ -1117,6 +1226,10 @@ export const ApiDomainManager: React.FC = () => {
                         type={showWaToken ? "text" : "password"}
                         value={whatsappApiToken}
                         onChange={(e) => setWhatsappApiToken(e.target.value)}
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        name="wa_token_custom"
                         placeholder="Ex: B610C739281... ou Bearer Token"
                         className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800 pr-10"
                       />
@@ -1214,6 +1327,10 @@ export const ApiDomainManager: React.FC = () => {
                       type={showTgToken ? "text" : "password"}
                       value={telegramBotToken}
                       onChange={(e) => setTelegramBotToken(e.target.value)}
+                      autoComplete="off"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      name="tg_token_field"
                       placeholder="Ex: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
                       className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800 pr-10"
                     />
@@ -1460,7 +1577,8 @@ export const ApiDomainManager: React.FC = () => {
           </div>
 
           <button
-            type="submit"
+            type="button"
+            onClick={() => handleSaveApis()}
             disabled={isSavingApis}
             className="px-6 py-3 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center gap-2 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
           >
@@ -1478,7 +1596,7 @@ export const ApiDomainManager: React.FC = () => {
           </button>
         </div>
 
-      </form>
+      </div>
 
     </div>
   );

@@ -69,11 +69,34 @@ export function checkIsTenantRoute(): boolean {
 export function normalizeStore(s: any): Store {
   if (!s) return DEFAULT_STORE;
   const isAjpStore = s.slug === 'ajpstore' || s.id === 'store_ajpstore' || (typeof s.name === 'string' && s.name.toLowerCase().includes('ajpstore'));
-  const isLegacyBase = s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default';
-  const isBase = isAjpStore || isLegacyBase;
-  const resolvedId = isAjpStore ? (s.id || 'store_ajpstore') : (isLegacyBase ? (s.id || 'suamarcaaqui') : s.id);
-  const resolvedSlug = isAjpStore ? (s.slug || 'ajpstore') : (isLegacyBase ? 'suamarcaaqui' : s.slug);
-  const resolvedName = isAjpStore ? (s.name || s.store_name || 'AJPSTORE') : (isLegacyBase ? (s.name || s.store_name || 'SUAMARCAAQUI') : (s.name || s.store_name || 'Loja'));
+  const isSuamarcaaqui = s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui';
+  const isEditaveis = 
+    s.slug === 'editaveisdocanva' || 
+    s.slug === 'editaveis-do-canva' || 
+    s.id === 'store_editaveisdocanva' || 
+    (typeof s.custom_domain === 'string' && s.custom_domain.toLowerCase().includes('editaveisdocanva')) ||
+    (typeof s.name === 'string' && s.name.toLowerCase().includes('canva'));
+
+  // Não sobrescreve o ID original do banco a menos que seja nulo
+  const resolvedId = isAjpStore 
+    ? (s.id || 'store_ajpstore') 
+    : (isSuamarcaaqui 
+        ? (s.id || 'suamarcaaqui') 
+        : (isEditaveis 
+            ? (s.id || 'store_editaveisdocanva') 
+            : (s.id || 'default')));
+
+  const resolvedSlug = isAjpStore 
+    ? (s.slug || 'ajpstore') 
+    : (isSuamarcaaqui 
+        ? 'suamarcaaqui' 
+        : (isEditaveis 
+            ? (s.slug || 'editaveisdocanva') 
+            : (s.slug || s.id || 'loja')));
+
+  const resolvedName = s.name || s.store_name || (isAjpStore ? 'AJPSTORE' : (isEditaveis ? 'Editáveis do Canva' : (isSuamarcaaqui ? 'SUAMARCAAQUI' : 'Loja')));
+  const isBase = isAjpStore || isSuamarcaaqui;
+
   // Garante que a loja matriz AJPSTORE seja estritamente vitalícia no banco caso esteja com trial antigo
   if (isAjpStore && (s.subscription_status !== 'active' || s.expires_at !== '2099-12-31T23:59:59.000Z' || s.monthly_fee !== 0 || !s.is_matriz)) {
     supabase
@@ -105,9 +128,9 @@ export function normalizeStore(s: any): Store {
     owner_email: s.owner_email || s.client_email || null,
     client_email: s.client_email || s.owner_email || null,
     admin_password: s.admin_password || (isBase ? 'admin' : null),
-    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
-    telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token')) : null) || null,
-    telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id')) : null) || null,
+    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem(`store_${s.id}_mp_access_token`) || localStorage.getItem('store_store_editaveisdocanva_mp_access_token') || localStorage.getItem('store_editaveisdocanva_mp_access_token') || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
+    telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_bot_token`) || localStorage.getItem(`store_${s.id}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token')) : null) || null,
+    telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_chat_id`) || localStorage.getItem(`store_${s.id}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id')) : null) || null,
   };
 }
 
@@ -131,7 +154,8 @@ interface TenantContextType {
   subscriptionStatus: SubscriptionStatus;
   expiresAt: string | null;
   monthlyFee: number;
-  refreshTenant: () => Promise<void>;
+  refreshTenant: (silent?: boolean) => Promise<void>;
+  updateCurrentStore: (updates: Partial<Store>) => void;
   switchStore: (store: Store) => void;
   setSuperAdminStatus: (isSuper: boolean, email?: string) => void;
 }
@@ -187,9 +211,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   /**
    * Resolução da Loja por Domínio / Host
    */
-  const resolveTenant = useCallback(async () => {
-    setIsResolvingTenant(true);
-    setTenantError(null);
+  const resolveTenant = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsResolvingTenant(true);
+      setTenantError(null);
+    }
 
     try {
       const hostname = (typeof window !== 'undefined' ? window.location.hostname : '').toLowerCase().trim();
@@ -392,7 +418,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('[TenantResolver] ❌ Falha na resolução de tenant:', err);
       setCurrentStore(DEFAULT_STORE);
     } finally {
-      setIsResolvingTenant(false);
+      if (!silent) {
+        setIsResolvingTenant(false);
+      }
     }
   }, []);
 
@@ -411,6 +439,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.removeEventListener('hashchange', handleLocationChange);
     };
   }, [resolveTenant]);
+
+  const updateCurrentStore = useCallback((updates: Partial<Store>) => {
+    setCurrentStore(prev => normalizeStore({ ...prev, ...updates }));
+  }, []);
 
   const switchStore = (store: Store) => {
     console.log('[TenantContext] 🔄 Alternando loja em memória:', store.name);
@@ -477,6 +509,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         expiresAt,
         monthlyFee,
         refreshTenant: resolveTenant,
+        updateCurrentStore,
         switchStore,
         setSuperAdminStatus,
       }}
