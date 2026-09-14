@@ -38,12 +38,19 @@ export interface PixPaymentResponse {
 }
 
 /**
- * Obtém o Access Token do Mercado Pago de forma centralizada
+ * Obtém o Access Token do Mercado Pago de forma centralizada (priorizando a loja ativa)
  */
-export function getMercadoPagoAccessToken(storeConfig?: Partial<StoreConfig>): string {
+export function getMercadoPagoAccessToken(storeConfig?: Partial<StoreConfig>, storeId?: string): string {
+  const targetId = storeId || storeConfig?.store_id;
+  const storeSpecificKey = targetId && typeof window !== 'undefined'
+    ? localStorage.getItem(`store_${targetId}_mp_access_token`)
+    : null;
+
   const token = (
-    localStorage.getItem('encantando_festa_mp_access_token') ||
     storeConfig?.mpAccessToken ||
+    storeSpecificKey ||
+    (typeof window !== 'undefined' ? localStorage.getItem('mp_access_token') : null) ||
+    (typeof window !== 'undefined' ? localStorage.getItem('encantando_festa_mp_access_token') : null) ||
     (import.meta as any).env?.VITE_MERCADO_PAGO_ACCESS_TOKEN ||
     ''
   ).replace(/['";\s]/g, '').trim();
@@ -70,7 +77,7 @@ export async function createMercadoPagoPreference(
   options: CreatePreferenceOptions
 ): Promise<PreferenceResponse> {
   const { items, storeConfig, customAccessToken, customerInfo, orderId, storeId } = options;
-  const accessToken = customAccessToken || getMercadoPagoAccessToken(storeConfig);
+  const accessToken = customAccessToken || getMercadoPagoAccessToken(storeConfig, storeId || storeConfig?.store_id);
   const origin = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : '';
   const finalOrderId = orderId || `order_${Date.now()}`;
 

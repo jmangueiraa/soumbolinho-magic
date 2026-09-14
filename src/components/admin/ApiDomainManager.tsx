@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Globe, 
   Key, 
@@ -43,11 +43,18 @@ export const ApiDomainManager: React.FC = () => {
       currentStore?.mp_access_token ||
       currentStore?.theme_settings?.mp_access_token ||
       (currentStore?.id ? localStorage.getItem(`store_${currentStore.id}_mp_access_token`) : null) ||
+      (typeof window !== 'undefined' ? localStorage.getItem('mp_access_token') : null) ||
       localStorage.getItem('encantando_festa_mp_access_token') ||
       ''
     );
   });
   const [showMpToken, setShowMpToken] = useState(false);
+  const [isSavingMpOnly, setIsSavingMpOnly] = useState(false);
+  const [mpSaveSuccess, setMpSaveSuccess] = useState(false);
+  const [mpSaveError, setMpSaveError] = useState<string | null>(null);
+
+  const hasLoadedStoreIdRef = useRef<string | null>(null);
+
   const [telegramBotToken, setTelegramBotToken] = useState(() => {
     return (
       storeConfig.telegramBotToken ||
@@ -199,39 +206,31 @@ export const ApiDomainManager: React.FC = () => {
 
   useEffect(() => {
     const storeKey = currentStore?.id;
-    const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || currentStore?.theme_settings?.mp_access_token || (storeKey ? localStorage.getItem(`store_${storeKey}_mp_access_token`) : null) || localStorage.getItem('encantando_festa_mp_access_token') || '';
-    const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || currentStore?.theme_settings?.telegram_bot_token || (storeKey ? localStorage.getItem(`store_${storeKey}_telegram_bot_token`) : null) || localStorage.getItem('encantando_festa_telegram_bot_token') || '';
-    const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || currentStore?.theme_settings?.telegram_chat_id || (storeKey ? localStorage.getItem(`store_${storeKey}_telegram_chat_id`) : null) || localStorage.getItem('encantando_festa_telegram_chat_id') || '';
+    if (!storeKey || storeKey === '__resolving_tenant__') return;
 
-    const waProv = currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_api_provider`) : null) || 'evolution';
-    const waUrl = currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_api_url`) : null) || '';
-    const waTok = currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_api_token`) : null) || '';
-    const waPhone = currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || currentStore?.whatsapp_number || storeConfig?.whatsappNumber || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_notify_phone`) : null) || '';
+    // Sincroniza do banco/contexto apenas na carga inicial ou quando mudar a loja ativa
+    if (hasLoadedStoreIdRef.current !== storeKey) {
+      hasLoadedStoreIdRef.current = storeKey;
 
-    if (mp) setMpAccessToken(mp);
-    if (tg) setTelegramBotToken(tg);
-    if (chat) setTelegramChatId(chat);
+      const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || currentStore?.theme_settings?.mp_access_token || localStorage.getItem(`store_${storeKey}_mp_access_token`) || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token') || '';
+      const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || currentStore?.theme_settings?.telegram_bot_token || localStorage.getItem(`store_${storeKey}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token') || '';
+      const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || currentStore?.theme_settings?.telegram_chat_id || localStorage.getItem(`store_${storeKey}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id') || '';
 
-    if (waProv) setWhatsappApiProvider(waProv as any);
-    if (waUrl) setWhatsappApiUrl(waUrl);
-    if (waTok) setWhatsappApiToken(waTok);
-    if (waPhone) setWhatsappNotifyPhone(waPhone);
-  }, [
-    storeConfig.mpAccessToken,
-    storeConfig.telegramBotToken,
-    storeConfig.telegramChatId,
-    storeConfig.whatsappNumber,
-    currentStore?.id,
-    currentStore?.mp_access_token,
-    currentStore?.telegram_bot_token,
-    currentStore?.telegram_chat_id,
-    currentStore?.whatsapp_api_provider,
-    currentStore?.whatsapp_api_url,
-    currentStore?.whatsapp_api_token,
-    currentStore?.whatsapp_notify_phone,
-    currentStore?.whatsapp_number,
-    currentStore?.theme_settings,
-  ]);
+      const waProv = currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || localStorage.getItem(`store_${storeKey}_whatsapp_api_provider`) || 'evolution';
+      const waUrl = currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || localStorage.getItem(`store_${storeKey}_whatsapp_api_url`) || '';
+      const waTok = currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || localStorage.getItem(`store_${storeKey}_whatsapp_api_token`) || '';
+      const waPhone = currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || currentStore?.whatsapp_number || storeConfig?.whatsappNumber || localStorage.getItem(`store_${storeKey}_whatsapp_notify_phone`) || '';
+
+      if (mp) setMpAccessToken(mp);
+      if (tg) setTelegramBotToken(tg);
+      if (chat) setTelegramChatId(chat);
+
+      if (waProv) setWhatsappApiProvider(waProv as any);
+      if (waUrl) setWhatsappApiUrl(waUrl);
+      if (waTok) setWhatsappApiToken(waTok);
+      if (waPhone) setWhatsappNotifyPhone(waPhone);
+    }
+  }, [currentStore?.id]);
 
   // Carrega configurações de frete (Melhor Envio) associadas à loja
   useEffect(() => {
@@ -296,6 +295,105 @@ export const ApiDomainManager: React.FC = () => {
     }
   };
 
+  const handleSaveMpOnly = async () => {
+    setIsSavingMpOnly(true);
+    setMpSaveSuccess(false);
+    setMpSaveError(null);
+
+    const cleanMpToken = mpAccessToken.trim();
+    const storeKey = currentStore?.id || 'default';
+    const storeSlug = currentStore?.slug;
+
+    try {
+      console.log(`[ApiDomainManager] 💾 Salvando exclusivamente Access Token do Mercado Pago para loja: ${storeKey}...`);
+
+      // 1. Grava no localStorage imediatamente
+      if (cleanMpToken) {
+        localStorage.setItem(`store_${storeKey}_mp_access_token`, cleanMpToken);
+        localStorage.setItem('mp_access_token', cleanMpToken);
+        localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
+      } else {
+        localStorage.removeItem(`store_${storeKey}_mp_access_token`);
+        localStorage.removeItem('mp_access_token');
+        localStorage.removeItem('encantando_festa_mp_access_token');
+      }
+
+      // 2. Grava diretamente na tabela stores do Supabase
+      if (storeKey && storeKey !== '__resolving_tenant__') {
+        const storePayload: any = {
+          mp_access_token: cleanMpToken || null,
+          theme_settings: {
+            ...(currentStore?.theme_settings || {}),
+            mp_access_token: cleanMpToken || null,
+          },
+          updated_at: new Date().toISOString(),
+        };
+
+        // Salva por ID com adaptação de colunas
+        let idPayload = { ...storePayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { error: errId } = await supabase
+            .from('stores')
+            .update(idPayload)
+            .eq('id', storeKey);
+
+          if (!errId) {
+            console.log('[ApiDomainManager] ✅ Mercado Pago atualizado em stores por ID!');
+            break;
+          }
+          const colMatch = errId.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete idPayload[colMatch[1]];
+            continue;
+          }
+          break;
+        }
+
+        // Salva por slug se disponível
+        if (storeSlug) {
+          let slugPayload = { ...storePayload };
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const { error: errSlug } = await supabase
+              .from('stores')
+              .update(slugPayload)
+              .eq('slug', storeSlug);
+
+            if (!errSlug) {
+              console.log('[ApiDomainManager] ✅ Mercado Pago atualizado em stores por slug!');
+              break;
+            }
+            const colMatch = errSlug.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete slugPayload[colMatch[1]];
+              continue;
+            }
+            break;
+          }
+        }
+      }
+
+      // 3. Atualiza via StoreDataContext (que persiste em store_config e site_settings)
+      await updateStoreConfig({
+        mpAccessToken: cleanMpToken,
+      });
+
+      // 4. Atualiza tenant context em memória
+      try {
+        await refreshTenant();
+      } catch (e) {}
+
+      setMpSaveSuccess(true);
+      showNotification('Token do Mercado Pago salvo com sucesso no banco de dados!', 'success');
+      setTimeout(() => setMpSaveSuccess(false), 4500);
+    } catch (err: any) {
+      console.error('[ApiDomainManager] ❌ Erro ao salvar Mercado Pago:', err);
+      setMpSaveError(err.message || 'Erro ao salvar token');
+      showNotification(`Erro ao salvar: ${err.message}`, 'error');
+    } finally {
+      setIsSavingMpOnly(false);
+    }
+  };
+
   const handleSaveApis = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingApis(true);
@@ -329,11 +427,13 @@ export const ApiDomainManager: React.FC = () => {
     const storeKey = currentStore?.id || 'default';
     try {
       if (cleanMpToken) {
-        localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
         localStorage.setItem(`store_${storeKey}_mp_access_token`, cleanMpToken);
+        localStorage.setItem('mp_access_token', cleanMpToken);
+        localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
       } else {
-        localStorage.removeItem('encantando_festa_mp_access_token');
         localStorage.removeItem(`store_${storeKey}_mp_access_token`);
+        localStorage.removeItem('mp_access_token');
+        localStorage.removeItem('encantando_festa_mp_access_token');
       }
 
       if (cleanTgToken) {
@@ -736,16 +836,38 @@ export const ApiDomainManager: React.FC = () => {
               <span>Mercado Pago Checkout Pro (Pagamentos Online)</span>
             </div>
 
-            {mpAccessToken ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-                <Check className="w-3 h-3" />
-                Token Configurado
-              </span>
-            ) : (
-              <span className="text-[11px] bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full font-semibold">
-                Pendente
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {mpAccessToken ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                  <Check className="w-3 h-3" />
+                  Token Preenchido
+                </span>
+              ) : (
+                <span className="text-[11px] bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full font-semibold">
+                  Pendente
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={handleSaveMpOnly}
+                disabled={isSavingMpOnly}
+                className="px-3.5 py-1.5 bg-[#009EE3] hover:bg-[#0082ba] text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98 disabled:opacity-50"
+                title="Salvar Access Token do Mercado Pago imediatamente"
+              >
+                {isSavingMpOnly ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Salvar Mercado Pago</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div>
@@ -757,6 +879,12 @@ export const ApiDomainManager: React.FC = () => {
                 type={showMpToken ? "text" : "password"}
                 value={mpAccessToken}
                 onChange={(e) => setMpAccessToken(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveMpOnly();
+                  }
+                }}
                 placeholder="APP_USR-0000000000000000-000000-00000000000000000000000000000000-000000000"
                 className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-sky-300 rounded-2xl outline-none focus:ring-2 focus:ring-[#009EE3] font-mono text-slate-800 pr-10"
               />
@@ -769,11 +897,27 @@ export const ApiDomainManager: React.FC = () => {
                 {showMpToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-              Pegue seu Access Token em: <strong>Mercado Pago Developers &gt; Suas Aplicações &gt; Credenciais de Produção</strong>. 
-              <br />
-              💡 <em>Com o token preenchido, os pedidos pagos via Pix ou Cartão são aprovados e liberados de forma 100% automática na tela do cliente.</em>
-            </p>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Pegue seu Access Token em: <strong>Mercado Pago Developers &gt; Suas Aplicações &gt; Credenciais de Produção</strong>. 
+                <br />
+                💡 <em>Com o token preenchido e salvo, os pedidos pagos via Pix ou Cartão são aprovados e liberados de forma 100% automática na tela do cliente.</em>
+              </p>
+
+              {mpSaveSuccess && (
+                <span className="text-[11px] text-emerald-700 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 shrink-0 animate-in fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Salvo com Sucesso no Banco!
+                </span>
+              )}
+              {mpSaveError && (
+                <span className="text-[11px] text-rose-700 bg-rose-100 border border-rose-300 px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 shrink-0 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                  {mpSaveError}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

@@ -18,7 +18,7 @@ export const MercadoPagoTokenModal: React.FC<MercadoPagoTokenModalProps> = ({
   const { openCheckout, closeCart } = useCart();
 
   const [tokenInput, setTokenInput] = useState(() => {
-    return localStorage.getItem('encantando_festa_mp_access_token') || storeConfig.mpAccessToken || '';
+    return storeConfig.mpAccessToken || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token') || '';
   });
   const [error, setError] = useState('');
 
@@ -39,6 +39,7 @@ export const MercadoPagoTokenModal: React.FC<MercadoPagoTokenModalProps> = ({
     }
 
     // Salvar no LocalStorage e no StoreConfig
+    localStorage.setItem('mp_access_token', cleanToken);
     localStorage.setItem('encantando_festa_mp_access_token', cleanToken);
     updateStoreConfig({ mpAccessToken: cleanToken });
 

@@ -69,11 +69,11 @@ export function checkIsTenantRoute(): boolean {
 export function normalizeStore(s: any): Store {
   if (!s) return DEFAULT_STORE;
   const isAjpStore = s.slug === 'ajpstore' || s.id === 'store_ajpstore' || (typeof s.name === 'string' && s.name.toLowerCase().includes('ajpstore'));
-  const isMatriz = isAjpStore || Boolean(s.is_matriz);
-  const isBase = isMatriz || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default';
-  const resolvedId = isAjpStore ? (s.id || 'store_ajpstore') : (isBase ? (s.id || 'suamarcaaqui') : s.id);
-  const resolvedSlug = isAjpStore ? (s.slug || 'ajpstore') : (isBase ? 'suamarcaaqui' : s.slug);
-  const resolvedName = isAjpStore ? (s.name || s.store_name || 'AJPSTORE') : (isBase ? (s.name || s.store_name || 'SUAMARCAAQUI') : (s.name || s.store_name || 'Loja'));
+  const isLegacyBase = s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default';
+  const isBase = isAjpStore || isLegacyBase;
+  const resolvedId = isAjpStore ? (s.id || 'store_ajpstore') : (isLegacyBase ? (s.id || 'suamarcaaqui') : s.id);
+  const resolvedSlug = isAjpStore ? (s.slug || 'ajpstore') : (isLegacyBase ? 'suamarcaaqui' : s.slug);
+  const resolvedName = isAjpStore ? (s.name || s.store_name || 'AJPSTORE') : (isLegacyBase ? (s.name || s.store_name || 'SUAMARCAAQUI') : (s.name || s.store_name || 'Loja'));
   // Garante que a loja matriz AJPSTORE seja estritamente vitalícia no banco caso esteja com trial antigo
   if (isAjpStore && (s.subscription_status !== 'active' || s.expires_at !== '2099-12-31T23:59:59.000Z' || s.monthly_fee !== 0 || !s.is_matriz)) {
     supabase
@@ -94,7 +94,7 @@ export function normalizeStore(s: any): Store {
     name: resolvedName,
     store_name: s.store_name || resolvedName,
     slug: resolvedSlug,
-    is_matriz: isAjpStore ? true : (isBase ? Boolean(s.is_matriz) : false),
+    is_matriz: isAjpStore,
     subscription_status: isBase ? 'active' : (s.subscription_status || 'active'),
     expires_at: isBase ? '2099-12-31T23:59:59.000Z' : s.expires_at,
     monthly_fee: isBase ? 0.00 : (s.monthly_fee !== undefined ? Number(s.monthly_fee) : 50.00),
@@ -105,7 +105,7 @@ export function normalizeStore(s: any): Store {
     owner_email: s.owner_email || s.client_email || null,
     client_email: s.client_email || s.owner_email || null,
     admin_password: s.admin_password || (isBase ? 'admin' : null),
-    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
+    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
     telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token')) : null) || null,
     telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id')) : null) || null,
   };

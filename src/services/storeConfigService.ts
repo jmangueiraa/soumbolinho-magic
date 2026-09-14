@@ -63,6 +63,8 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
     }
 
     const isBaseStore = 
+      targetStoreId === 'ajpstore' ||
+      targetStoreId === 'store_ajpstore' ||
       targetStoreId === 'suamarcaaqui' || 
       targetStoreId === 'store_default';
 
@@ -415,10 +417,14 @@ export async function saveStoreConfigInSupabase(
   try {
     console.log('[storeConfigService] 💾 Executando salvamento das configurações no Supabase:', payload);
 
-    const isMatrizOrBase = targetStoreId === 'store_default' || targetStoreId === 'suamarcaaqui';
+    const isMatrizOrBase = 
+      targetStoreId === 'ajpstore' || 
+      targetStoreId === 'store_ajpstore' || 
+      targetStoreId === 'store_default' || 
+      targetStoreId === 'suamarcaaqui';
     const isEditaveis = targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'editaveisdocanva';
     const storeOrFilter = isMatrizOrBase
-      ? 'slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
+      ? 'slug.eq.ajpstore,id.eq.store_ajpstore,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
       : isEditaveis
       ? 'slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%'
       : `id.eq.${targetStoreId},slug.eq.${targetStoreId}`;
@@ -522,8 +528,14 @@ export async function saveStoreConfigInSupabase(
             localStorage.setItem('encantando_festa_telegram_chat_id', config.telegramChatId.trim());
           }
           if (config.mpAccessToken) {
-            localStorage.setItem(`store_${actualStoreId}_mp_access_token`, config.mpAccessToken.trim());
-            localStorage.setItem('encantando_festa_mp_access_token', config.mpAccessToken.trim());
+            const trimmedMp = config.mpAccessToken.trim();
+            localStorage.setItem(`store_${actualStoreId}_mp_access_token`, trimmedMp);
+            localStorage.setItem('mp_access_token', trimmedMp);
+            localStorage.setItem('encantando_festa_mp_access_token', trimmedMp);
+          } else if (config.mpAccessToken === '' || config.mpAccessToken === null) {
+            localStorage.removeItem(`store_${actualStoreId}_mp_access_token`);
+            localStorage.removeItem('mp_access_token');
+            localStorage.removeItem('encantando_festa_mp_access_token');
           }
         } catch (e) {}
       }
