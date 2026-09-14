@@ -85,12 +85,13 @@ export const StoresList: React.FC<StoresListProps> = ({
   };
 
   // Contagens para os filtros
-  const trialCount = stores.filter(s => (s.subscription_status === 'trial' || s.isTrial) && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
-  const activeCount = stores.filter(s => s.subscription_status === 'active' && !s.isExpired && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
-  const expiredCount = stores.filter(s => s.isExpired && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
+  const safeList = Array.isArray(stores) ? stores.filter(Boolean) : [];
+  const trialCount = safeList.filter(s => (s.subscription_status === 'trial' || s.isTrial) && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
+  const activeCount = safeList.filter(s => s.subscription_status === 'active' && !s.isExpired && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
+  const expiredCount = safeList.filter(s => s.isExpired && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
 
   // Filtragem defensiva e null-safe
-  const filteredStores = stores.filter((s) => {
+  const filteredStores = safeList.filter((s) => {
     // Filtro por Tab de Status
     if (filterTab === 'trial' && !(s.subscription_status === 'trial' || s.isTrial)) return false;
     if (filterTab === 'active' && (s.subscription_status !== 'active' || s.isExpired)) return false;

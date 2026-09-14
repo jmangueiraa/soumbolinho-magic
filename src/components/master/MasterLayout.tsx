@@ -83,13 +83,14 @@ export const MasterLayout: React.FC = () => {
   }
 
   // Estatísticas de Assinatura e Lojas (exclui a loja matriz vitalícia SUAMARCAAQUI)
-  const isBase = (s: Store) => s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default';
-  const totalStores = stores.length;
-  const trialStores = stores.filter((s) => (s.subscription_status === 'trial' || s.isTrial) && !s.isExpired && !isBase(s)).length;
-  const activeSubscriptionStores = stores.filter((s) => s.subscription_status === 'active' && !s.isExpired && !isBase(s)).length;
-  const expiredSubscriptionStores = stores.filter((s) => s.isExpired && !isBase(s)).length;
-  const customDomainStores = stores.filter((s) => s.custom_domain).length;
-  const estimatedMRR = stores
+  const isBase = (s: Store) => Boolean(s && (s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'));
+  const safeStores = Array.isArray(stores) ? stores.filter(Boolean) : [];
+  const totalStores = safeStores.length;
+  const trialStores = safeStores.filter((s) => (s.subscription_status === 'trial' || s.isTrial) && !s.isExpired && !isBase(s)).length;
+  const activeSubscriptionStores = safeStores.filter((s) => s.subscription_status === 'active' && !s.isExpired && !isBase(s)).length;
+  const expiredSubscriptionStores = safeStores.filter((s) => s.isExpired && !isBase(s)).length;
+  const customDomainStores = safeStores.filter((s) => Boolean(s.custom_domain)).length;
+  const estimatedMRR = safeStores
     .filter((s) => !s.isExpired && !isBase(s) && s.subscription_status === 'active')
     .reduce((acc, s) => acc + (s.monthly_fee || 50), 0);
 
