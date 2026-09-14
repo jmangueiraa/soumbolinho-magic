@@ -64,8 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbwxubnwaeywstnmlrqg.supabase.co';
         const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_HuPfQyg25rtcXPQhDN5OHw_NbYRnpvq';
         
-        // 1. Tenta consultar na tabela stores
-        const resStores = await fetch(`${supabaseUrl}/rest/v1/stores?select=telegram_bot_token,telegram_chat_id&not.telegram_bot_token.is.null&limit=1`, {
+        // 1. Tenta consultar na tabela stores (busca em colunas raiz e também dentro de theme_settings JSONB)
+        const resStores = await fetch(`${supabaseUrl}/rest/v1/stores?select=*&limit=10`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`
@@ -74,18 +74,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (resStores.ok) {
           const storeRows = await resStores.json();
           if (Array.isArray(storeRows) && storeRows.length > 0) {
-            if (!botToken && storeRows[0].telegram_bot_token) {
-              botToken = String(storeRows[0].telegram_bot_token).trim();
-            }
-            if (!chatId && storeRows[0].telegram_chat_id) {
-              chatId = String(storeRows[0].telegram_chat_id).trim();
+            for (const sRow of storeRows) {
+              const rowToken = sRow.telegram_bot_token || sRow.theme_settings?.telegram_bot_token;
+              const rowChat = sRow.telegram_chat_id || sRow.theme_settings?.telegram_chat_id;
+              if (!botToken && rowToken) {
+                botToken = String(rowToken).trim();
+              }
+              if (!chatId && rowChat) {
+                chatId = String(rowChat).trim();
+              }
+              if (botToken && chatId) break;
             }
           }
         }
 
         // 2. Se ainda faltar algum, tenta em store_config
         if (!botToken || !chatId) {
-          const resConfig = await fetch(`${supabaseUrl}/rest/v1/store_config?select=telegram_bot_token,telegram_chat_id&limit=1`, {
+          const resConfig = await fetch(`${supabaseUrl}/rest/v1/store_config?select=*&limit=10`, {
             headers: {
               'apikey': supabaseKey,
               'Authorization': `Bearer ${supabaseKey}`
@@ -94,11 +99,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (resConfig.ok) {
             const configRows = await resConfig.json();
             if (Array.isArray(configRows) && configRows.length > 0) {
-              if (!botToken && configRows[0].telegram_bot_token) {
-                botToken = String(configRows[0].telegram_bot_token).trim();
-              }
-              if (!chatId && configRows[0].telegram_chat_id) {
-                chatId = String(configRows[0].telegram_chat_id).trim();
+              for (const cRow of configRows) {
+                const rowToken = cRow.telegram_bot_token;
+                const rowChat = cRow.telegram_chat_id;
+                if (!botToken && rowToken) {
+                  botToken = String(rowToken).trim();
+                }
+                if (!chatId && rowChat) {
+                  chatId = String(rowChat).trim();
+                }
+                if (botToken && chatId) break;
               }
             }
           }

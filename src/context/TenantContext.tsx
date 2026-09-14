@@ -100,9 +100,9 @@ export function normalizeStore(s: any): Store {
     owner_email: s.owner_email || s.client_email || null,
     client_email: s.client_email || s.owner_email || null,
     admin_password: s.admin_password || (isBase ? 'admin' : null),
-    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || null,
-    telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || null,
-    telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || null,
+    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
+    telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token')) : null) || null,
+    telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id')) : null) || null,
   };
 }
 

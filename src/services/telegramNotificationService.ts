@@ -28,6 +28,17 @@ export interface TelegramNotificationPayload {
 export async function notifyTelegram(payload: TelegramNotificationPayload): Promise<{ success: boolean; error?: string }> {
   try {
     const { isBeacon, ...bodyData } = payload;
+
+    // Resolução resiliente dos tokens caso não tenham sido passados no payload
+    if (!bodyData.telegram_bot_token && typeof window !== 'undefined') {
+      const lsToken = (localStorage.getItem('encantando_festa_telegram_bot_token') || '').trim();
+      if (lsToken) bodyData.telegram_bot_token = lsToken;
+    }
+    if (!bodyData.telegram_chat_id && typeof window !== 'undefined') {
+      const lsChat = (localStorage.getItem('encantando_festa_telegram_chat_id') || '').trim();
+      if (lsChat) bodyData.telegram_chat_id = lsChat;
+    }
+
     const jsonString = JSON.stringify(bodyData);
 
     // Se for solicitado envio via Beacon (ex: saída da página ou fechamento de aba)

@@ -115,9 +115,16 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
 
         // Mescla dados das colunas exclusivas da tabela stores (credenciais e tema)
         if (storeRow) {
+          const stTheme = storeRow.theme_settings || {};
           if (storeRow.mp_access_token) mapped.mpAccessToken = storeRow.mp_access_token;
+          else if (stTheme.mp_access_token) mapped.mpAccessToken = stTheme.mp_access_token;
+
           if (storeRow.telegram_bot_token) mapped.telegramBotToken = storeRow.telegram_bot_token;
+          else if (stTheme.telegram_bot_token) mapped.telegramBotToken = stTheme.telegram_bot_token;
+
           if (storeRow.telegram_chat_id) mapped.telegramChatId = storeRow.telegram_chat_id;
+          else if (stTheme.telegram_chat_id) mapped.telegramChatId = stTheme.telegram_chat_id;
+
           if (storeRow.logo_url && !mapped.logoUrl) mapped.logoUrl = storeRow.logo_url;
           if (storeRow.whatsapp_number && (!mapped.whatsappNumber || mapped.whatsappNumber === INITIAL_STORE_CONFIG.whatsappNumber)) mapped.whatsappNumber = storeRow.whatsapp_number;
           if (storeRow.whatsapp_display && (!mapped.whatsappDisplay || mapped.whatsappDisplay === INITIAL_STORE_CONFIG.whatsappDisplay)) mapped.whatsappDisplay = storeRow.whatsapp_display;
@@ -148,6 +155,23 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
             }
           }
         }
+
+        // Fallback do localStorage para a loja específica ou global
+        try {
+          if (!mapped.mpAccessToken && typeof window !== 'undefined') {
+            const lsMp = localStorage.getItem(`store_${storeId}_mp_access_token`) || localStorage.getItem('encantando_festa_mp_access_token');
+            if (lsMp) mapped.mpAccessToken = lsMp;
+          }
+          if (!mapped.telegramBotToken && typeof window !== 'undefined') {
+            const lsTg = localStorage.getItem(`store_${storeId}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token');
+            if (lsTg) mapped.telegramBotToken = lsTg;
+          }
+          if (!mapped.telegramChatId && typeof window !== 'undefined') {
+            const lsChat = localStorage.getItem(`store_${storeId}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id');
+            if (lsChat) mapped.telegramChatId = lsChat;
+          }
+        } catch (e) {}
+
         return { data: mapped, error: null };
       }
 
@@ -172,9 +196,9 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           city: 'Brasil',
           workingHours: storeRow.working_hours || 'SEMPRE ABERTO',
           minOrderValue: 0.00,
-          mpAccessToken: storeRow.mp_access_token || undefined,
-          telegramBotToken: storeRow.telegram_bot_token || undefined,
-          telegramChatId: storeRow.telegram_chat_id || undefined,
+          mpAccessToken: storeRow.mp_access_token || storeTheme.mp_access_token || (typeof window !== 'undefined' ? localStorage.getItem(`store_${storeRow.id}_mp_access_token`) || localStorage.getItem('encantando_festa_mp_access_token') : undefined) || undefined,
+          telegramBotToken: storeRow.telegram_bot_token || storeTheme.telegram_bot_token || (typeof window !== 'undefined' ? localStorage.getItem(`store_${storeRow.id}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token') : undefined) || undefined,
+          telegramChatId: storeRow.telegram_chat_id || storeTheme.telegram_chat_id || (typeof window !== 'undefined' ? localStorage.getItem(`store_${storeRow.id}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id') : undefined) || undefined,
           benefitCards: resolvedBenefitCards,
           primaryColor: siteThemeData?.primary_color || storeTheme.primary_color || undefined,
           themeLayout: siteThemeData?.theme_layout || storeTheme.theme_layout || 'classic',
@@ -430,30 +454,76 @@ export async function saveStoreConfigInSupabase(
           whatsapp_default_message: config.whatsappDefaultMessage,
           theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
           color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
-          mp_access_token: config.mpAccessToken?.trim() || null,
-          telegram_bot_token: config.telegramBotToken?.trim() || null,
-          telegram_chat_id: config.telegramChatId?.trim() || null,
+          mp_access_token: config.mpAccessToken?.trim() || currentTheme.mp_access_token || null,
+          telegram_bot_token: config.telegramBotToken?.trim() || currentTheme.telegram_bot_token || null,
+          telegram_chat_id: config.telegramChatId?.trim() || currentTheme.telegram_chat_id || null,
         },
         updated_at: new Date().toISOString()
       };
 
-      const { error: storeUpdateErr } = await supabase
-        .from('stores')
-        .update(storeUpdatePayload)
-        .eq('id', actualStoreId);
+      // Loop adaptativo: remove da raiz apenas colunas que não existirem no schema cache do Supabase,
+      // garantindo que theme_settings (JSONB) sempre preserve os tokens do Telegram e Mercado Pago.
+      let payloadToUpdate = { ...storeUpdatePayload };
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const { error: storeUpdateErr } = await supabase
+          .from('stores')
+          .update(payloadToUpdate)
+          .eq('id', actualStoreId);
 
-      if (!storeUpdateErr) {
-        storeUpdatedSuccessfully = true;
-        console.log(`[storeConfigService] ✅ Tabela stores atualizada com sucesso para loja id="${actualStoreId}"!`);
-      } else {
-        console.warn('[storeConfigService] Aviso ao atualizar stores por id:', storeUpdateErr.message);
-        if (currentStoreRow?.slug) {
+        if (!storeUpdateErr) {
+          storeUpdatedSuccessfully = true;
+          console.log(`[storeConfigService] ✅ Tabela stores atualizada com sucesso para loja id="${actualStoreId}"!`);
+          break;
+        }
+
+        console.warn(`[storeConfigService] Tentativa ${attempt + 1} de atualizar stores id="${actualStoreId}":`, storeUpdateErr.message);
+        const colMatch = storeUpdateErr.message?.match(/Could not find the '([^']+)' column/i);
+        if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+          delete payloadToUpdate[colMatch[1]];
+          continue;
+        }
+        break;
+      }
+
+      if (!storeUpdatedSuccessfully && currentStoreRow?.slug) {
+        let slugPayload = { ...storeUpdatePayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
           const { error: slugErr } = await supabase
             .from('stores')
-            .update(storeUpdatePayload)
+            .update(slugPayload)
             .eq('slug', currentStoreRow.slug);
-          if (!slugErr) storeUpdatedSuccessfully = true;
+
+          if (!slugErr) {
+            storeUpdatedSuccessfully = true;
+            console.log(`[storeConfigService] ✅ Tabela stores atualizada via slug="${currentStoreRow.slug}"!`);
+            break;
+          }
+
+          const colMatch = slugErr.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete slugPayload[colMatch[1]];
+            continue;
+          }
+          break;
         }
+      }
+
+      // Persistência espelhada local para resposta imediata
+      if (typeof window !== 'undefined') {
+        try {
+          if (config.telegramBotToken) {
+            localStorage.setItem(`store_${actualStoreId}_telegram_bot_token`, config.telegramBotToken.trim());
+            localStorage.setItem('encantando_festa_telegram_bot_token', config.telegramBotToken.trim());
+          }
+          if (config.telegramChatId) {
+            localStorage.setItem(`store_${actualStoreId}_telegram_chat_id`, config.telegramChatId.trim());
+            localStorage.setItem('encantando_festa_telegram_chat_id', config.telegramChatId.trim());
+          }
+          if (config.mpAccessToken) {
+            localStorage.setItem(`store_${actualStoreId}_mp_access_token`, config.mpAccessToken.trim());
+            localStorage.setItem('encantando_festa_mp_access_token', config.mpAccessToken.trim());
+          }
+        } catch (e) {}
       }
     } catch (storeEx) {
       console.warn('[storeConfigService] Exceção ao atualizar stores:', storeEx);
@@ -504,30 +574,28 @@ export async function saveStoreConfigInSupabase(
       console.warn('[storeConfigService] Exceção em site_settings:', siteEx);
     }
 
-    // 3. Tentar upsert na tabela store_config
-    let { error: configError } = await supabase
-      .from('store_config')
-      .upsert([payload], { onConflict: 'id' });
+    // 3. Tentar upsert na tabela store_config com remoção adaptativa de colunas inexistentes
+    let configError: any = null;
+    let configPayload: any = { ...payload };
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const res = await supabase
+        .from('store_config')
+        .upsert([configPayload], { onConflict: 'id' });
 
-    // Fallback caso as novas colunas ou mp_access_token ainda não existam no schema cache do Supabase
-    if (configError) {
-      console.warn('[storeConfigService] ⚠️ Coluna ausente em store_config, tentando salvar payload limpo:', configError.message);
-      const cleanPayload: any = { ...payload };
-      delete cleanPayload.mp_access_token;
-      delete cleanPayload.telegram_bot_token;
-      delete cleanPayload.telegram_chat_id;
-      delete cleanPayload.benefit_cards;
-      delete cleanPayload.primary_color;
-      delete cleanPayload.theme_layout;
-      delete cleanPayload.color_palette;
-      delete cleanPayload.whatsapp_default_message;
-      delete cleanPayload.logo_url;
-      const retry = await supabase.from('store_config').upsert([cleanPayload], { onConflict: 'id' });
-      if (!retry.error) {
+      if (!res.error) {
         configError = null;
-      } else {
-        console.warn('[storeConfigService] Aviso retry store_config:', retry.error.message);
+        console.log('[storeConfigService] ✅ store_config upsert realizado com sucesso!');
+        break;
       }
+
+      configError = res.error;
+      const colMatch = res.error.message?.match(/Could not find the '([^']+)' column/i);
+      if (colMatch && colMatch[1]) {
+        console.warn(`[storeConfigService] Coluna ausente '${colMatch[1]}' em store_config, removendo do payload e tentando novamente...`);
+        delete configPayload[colMatch[1]];
+        continue;
+      }
+      break;
     }
 
     // Se stores foi salvo com sucesso ou store_config foi salvo com sucesso

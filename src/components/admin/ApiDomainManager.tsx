@@ -36,6 +36,7 @@ export const ApiDomainManager: React.FC = () => {
       storeConfig.mpAccessToken ||
       currentStore?.mp_access_token ||
       currentStore?.theme_settings?.mp_access_token ||
+      (currentStore?.id ? localStorage.getItem(`store_${currentStore.id}_mp_access_token`) : null) ||
       localStorage.getItem('encantando_festa_mp_access_token') ||
       ''
     );
@@ -46,6 +47,7 @@ export const ApiDomainManager: React.FC = () => {
       storeConfig.telegramBotToken ||
       currentStore?.telegram_bot_token ||
       currentStore?.theme_settings?.telegram_bot_token ||
+      (currentStore?.id ? localStorage.getItem(`store_${currentStore.id}_telegram_bot_token`) : null) ||
       localStorage.getItem('encantando_festa_telegram_bot_token') ||
       ''
     );
@@ -56,6 +58,7 @@ export const ApiDomainManager: React.FC = () => {
       storeConfig.telegramChatId ||
       currentStore?.telegram_chat_id ||
       currentStore?.theme_settings?.telegram_chat_id ||
+      (currentStore?.id ? localStorage.getItem(`store_${currentStore.id}_telegram_chat_id`) : null) ||
       localStorage.getItem('encantando_festa_telegram_chat_id') ||
       ''
     );
@@ -75,9 +78,10 @@ export const ApiDomainManager: React.FC = () => {
   }, [currentStore]);
 
   useEffect(() => {
-    const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || currentStore?.theme_settings?.mp_access_token || localStorage.getItem('encantando_festa_mp_access_token') || '';
-    const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || currentStore?.theme_settings?.telegram_bot_token || localStorage.getItem('encantando_festa_telegram_bot_token') || '';
-    const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || currentStore?.theme_settings?.telegram_chat_id || localStorage.getItem('encantando_festa_telegram_chat_id') || '';
+    const storeKey = currentStore?.id;
+    const mp = storeConfig.mpAccessToken || currentStore?.mp_access_token || currentStore?.theme_settings?.mp_access_token || (storeKey ? localStorage.getItem(`store_${storeKey}_mp_access_token`) : null) || localStorage.getItem('encantando_festa_mp_access_token') || '';
+    const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || currentStore?.theme_settings?.telegram_bot_token || (storeKey ? localStorage.getItem(`store_${storeKey}_telegram_bot_token`) : null) || localStorage.getItem('encantando_festa_telegram_bot_token') || '';
+    const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || currentStore?.theme_settings?.telegram_chat_id || (storeKey ? localStorage.getItem(`store_${storeKey}_telegram_chat_id`) : null) || localStorage.getItem('encantando_festa_telegram_chat_id') || '';
 
     if (mp) setMpAccessToken(mp);
     if (tg) setTelegramBotToken(tg);
@@ -86,6 +90,7 @@ export const ApiDomainManager: React.FC = () => {
     storeConfig.mpAccessToken,
     storeConfig.telegramBotToken,
     storeConfig.telegramChatId,
+    currentStore?.id,
     currentStore?.mp_access_token,
     currentStore?.telegram_bot_token,
     currentStore?.telegram_chat_id,
@@ -141,24 +146,40 @@ export const ApiDomainManager: React.FC = () => {
     const cleanChatId = telegramChatId.trim();
 
     // 1. Grava no localStorage imediatamente para persistência garantida no navegador
+    const storeKey = currentStore?.id || 'default';
     try {
-      if (cleanMpToken) localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
-      else localStorage.removeItem('encantando_festa_mp_access_token');
+      if (cleanMpToken) {
+        localStorage.setItem('encantando_festa_mp_access_token', cleanMpToken);
+        localStorage.setItem(`store_${storeKey}_mp_access_token`, cleanMpToken);
+      } else {
+        localStorage.removeItem('encantando_festa_mp_access_token');
+        localStorage.removeItem(`store_${storeKey}_mp_access_token`);
+      }
 
-      if (cleanTgToken) localStorage.setItem('encantando_festa_telegram_bot_token', cleanTgToken);
-      else localStorage.removeItem('encantando_festa_telegram_bot_token');
+      if (cleanTgToken) {
+        localStorage.setItem('encantando_festa_telegram_bot_token', cleanTgToken);
+        localStorage.setItem(`store_${storeKey}_telegram_bot_token`, cleanTgToken);
+      } else {
+        localStorage.removeItem('encantando_festa_telegram_bot_token');
+        localStorage.removeItem(`store_${storeKey}_telegram_bot_token`);
+      }
 
-      if (cleanChatId) localStorage.setItem('encantando_festa_telegram_chat_id', cleanChatId);
-      else localStorage.removeItem('encantando_festa_telegram_chat_id');
+      if (cleanChatId) {
+        localStorage.setItem('encantando_festa_telegram_chat_id', cleanChatId);
+        localStorage.setItem(`store_${storeKey}_telegram_chat_id`, cleanChatId);
+      } else {
+        localStorage.removeItem('encantando_festa_telegram_chat_id');
+        localStorage.removeItem(`store_${storeKey}_telegram_chat_id`);
+      }
     } catch (e) {
       console.warn('[ApiDomainManager] LocalStorage indisponível:', e);
     }
 
-    // 2. Atualiza diretamente na tabela stores pelo Supabase garantindo persistência imediata
+    // 2. Atualiza diretamente na tabela stores com tratamento adaptativo de colunas
     const targetStoreIdentifier = currentStore?.id;
     if (targetStoreIdentifier && targetStoreIdentifier !== '__resolving_tenant__') {
       try {
-        const storePayload = {
+        const storePayload: any = {
           mp_access_token: cleanMpToken || null,
           telegram_bot_token: cleanTgToken || null,
           telegram_chat_id: cleanChatId || null,
@@ -171,22 +192,49 @@ export const ApiDomainManager: React.FC = () => {
           updated_at: new Date().toISOString(),
         };
 
-        // Salva por ID
-        const { error: errId } = await supabase
-          .from('stores')
-          .update(storePayload)
-          .eq('id', targetStoreIdentifier);
+        // Salva por ID com loop adaptativo
+        let idPayload = { ...storePayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { error: errId } = await supabase
+            .from('stores')
+            .update(idPayload)
+            .eq('id', targetStoreIdentifier);
 
-        if (errId) {
-          console.warn('[ApiDomainManager] Aviso ao salvar stores por id:', errId.message);
+          if (!errId) {
+            console.log('[ApiDomainManager] ✅ Tabela stores atualizada por ID com sucesso!');
+            break;
+          }
+
+          console.warn(`[ApiDomainManager] Tentativa ${attempt + 1} de atualizar stores por ID:`, errId.message);
+          const colMatch = errId.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete idPayload[colMatch[1]];
+            continue;
+          }
+          break;
         }
 
         // Salva também por slug se disponível
         if (currentStore.slug) {
-          await supabase
-            .from('stores')
-            .update(storePayload)
-            .eq('slug', currentStore.slug);
+          let slugPayload = { ...storePayload };
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const { error: errSlug } = await supabase
+              .from('stores')
+              .update(slugPayload)
+              .eq('slug', currentStore.slug);
+
+            if (!errSlug) {
+              console.log('[ApiDomainManager] ✅ Tabela stores atualizada por slug com sucesso!');
+              break;
+            }
+
+            const colMatch = errSlug.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete slugPayload[colMatch[1]];
+              continue;
+            }
+            break;
+          }
         }
       } catch (storeErr) {
         console.warn('[ApiDomainManager] Erro ao salvar credenciais diretamente em stores:', storeErr);
