@@ -43,6 +43,11 @@ export interface Product {
   upsellPrice?: number;
   upsell_discount_percent?: number;
   upsellDiscountPercent?: number;
+  weight_kg?: number;
+  height_cm?: number;
+  width_cm?: number;
+  length_cm?: number;
+  custom_shipping_price?: number;
 }
 
 export interface Category {
@@ -81,6 +86,47 @@ export interface CartItem {
   isUpsell?: boolean;
 }
 
+export interface DeliveryAddress {
+  cep: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+}
+
+export interface ShippingOption {
+  id: string;
+  name: string;
+  price: number;
+  deadline: string;
+  carrier?: string;
+  isFree?: boolean;
+  description?: string;
+}
+
+export interface StoreShippingConfig {
+  originCep: string;
+  economicEnabled: boolean;
+  economicName: string;
+  economicPrice: number;
+  economicDeadline: string;
+  expressEnabled: boolean;
+  expressName: string;
+  expressPrice: number;
+  expressDeadline: string;
+  freeShippingEnabled: boolean;
+  freeShippingMinAmount: number;
+  pickupEnabled: boolean;
+  pickupName: string;
+  pickupPrice: number;
+  pickupDeadline: string;
+  pickupAddress: string;
+  melhorEnvioEnabled?: boolean;
+  melhorEnvioToken?: string;
+}
+
 export interface OrderCustomerInfo {
   name: string;
   email: string;
@@ -91,6 +137,13 @@ export interface OrderCustomerInfo {
   address?: string;
   neighborhood?: string;
   city?: string;
+  state?: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  shippingMethod?: string;
+  shippingCost?: number;
   paymentMethod: 'pix' | 'cartao' | 'dinheiro';
   generalNotes?: string;
 }
@@ -133,6 +186,7 @@ export interface StoreConfig {
   mpAccessToken?: string;
   telegramBotToken?: string;
   telegramChatId?: string;
+  shippingConfig?: StoreShippingConfig;
   benefitCards?: BenefitCard[];
   primaryColor?: string;
   whatsappDefaultMessage?: string;

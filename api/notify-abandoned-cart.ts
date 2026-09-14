@@ -51,6 +51,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error_message = '',
       status_detail = '',
       action_type = 'abandoned_cart',
+      shipping_cost = 0,
+      shipping_method = '',
+      shipping_address = '',
       telegram_bot_token,
       telegram_chat_id,
     } = req.body || {};
@@ -175,6 +178,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `📱 *WhatsApp:* ${escapeMd(displayPhone)}\n` +
         (payment_method ? `💳 *Forma de Pagamento:* ${escapeMd(payment_method)}\n` : '') +
         (displayOrderId ? `🆔 *Nº do Pedido:* #${escapeMd(displayOrderId)}\n` : '') +
+        (shipping_method ? `🚚 *Frete:* ${escapeMd(shipping_method)} (R$ ${Number(shipping_cost || 0).toFixed(2).replace('.', ',')})\n` : '') +
+        (shipping_address ? `📍 *Endereço de Entrega:* ${escapeMd(shipping_address)}\n` : '') +
         `📅 *Data/Hora:* ${currentDate}\n\n` +
         `📦 *PRODUTOS ADQUIRIDOS:*\n${itemsList}\n\n` +
         `💰 *Valor Total:* R$ ${formattedTotal}\n\n` +
@@ -208,6 +213,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `👤 *Nome do Comprador:* ${escapeMd(cleanCustomerName)}\n` +
         `✉️ *E-mail:* ${escapeMd(cleanCustomerEmail)}\n` +
         `📱 *WhatsApp:* ${escapeMd(displayPhone)}\n` +
+        (shipping_method ? `🚚 *Frete Calculado:* ${escapeMd(shipping_method)} (R$ ${Number(shipping_cost || 0).toFixed(2).replace('.', ',')})\n` : '') +
+        (shipping_address ? `📍 *Endereço:* ${escapeMd(shipping_address)}\n` : '') +
         `📅 *Data/Hora:* ${currentDate}\n\n` +
         `🛒 *PRODUTOS NO CARRINHO:*\n${itemsList}\n\n` +
         `💰 *Valor Total:* R$ ${formattedTotal}\n\n` +

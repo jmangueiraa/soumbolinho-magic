@@ -11,6 +11,9 @@ export interface CreateOrderPayload {
   totalAmount: number;
   paymentId?: string;
   status?: 'pending' | 'approved' | 'cancelled';
+  shippingCost?: number;
+  shippingMethod?: string;
+  deliveryAddress?: string;
 }
 
 /**
@@ -42,6 +45,9 @@ export async function createOrderInSupabase(
       product_name: productNames || 'Produtos Encantando Festa',
       delivery_url: deliveryUrls || null,
       amount: payload.totalAmount,
+      shipping_cost: payload.shippingCost || 0,
+      shipping_method: payload.shippingMethod || null,
+      delivery_address: payload.deliveryAddress || null,
       payment_id: payload.paymentId || payload.orderId,
       status: payload.status || 'pending',
       created_at: new Date().toISOString(),
@@ -51,10 +57,15 @@ export async function createOrderInSupabase(
 
     let { data, error } = await supabase.from('orders').insert([orderRow]).select();
 
-    // Fallback caso as colunas customer_phone ou store_id ainda não existam no Supabase
-    if (error && (error.message.includes('customer_phone') || error.message.includes('store_id') || error.message.includes('column'))) {
-      console.warn('[orderService] ⚠️ Coluna ausente em orders, tentando salvar com fallback:', error.message);
-      const { customer_phone, store_id, ...cleanRow } = orderRow;
+    // Fallback caso colunas opcionais ainda não existam no Supabase
+    if (error && error.message.includes('column')) {
+      console.warn('[orderService] ⚠️ Coluna ausente em orders, tentando salvar com fallback adaptativo:', error.message);
+      const cleanRow = { ...orderRow };
+      delete cleanRow.shipping_cost;
+      delete cleanRow.shipping_method;
+      delete cleanRow.delivery_address;
+      delete cleanRow.customer_phone;
+      delete cleanRow.store_id;
       const retry = await supabase.from('orders').insert([cleanRow]).select();
       if (!retry.error && retry.data) {
         data = retry.data;

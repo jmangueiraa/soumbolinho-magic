@@ -14,6 +14,9 @@ export interface TelegramNotificationPayload {
   order_id?: string;
   payment_id?: string;
   payment_method?: string;
+  shipping_cost?: number;
+  shipping_method?: string;
+  shipping_address?: string;
   error_message?: string;
   status_detail?: string;
   telegram_bot_token?: string;
@@ -120,6 +123,8 @@ async function sendDirectTelegramMessage(payload: TelegramNotificationPayload): 
       `👤 Cliente: ${payload.customer_name || 'Não informado'}\n` +
       `📱 WhatsApp: ${payload.customer_phone || 'Não informado'}\n` +
       `✉️ E-mail: ${payload.customer_email || 'Não informado'}\n` +
+      (payload.shipping_method ? `🚚 Frete: ${payload.shipping_method} (R$ ${Number(payload.shipping_cost || 0).toFixed(2).replace('.', ',')})\n` : '') +
+      (payload.shipping_address ? `📍 Entrega: ${payload.shipping_address}\n` : '') +
       `💰 Total: R$ ${Number(payload.total_amount || 0).toFixed(2).replace('.', ',')}\n\n` +
       `📦 Itens:\n${itemsSummary}`;
 

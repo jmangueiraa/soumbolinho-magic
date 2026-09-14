@@ -20,9 +20,10 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
-  QrCode
+  QrCode,
+  Truck
 } from 'lucide-react';
-import { OrderCustomerInfo, CartItem } from '../../types';
+import { OrderCustomerInfo, CartItem, ShippingOption, DeliveryAddress } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -38,6 +39,7 @@ import { createOrderInSupabase, updateOrderStatusInSupabase } from '../../servic
 import { notifyTelegram } from '../../services/telegramNotificationService';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { CartUpsellCard } from './CartUpsellCard';
+import { ShippingCalculator } from './ShippingCalculator';
 
 export const CheckoutModal: React.FC = () => {
   const { storeConfig } = useStoreData();
@@ -122,6 +124,61 @@ export const CheckoutModal: React.FC = () => {
   const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; phone?: string; cpf?: string }>({});
   const [cardErrors, setCardErrors] = useState<{ number?: string; holderName?: string; expiry?: string; cvv?: string }>({});
   
+  // Detecção de produto físico no carrinho
+  const hasPhysicalProduct = items.some(
+    (i) => !i.product.is_digital && !(i.product as any).isDigital
+  );
+
+  // Estados de Frete & Entrega (para produtos físicos)
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [shippingAddress, setShippingAddress] = useState<DeliveryAddress | null>(null);
+  const [addressNumber, setAddressNumber] = useState('');
+  const [addressComplement, setAddressComplement] = useState('');
+  const [shippingFormError, setShippingFormError] = useState<string | null>(null);
+
+  // Cálculo de frete e valor final
+  const shippingCost = hasPhysicalProduct && selectedShipping ? selectedShipping.price : 0;
+  const grandTotal = totalPrice + shippingCost;
+
+  // Formata o endereço completo para envio e persistência
+  const getFormattedAddress = () => {
+    if (!hasPhysicalProduct || !selectedShipping) return undefined;
+    if (selectedShipping.id === 'pickup') {
+      return `Retirada no Local - Balcão da Loja (${storeConfig?.shippingConfig?.pickupAddress || 'Endereço da Loja'})`;
+    }
+    if (!shippingAddress) return undefined;
+    const parts = [
+      `${shippingAddress.street}, ${addressNumber || 'S/N'}`,
+      addressComplement ? `Compl: ${addressComplement}` : '',
+      shippingAddress.neighborhood,
+      `${shippingAddress.city}/${shippingAddress.state}`,
+      `CEP: ${shippingAddress.cep}`,
+    ].filter(Boolean);
+    return parts.join(' - ');
+  };
+
+  // Monta a lista final de itens (adicionando item de frete se aplicável)
+  const getFinalOrderItems = () => {
+    const list = [...items];
+    if (hasPhysicalProduct && selectedShipping && selectedShipping.price > 0) {
+      list.push({
+        id: `ship_${selectedShipping.id}`,
+        product: {
+          id: `shipping_${selectedShipping.id}`,
+          name: `Frete (${selectedShipping.name})`,
+          price: selectedShipping.price,
+          category: 'Frete',
+          inStock: true,
+          is_digital: true,
+          images: [],
+        } as any,
+        quantity: 1,
+        customPrice: selectedShipping.price,
+      });
+    }
+    return list;
+  };
+
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingPix, setIsCheckingPix] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
@@ -186,10 +243,21 @@ export const CheckoutModal: React.FC = () => {
   // Sincroniza itens e valor para tela de sucesso
   useEffect(() => {
     if (items.length > 0) {
-      setPurchasedItems(items);
-      setFinalPaidTotal(totalPrice);
+      setPurchasedItems(getFinalOrderItems());
+      setFinalPaidTotal(grandTotal);
     }
-  }, [items, totalPrice]);
+  }, [items, grandTotal, selectedShipping]);
+
+  // Limpa dados de frete caso o carrinho não tenha produtos físicos
+  useEffect(() => {
+    if (!hasPhysicalProduct) {
+      setSelectedShipping(null);
+      setShippingAddress(null);
+      setAddressNumber('');
+      setAddressComplement('');
+      setShippingFormError(null);
+    }
+  }, [hasPhysicalProduct]);
 
   // Reset de estado quando o modal fecha/abre
   useEffect(() => {
@@ -242,6 +310,19 @@ export const CheckoutModal: React.FC = () => {
       errors.email = 'Informe um e-mail válido (ex: seuemail@exemplo.com).';
     }
 
+    // Validação de frete para produtos físicos
+    if (hasPhysicalProduct) {
+      if (!selectedShipping) {
+        setShippingFormError('Por favor, calcule seu CEP e selecione uma opção de frete ou retirada.');
+        return false;
+      }
+      if (selectedShipping.id !== 'pickup' && !addressNumber.trim()) {
+        setShippingFormError('Por favor, informe o número do endereço de entrega.');
+        return false;
+      }
+    }
+    setShippingFormError(null);
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -279,6 +360,9 @@ export const CheckoutModal: React.FC = () => {
     const orderIdToUse = currentOrderId || `order_${Date.now()}`;
     console.log('[CheckoutModal] 🚀 Pagamento APROVADO!', { paymentId, orderIdToUse });
 
+    const finalItems = getFinalOrderItems();
+    const formattedAddress = getFormattedAddress();
+
     setStep('success');
     setIsLoading(false);
 
@@ -291,9 +375,12 @@ export const CheckoutModal: React.FC = () => {
       customer_name: customerInfo.name.trim(),
       customer_email: customerInfo.email.trim(),
       customer_phone: (customerInfo.phone || '').trim(),
-      items: [...items],
-      total_amount: totalPrice,
+      items: finalItems,
+      total_amount: grandTotal,
       order_id: orderIdToUse,
+      shipping_cost: shippingCost,
+      shipping_method: selectedShipping?.name,
+      shipping_address: formattedAddress,
       telegram_bot_token: storeConfig.telegramBotToken,
       telegram_chat_id: storeConfig.telegramChatId,
     });
@@ -304,15 +391,18 @@ export const CheckoutModal: React.FC = () => {
       customerEmail: customerInfo.email.trim(),
       orderId: orderIdToUse,
       orderDate: new Date().toLocaleDateString('pt-BR'),
-      items: [...items],
-      totalAmount: totalPrice,
+      items: finalItems,
+      totalAmount: grandTotal,
     });
 
     // 4. Salva dados na sessão
     sessionStorage.setItem('last_completed_order', JSON.stringify({
       orderId: orderIdToUse,
-      items: [...items],
-      total: totalPrice,
+      items: finalItems,
+      total: grandTotal,
+      shippingCost,
+      shippingMethod: selectedShipping?.name,
+      deliveryAddress: formattedAddress,
       customer: customerInfo,
     }));
 
@@ -336,6 +426,8 @@ export const CheckoutModal: React.FC = () => {
     const cleanPhone = (customerInfo.phone || '').trim();
     const cleanCpf = generateValidRandomCpf();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
+    const finalItems = getFinalOrderItems();
+    const formattedAddress = getFormattedAddress();
 
     try {
       // Salva dados no cache local
@@ -353,8 +445,11 @@ export const CheckoutModal: React.FC = () => {
         customerName: cleanName,
         customerEmail: cleanEmail,
         customerPhone: cleanPhone,
-        items: [...items],
-        totalAmount: totalPrice,
+        items: finalItems,
+        totalAmount: grandTotal,
+        shippingCost,
+        shippingMethod: selectedShipping?.name,
+        deliveryAddress: formattedAddress,
         paymentId: generatedOrderId,
         status: 'pending',
       });
@@ -365,17 +460,20 @@ export const CheckoutModal: React.FC = () => {
         customer_name: cleanName,
         customer_email: cleanEmail,
         customer_phone: cleanPhone,
-        items: [...items],
-        total_amount: totalPrice,
+        items: finalItems,
+        total_amount: grandTotal,
         order_id: generatedOrderId,
+        shipping_cost: shippingCost,
+        shipping_method: selectedShipping?.name,
+        shipping_address: formattedAddress,
         telegram_bot_token: storeConfig.telegramBotToken,
         telegram_chat_id: storeConfig.telegramChatId,
       });
 
       // Chamada para gerar o Pix via Mercado Pago API
-      console.log('[CheckoutModal] ⚡ Solicitando geração de QR Code Pix...', { amount: totalPrice, cleanCpf });
+      console.log('[CheckoutModal] ⚡ Solicitando geração de QR Code Pix...', { amount: grandTotal, cleanCpf });
       const pixResponse = await createMercadoPagoPixPayment({
-        amount: totalPrice,
+        amount: grandTotal,
         customerName: cleanName,
         customerEmail: cleanEmail,
         customerCpf: cleanCpf,
@@ -415,6 +513,8 @@ export const CheckoutModal: React.FC = () => {
     const cleanPhone = (customerInfo.phone || '').trim();
     const cleanCpf = generateValidRandomCpf();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
+    const finalItems = getFinalOrderItems();
+    const formattedAddress = getFormattedAddress();
 
     try {
       // Salva dados no cache local
@@ -432,8 +532,11 @@ export const CheckoutModal: React.FC = () => {
         customerName: cleanName,
         customerEmail: cleanEmail,
         customerPhone: cleanPhone,
-        items: [...items],
-        totalAmount: totalPrice,
+        items: finalItems,
+        totalAmount: grandTotal,
+        shippingCost,
+        shippingMethod: selectedShipping?.name,
+        deliveryAddress: formattedAddress,
         paymentId: generatedOrderId,
         status: 'pending',
       });
@@ -442,7 +545,7 @@ export const CheckoutModal: React.FC = () => {
       console.log('[CheckoutModal] 💳 Processando cartão de crédito...');
       const [expMonth, expYear] = cardData.expiry.split('/');
       const cardResponse = await createMercadoPagoCardPayment({
-        amount: totalPrice,
+        amount: grandTotal,
         cardNumber: cardData.number,
         cardholderName: cardData.holderName,
         expirationMonth: expMonth.trim(),
@@ -487,6 +590,8 @@ export const CheckoutModal: React.FC = () => {
     const cleanEmail = customerInfo.email.trim();
     const cleanPhone = (customerInfo.phone || '').trim();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
+    const finalItems = getFinalOrderItems();
+    const formattedAddress = getFormattedAddress();
 
     try {
       await createOrderInSupabase({
@@ -495,14 +600,17 @@ export const CheckoutModal: React.FC = () => {
         customerName: cleanName,
         customerEmail: cleanEmail,
         customerPhone: cleanPhone,
-        items: [...items],
-        totalAmount: totalPrice,
+        items: finalItems,
+        totalAmount: grandTotal,
+        shippingCost,
+        shippingMethod: selectedShipping?.name,
+        deliveryAddress: formattedAddress,
         paymentId: generatedOrderId,
         status: 'pending',
       });
 
       const pref = await createMercadoPagoPreference({
-        items: [...items],
+        items: finalItems,
         customerInfo: { name: cleanName, email: cleanEmail, phone: cleanPhone },
         orderId: generatedOrderId,
         storeId: targetStoreId,
@@ -563,10 +671,11 @@ export const CheckoutModal: React.FC = () => {
     if (e) e.preventDefault();
     if (!validateForm()) return;
 
+    const finalItems = getFinalOrderItems();
     const formattedMessage = buildWhatsAppOrderMessage(
-      items,
+      finalItems,
       customerInfo,
-      totalPrice,
+      grandTotal,
       storeConfig
     );
     const whatsappUrl = createWhatsAppUrl(storeConfig.whatsappNumber, formattedMessage);
@@ -689,84 +798,175 @@ export const CheckoutModal: React.FC = () => {
                   })}
                 </div>
 
-                <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total a Pagar:</span>
-                  <span className="text-xl font-black text-slate-950">{formatCurrency(totalPrice)}</span>
-                </div>
-              </div>
-
-              {/* DADOS DO COMPRADOR */}
-              <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-pink-600" />
-                  Dados para Envio do Produto Digital
-                </h4>
-
-                {/* Nome Completo */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">
-                    Seu Nome Completo *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customerInfo.name}
-                    onChange={(e) => {
-                      setCustomerInfo({ ...customerInfo, name: e.target.value });
-                      if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
-                    }}
-                    placeholder="Ex: Maria Clara da Silva"
-                    className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all"
-                  />
-                  {formErrors.name && (
-                    <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.name}</span>
+                  {/* Linha de Frete se houver produto físico e opção selecionada */}
+                  {hasPhysicalProduct && selectedShipping && (
+                    <div className="pt-1.5 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-slate-600 flex items-center gap-1 font-medium">
+                        <Truck className="w-3.5 h-3.5 text-sky-600" />
+                        Frete ({selectedShipping.name})
+                      </span>
+                      <span className="font-bold text-slate-900 shrink-0">
+                        {selectedShipping.price === 0 ? (
+                          <span className="text-emerald-600 font-extrabold uppercase text-[10px]">Grátis</span>
+                        ) : (
+                          formatCurrency(selectedShipping.price)
+                        )}
+                      </span>
+                    </div>
                   )}
+
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total a Pagar:</span>
+                    <span className="text-xl font-black text-slate-950">{formatCurrency(grandTotal)}</span>
+                  </div>
                 </div>
 
-                {/* WhatsApp com DDD */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>WhatsApp com DDD (para envio automático) *</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={customerInfo.phone || ''}
-                    onChange={(e) => {
-                      setCustomerInfo({ ...customerInfo, phone: formatPhoneNumber(e.target.value) });
-                      if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined });
-                    }}
-                    placeholder="(11) 99999-9999"
-                    className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all font-medium"
-                  />
-                  {formErrors.phone && (
-                    <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.phone}</span>
-                  )}
+                {/* DADOS DO COMPRADOR */}
+                <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-pink-600" />
+                    {hasPhysicalProduct ? 'Dados do Comprador' : 'Dados para Envio do Produto Digital'}
+                  </h4>
+
+                  {/* Nome Completo */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Seu Nome Completo *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customerInfo.name}
+                      onChange={(e) => {
+                        setCustomerInfo({ ...customerInfo, name: e.target.value });
+                        if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                      }}
+                      placeholder="Ex: Maria Clara da Silva"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all"
+                    />
+                    {formErrors.name && (
+                      <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.name}</span>
+                    )}
+                  </div>
+
+                  {/* WhatsApp com DDD */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>WhatsApp com DDD (para envio automático) *</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={customerInfo.phone || ''}
+                      onChange={(e) => {
+                        setCustomerInfo({ ...customerInfo, phone: formatPhoneNumber(e.target.value) });
+                        if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined });
+                      }}
+                      placeholder="(11) 99999-9999"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all font-medium"
+                    />
+                    {formErrors.phone && (
+                      <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.phone}</span>
+                    )}
+                  </div>
+
+                  {/* E-mail */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Seu E-mail Principal *</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={customerInfo.email}
+                      onChange={(e) => {
+                        setCustomerInfo({ ...customerInfo, email: e.target.value });
+                        if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                      }}
+                      placeholder="seuemail@exemplo.com"
+                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all"
+                    />
+                    {formErrors.email && (
+                      <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.email}</span>
+                    )}
+                  </div>
                 </div>
 
-                {/* E-mail */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Seu E-mail Principal *</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={customerInfo.email}
-                    onChange={(e) => {
-                      setCustomerInfo({ ...customerInfo, email: e.target.value });
-                      if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
-                    }}
-                    placeholder="seuemail@exemplo.com"
-                    className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all"
-                  />
-                  {formErrors.email && (
-                    <span className="text-[11px] text-rose-500 mt-1 block font-medium">{formErrors.email}</span>
-                  )}
-                </div>
-              </div>
+                {/* DADOS DE FRETE & ENTREGA (APENAS PARA PRODUTOS FÍSICOS) */}
+                {hasPhysicalProduct && (
+                  <div className="p-4 bg-white rounded-2xl border border-sky-200/90 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 text-sky-600" />
+                        Cálculo de Frete & Entrega
+                      </h4>
+                      <span className="text-[10px] bg-sky-100 text-sky-800 font-extrabold px-2 py-0.5 rounded-full uppercase">
+                        Produto Físico
+                      </span>
+                    </div>
+
+                    <ShippingCalculator
+                      cartTotal={totalPrice}
+                      storeId={currentStore?.id}
+                      selectedOptionId={selectedShipping?.id}
+                      isCompact={true}
+                      onShippingSelected={(option, addr) => {
+                        setSelectedShipping(option);
+                        setShippingAddress(addr);
+                        setShippingFormError(null);
+                      }}
+                    />
+
+                    {/* Campos de número e complemento caso seja entrega residencial */}
+                    {selectedShipping && selectedShipping.id !== 'pickup' && shippingAddress && (
+                      <div className="pt-2 border-t border-slate-100 space-y-2.5 animate-in fade-in">
+                        <div className="text-xs text-slate-600">
+                          <span className="font-semibold text-slate-800">Endereço de Entrega: </span>
+                          <span>{shippingAddress.street}, {shippingAddress.neighborhood} - {shippingAddress.city}/{shippingAddress.state}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Número *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={addressNumber}
+                              onChange={(e) => {
+                                setAddressNumber(e.target.value);
+                                if (shippingFormError) setShippingFormError(null);
+                              }}
+                              placeholder="Ex: 123 ou S/N"
+                              className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black font-medium"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                              Complemento (opcional)
+                            </label>
+                            <input
+                              type="text"
+                              value={addressComplement}
+                              onChange={(e) => setAddressComplement(e.target.value)}
+                              placeholder="Apto, Bloco, etc."
+                              className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black font-medium"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {shippingFormError && (
+                      <span className="text-[11px] text-rose-500 font-medium block">
+                        {shippingFormError}
+                      </span>
+                    )}
+                  </div>
+                )}
 
               {/* SELEÇÃO INTERATIVA DA FORMA DE PAGAMENTO (NESTA MESMA TELA!) */}
               <div className="p-4 bg-gradient-to-r from-emerald-50/60 via-sky-50/50 to-slate-50 rounded-2xl border border-slate-200 text-slate-700 space-y-3">
@@ -980,7 +1180,7 @@ export const CheckoutModal: React.FC = () => {
                         onChange={(e) => setCardData({ ...cardData, installments: parseInt(e.target.value, 10) })}
                         className="w-full text-xs px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold cursor-pointer"
                       >
-                        {getInstallmentOptions(totalPrice).map((opt) => (
+                        {getInstallmentOptions(grandTotal).map((opt) => (
                           <option key={opt.count} value={opt.count}>
                             {opt.label}
                           </option>
@@ -1020,19 +1220,19 @@ export const CheckoutModal: React.FC = () => {
                       {paymentMethod === 'pix' && (
                         <>
                           <Zap className="w-5 h-5 fill-white text-white" />
-                          <span>Gerar QR Code Pix ({formatCurrency(totalPrice)})</span>
+                          <span>Gerar QR Code Pix ({formatCurrency(grandTotal)})</span>
                         </>
                       )}
                       {paymentMethod === 'credit_card' && (
                         <>
                           <CreditCard className="w-5 h-5 text-white" />
-                          <span>Pagar {formatCurrency(totalPrice)} com Cartão</span>
+                          <span>Pagar {formatCurrency(grandTotal)} com Cartão</span>
                         </>
                       )}
                       {paymentMethod === 'mercadopago_pro' && (
                         <>
                           <Lock className="w-4 h-4" />
-                          <span>Pagar com Mercado Pago ({formatCurrency(totalPrice)})</span>
+                          <span>Pagar com Mercado Pago ({formatCurrency(grandTotal)})</span>
                         </>
                       )}
                     </>
@@ -1069,7 +1269,7 @@ export const CheckoutModal: React.FC = () => {
                     Pagamento via Pix
                   </span>
                   <span className="text-xl font-black text-slate-900">
-                    {formatCurrency(totalPrice)}
+                    {formatCurrency(grandTotal)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-teal-200 text-teal-800 text-xs font-bold shadow-2xs">
@@ -1194,18 +1394,34 @@ export const CheckoutModal: React.FC = () => {
                   🎉 Pagamento Confirmado com Sucesso!
                 </h3>
                 <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                  Seu acesso foi liberado imediatamente pelo Mercado Pago. Você pode baixar seus arquivos agora mesmo:
+                  Seu pedido foi registrado e confirmado pelo Mercado Pago com total segurança:
                 </p>
               </div>
 
-              {/* Lista dos Produtos Comprados com Link de Download */}
+              {/* Aviso para Produtos Físicos se houver */}
+              {hasPhysicalProduct && (
+                <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-left text-xs text-amber-900 flex items-start gap-2.5 animate-in fade-in">
+                  <Truck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Produto Físico em Preparação!</p>
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      {selectedShipping?.id === 'pickup' 
+                        ? `Seu pedido estará pronto para retirada no balcão da loja conforme as instruções de funcionamento.`
+                        : `O lojista recebeu seus dados e o código de rastreio será atualizado e enviado para seu WhatsApp assim que postado.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Lista dos Produtos Comprados com Link de Download se houver produtos digitais */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-3">
                 <span className="text-[11px] font-black uppercase text-slate-700 tracking-wider block">
-                  Seus Arquivos Digitais:
+                  Itens do Seu Pedido:
                 </span>
 
                 <div className="space-y-2">
                   {purchasedItems.map((item, idx) => {
+                    const isItemPhysical = !item.product.is_digital && !(item.product as any).isDigital;
                     const dlUrl = 
                       item.product.delivery_url || 
                       (item.product as any).deliveryUrl || 
@@ -1222,20 +1438,22 @@ export const CheckoutModal: React.FC = () => {
                           <p className="text-xs font-bold text-slate-900 truncate">
                             {item.product.name}
                           </p>
-                          <span className="text-[10px] text-emerald-600 font-semibold block">
-                            Acesso Vitalício Liberado
+                          <span className={`text-[10px] font-semibold block ${isItemPhysical ? 'text-sky-600' : 'text-emerald-600'}`}>
+                            {isItemPhysical ? '📦 Produto Físico (Em Separação)' : '⚡ Arquivo Digital (Acesso Liberado)'}
                           </span>
                         </div>
 
-                        <a
-                          href={dlUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Baixar Arquivo</span>
-                        </a>
+                        {!isItemPhysical && dlUrl !== '#' && (
+                          <a
+                            href={dlUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Baixar Arquivo</span>
+                          </a>
+                        )}
                       </div>
                     );
                   })}

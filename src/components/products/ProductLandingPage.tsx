@@ -25,7 +25,8 @@ import {
   HelpCircle,
   Award,
   Smartphone,
-  ZoomIn
+  ZoomIn,
+  Truck
 } from 'lucide-react';
 import { Product } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
@@ -41,6 +42,7 @@ import { Toast } from '../common/Toast';
 import { CartDrawer } from '../cart/CartDrawer';
 import { CheckoutModal } from '../cart/CheckoutModal';
 import { PaymentFeedbackModal } from '../cart/PaymentFeedbackModal';
+import { ShippingCalculator } from '../cart/ShippingCalculator';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ScarcityCountdownBanner } from '../common/ScarcityCountdownBanner';
@@ -392,6 +394,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   }
 
   const shareLink = getProductShareUrl(product);
+  const isPhysical = !product.is_digital && !(product as any).isDigital;
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#FAF9F6] text-slate-900 font-sans selection:bg-theme-primary selection:text-white pb-20 sm:pb-0">
@@ -454,11 +457,18 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                     {product.badge || 'Mais Vendido'}
                   </span>
 
-                  {/* 2. Badge Download Imediato */}
-                  <span className="inline-flex items-center gap-1.5 bg-slate-950 text-white font-bold text-xs uppercase tracking-wide px-3 py-1.5 rounded-xl shadow-xs">
-                    <Download className="w-3.5 h-3.5 text-cyan-400" />
-                    Download Imediato
-                  </span>
+                  {/* 2. Badge Download Imediato ou Envio Físico */}
+                  {isPhysical ? (
+                    <span className="inline-flex items-center gap-1.5 bg-sky-950 text-white font-bold text-xs uppercase tracking-wide px-3 py-1.5 rounded-xl shadow-xs">
+                      <Truck className="w-3.5 h-3.5 text-sky-400" />
+                      Envio Físico
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 bg-slate-950 text-white font-bold text-xs uppercase tracking-wide px-3 py-1.5 rounded-xl shadow-xs">
+                      <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      Download Imediato
+                    </span>
+                  )}
                 </div>
 
                 {/* 3. Botão de Ampliar / Zoom */}
@@ -632,6 +642,17 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 </div>
               </div>
 
+              {/* Cálculo de Frete e Envio para Produto Físico */}
+              {isPhysical && (
+                <div className="pt-2">
+                  <ShippingCalculator 
+                    cartTotal={price * quantity}
+                    storeId={product.store_id || currentStore?.id}
+                    isCompact={true}
+                  />
+                </div>
+              )}
+
               {/* BOTÕES DE AÇÃO: CTA DE ALTA CONVERSÃO */}
               <div className="space-y-3 pt-1">
                 {/* 1. Botão Principal "QUERO COMPRAR AGORA" (Pulsante e Destacado) */}
@@ -645,7 +666,9 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                     <span>QUERO COMPRAR AGORA</span>
                   </div>
                   <span className="text-[10px] font-normal tracking-normal text-white/90">
-                    Receber arquivos no WhatsApp e E-mail imediatamente
+                    {isPhysical 
+                      ? 'Finalizar pedido com frete e entrega rápida' 
+                      : 'Receber arquivos no WhatsApp e E-mail imediatamente'}
                   </span>
                 </button>
 

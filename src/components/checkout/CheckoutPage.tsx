@@ -16,12 +16,14 @@ import {
   X,
   Sparkles,
   Zap,
-  ExternalLink
+  ExternalLink,
+  Truck
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/formatters';
+import { ShippingOption, DeliveryAddress, CartItem } from '../../types';
 import { createOrderInSupabase } from '../../services/orderService';
 import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
 import { notifyTelegram } from '../../services/telegramNotificationService';
@@ -32,6 +34,7 @@ import { Toast } from '../common/Toast';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { CartUpsellCard } from '../cart/CartUpsellCard';
 import { PaymentFeedbackModal } from '../cart/PaymentFeedbackModal';
+import { ShippingCalculator } from '../cart/ShippingCalculator';
 import { applyThemeToDocument } from '../../utils/theme';
 
 export const CheckoutPage: React.FC = () => {
@@ -83,6 +86,60 @@ export const CheckoutPage: React.FC = () => {
   const [mpError, setMpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Detecção de produto físico no carrinho
+  const hasPhysicalProduct = items.some(
+    (i) => !i.product.is_digital && !(i.product as any).isDigital
+  );
+
+  // Estados de Frete & Entrega (para produtos físicos)
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [shippingAddress, setShippingAddress] = useState<DeliveryAddress | null>(null);
+  const [addressNumber, setAddressNumber] = useState('');
+  const [addressComplement, setAddressComplement] = useState('');
+  const [shippingFormError, setShippingFormError] = useState<string | null>(null);
+
+  // Formata o endereço completo para envio e persistência
+  const getFormattedAddress = () => {
+    if (!hasPhysicalProduct || !selectedShipping) return undefined;
+    if (selectedShipping.id === 'pickup') {
+      return `Retirada no Local - Balcão da Loja (${storeConfig?.shippingConfig?.pickupAddress || 'Endereço da Loja'})`;
+    }
+    if (!shippingAddress) return undefined;
+    const parts = [
+      `${shippingAddress.street}, ${addressNumber || 'S/N'}`,
+      addressComplement ? `Compl: ${addressComplement}` : '',
+      shippingAddress.neighborhood,
+      `${shippingAddress.city}/${shippingAddress.state}`,
+      `CEP: ${shippingAddress.cep}`,
+    ].filter(Boolean);
+    return parts.join(' - ');
+  };
+
+  // Monta a lista final de itens (adicionando item de frete se aplicável)
+  const getFinalOrderItems = () => {
+    const list = [...items];
+    if (hasPhysicalProduct && selectedShipping && selectedShipping.price > 0) {
+      list.push({
+        id: `ship_${selectedShipping.id}`,
+        product: {
+          id: `shipping_${selectedShipping.id}`,
+          name: `Frete (${selectedShipping.name})`,
+          price: selectedShipping.price,
+          category: 'Frete',
+          inStock: true,
+          is_digital: true,
+          images: [],
+        } as any,
+        quantity: 1,
+        customPrice: selectedShipping.price,
+      });
+    }
+    return list;
+  };
+
+  const shippingCost = hasPhysicalProduct && selectedShipping ? selectedShipping.price : 0;
+  const finalTotal = Math.max(0, totalPrice - discount + shippingCost);
+
   // Formata o WhatsApp no padrão brasileiro (XX) XXXXX-XXXX
   const formatPhoneNumber = (val: string) => {
     const clean = val.replace(/\D/g, '').slice(0, 11);
@@ -105,16 +162,27 @@ export const CheckoutPage: React.FC = () => {
     totalAmount: totalPrice,
   });
 
-  // Atualiza leadDataRef sincronizado com as mudanças de carrinho e formulário
+  // Limpa frete se não houver produto físico
+  useEffect(() => {
+    if (!hasPhysicalProduct) {
+      setSelectedShipping(null);
+      setShippingAddress(null);
+      setAddressNumber('');
+      setAddressComplement('');
+      setShippingFormError(null);
+    }
+  }, [hasPhysicalProduct]);
+
+  // Atualiza leadDataRef sincronizado com as mudanças de carrinho, frete e formulário
   useEffect(() => {
     leadDataRef.current = {
       name: customerInfo.name,
       email: customerInfo.email,
       phone: customerInfo.phone,
-      items,
-      totalAmount: Math.max(0, totalPrice - discount),
+      items: getFinalOrderItems(),
+      totalAmount: finalTotal,
     };
-  }, [customerInfo, items, totalPrice, discount]);
+  }, [customerInfo, items, finalTotal, selectedShipping]);
 
   // Função para despachar alerta de carrinho abandonado para a API
   const sendAbandonedNotification = (source: string) => {
@@ -138,6 +206,9 @@ export const CheckoutPage: React.FC = () => {
       customer_email: currentLead.email.trim(),
       items: currentLead.items,
       total_amount: currentLead.totalAmount,
+      shipping_cost: shippingCost,
+      shipping_method: selectedShipping?.name,
+      shipping_address: getFormattedAddress(),
       telegram_bot_token: storeConfig.telegramBotToken,
       telegram_chat_id: storeConfig.telegramChatId,
       isBeacon: true,
@@ -186,8 +257,6 @@ export const CheckoutPage: React.FC = () => {
     };
   }, []);
 
-  const finalTotal = Math.max(0, totalPrice - discount);
-
   const validateForm = () => {
     const errors: { 
       name?: string; 
@@ -210,6 +279,19 @@ export const CheckoutPage: React.FC = () => {
     } else if (!emailRegex.test(customerInfo.email.trim())) {
       errors.email = 'Informe um e-mail válido (ex: seuemail@exemplo.com).';
     }
+
+    // Validação de frete para produtos físicos
+    if (hasPhysicalProduct) {
+      if (!selectedShipping) {
+        setShippingFormError('Por favor, calcule seu CEP e selecione uma opção de frete ou retirada.');
+        return false;
+      }
+      if (selectedShipping.id !== 'pickup' && !addressNumber.trim()) {
+        setShippingFormError('Por favor, informe o número do endereço de entrega.');
+        return false;
+      }
+    }
+    setShippingFormError(null);
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -252,6 +334,8 @@ export const CheckoutPage: React.FC = () => {
     const cleanEmail = customerInfo.email.trim();
     const cleanPhone = customerInfo.phone.trim();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
+    const finalItems = getFinalOrderItems();
+    const formattedAddress = getFormattedAddress();
 
     try {
       // 1. Salvar dados na sessionStorage e localStorage para recuperação no retorno
@@ -264,8 +348,8 @@ export const CheckoutPage: React.FC = () => {
       sessionStorage.setItem('last_checkout_customer', JSON.stringify(leadData));
       localStorage.setItem('last_checkout_customer', JSON.stringify(leadData));
       sessionStorage.setItem('last_order_id', generatedOrderId);
-      sessionStorage.setItem('last_checkout_items', JSON.stringify(items));
-      localStorage.setItem('last_checkout_items', JSON.stringify(items));
+      sessionStorage.setItem('last_checkout_items', JSON.stringify(finalItems));
+      localStorage.setItem('last_checkout_items', JSON.stringify(finalItems));
       sessionStorage.setItem('last_checkout_total', String(finalTotal));
 
       // Marca como finalizado para não reenviar notificação de abandono ao mudar de aba
@@ -279,8 +363,11 @@ export const CheckoutPage: React.FC = () => {
         customerName: cleanName,
         customerEmail: cleanEmail,
         customerPhone: cleanPhone,
-        items: [...items],
+        items: finalItems,
         totalAmount: finalTotal,
+        shippingCost,
+        shippingMethod: selectedShipping?.name,
+        deliveryAddress: formattedAddress,
         paymentId: generatedOrderId,
         status: 'pending',
       });
@@ -292,8 +379,11 @@ export const CheckoutPage: React.FC = () => {
         customer_name: cleanName,
         customer_phone: cleanPhone,
         customer_email: cleanEmail,
-        items: [...items],
+        items: finalItems,
         total_amount: finalTotal,
+        shipping_cost: shippingCost,
+        shipping_method: selectedShipping?.name,
+        shipping_address: formattedAddress,
         telegram_bot_token: storeConfig.telegramBotToken,
         telegram_chat_id: storeConfig.telegramChatId,
       });
@@ -301,7 +391,7 @@ export const CheckoutPage: React.FC = () => {
       // 4. Criar preferência do Mercado Pago Checkout Pro
       console.log('[CheckoutPage] 🚀 Criando preferência Checkout Pro no Mercado Pago...');
       const pref = await createMercadoPagoPreference({
-        items,
+        items: finalItems,
         customerInfo: {
           name: cleanName,
           email: cleanEmail,
@@ -523,16 +613,105 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 {/* Box de Confiança e Segurança */}
-                <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 text-xs space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-emerald-950">
-                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Entrega Digital 100% Automática</span>
+                {hasPhysicalProduct ? (
+                  <div className="bg-sky-50/60 border border-sky-200/80 rounded-2xl p-4 text-xs space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-sky-950">
+                      <Truck className="w-4 h-4 text-sky-600 shrink-0" />
+                      <span>Envio Seguro e Rastreável</span>
+                    </div>
+                    <p className="text-[11px] text-sky-800 leading-relaxed">
+                      Seu produto físico será preparado com carinho e o código de rastreamento ou dados para retirada serão enviados diretamente no seu WhatsApp.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    Assim que o pagamento for aprovado pelo Mercado Pago, os arquivos serão liberados imediatamente na sua tela e uma cópia será enviada ao seu e-mail.
-                  </p>
-                </div>
+                ) : (
+                  <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 text-xs space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-emerald-950">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Entrega Digital 100% Automática</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      Assim que o pagamento for aprovado pelo Mercado Pago, os arquivos serão liberados imediatamente na sua tela e uma cópia será enviada ao seu e-mail.
+                    </p>
+                  </div>
+                )}
               </div>
+
+              {/* CARD DE FRETE & ENTREGA (APENAS PARA PRODUTOS FÍSICOS) */}
+              {hasPhysicalProduct && (
+                <div className="bg-white p-6 sm:p-7 rounded-3xl border border-sky-200/90 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-black flex items-center justify-center">
+                        <Truck className="w-3.5 h-3.5" />
+                      </span>
+                      <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                        Cálculo de Frete & Entrega
+                      </h3>
+                    </div>
+                    <span className="text-[10px] bg-sky-100 text-sky-800 font-extrabold px-2.5 py-0.5 rounded-full uppercase">
+                      Produto Físico
+                    </span>
+                  </div>
+
+                  <ShippingCalculator
+                    cartTotal={totalPrice}
+                    storeId={currentStore?.id}
+                    selectedOptionId={selectedShipping?.id}
+                    onShippingSelected={(option, addr) => {
+                      setSelectedShipping(option);
+                      setShippingAddress(addr);
+                      setShippingFormError(null);
+                    }}
+                  />
+
+                  {/* Campos de número e complemento caso seja entrega residencial */}
+                  {selectedShipping && selectedShipping.id !== 'pickup' && shippingAddress && (
+                    <div className="pt-2 border-t border-slate-100 space-y-3 animate-in fade-in">
+                      <div className="text-xs text-slate-600">
+                        <span className="font-semibold text-slate-800">Endereço de Entrega: </span>
+                        <span>{shippingAddress.street}, {shippingAddress.neighborhood} - {shippingAddress.city}/{shippingAddress.state}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-800 mb-1">
+                            Número <span className="text-rose-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={addressNumber}
+                            onChange={(e) => {
+                              setAddressNumber(e.target.value);
+                              if (shippingFormError) setShippingFormError(null);
+                            }}
+                            placeholder="Ex: 123 ou S/N"
+                            className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-sky-500 font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-800 mb-1">
+                            Complemento (opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={addressComplement}
+                            onChange={(e) => setAddressComplement(e.target.value)}
+                            placeholder="Apto, Bloco, etc."
+                            className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-sky-500 font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {shippingFormError && (
+                    <span className="text-xs text-rose-500 font-bold block">
+                      {shippingFormError}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Coluna Direita: Resumo do Pedido, Cupom e Mercado Pago Checkout Pro */}
@@ -593,6 +772,23 @@ export const CheckoutPage: React.FC = () => {
                     <div className="flex justify-between py-2 text-emerald-600 font-semibold text-xs">
                       <span>Desconto de Cupom</span>
                       <span>-{formatCurrency(discount)}</span>
+                    </div>
+                  )}
+
+                  {/* Frete para Produtos Físicos */}
+                  {hasPhysicalProduct && selectedShipping && (
+                    <div className="flex justify-between py-2 text-xs font-semibold text-slate-700">
+                      <span className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 text-sky-600" />
+                        Frete ({selectedShipping.name})
+                      </span>
+                      <span className="text-slate-900 font-bold">
+                        {selectedShipping.price === 0 ? (
+                          <span className="text-emerald-600 font-black uppercase text-[10px]">Grátis</span>
+                        ) : (
+                          formatCurrency(selectedShipping.price)
+                        )}
+                      </span>
                     </div>
                   )}
 

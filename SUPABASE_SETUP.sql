@@ -182,6 +182,11 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS gallery_images JSONB;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS bonuses JSONB;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS checkout_url TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS weight_kg NUMERIC(8,3);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS height_cm NUMERIC(8,2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS width_cm NUMERIC(8,2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS length_cm NUMERIC(8,2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS custom_shipping_price NUMERIC(10,2);
 
 
 -- 5. TABELA DE BANNERS (banners)
@@ -262,8 +267,15 @@ CREATE TABLE IF NOT EXISTS public.orders (
     payment_status TEXT DEFAULT 'pending',
     status TEXT DEFAULT 'novo',
     payment_id TEXT,
+    shipping_cost NUMERIC(10,2) DEFAULT 0.00,
+    shipping_method TEXT,
+    delivery_address TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(10,2) DEFAULT 0.00;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_method TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS delivery_address TEXT;
 
 -- 8.1 TABELA DE VISITAS & ANALYTICS EM TEMPO REAL (store_visits)
 CREATE TABLE IF NOT EXISTS public.store_visits (

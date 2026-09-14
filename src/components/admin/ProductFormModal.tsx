@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2, Truck } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -984,23 +984,29 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors shrink-0 ${
                   formData.is_digital 
                     ? 'bg-emerald-500 text-white shadow-xs' 
-                    : 'bg-slate-200 text-slate-500'
+                    : 'bg-sky-500 text-white shadow-xs'
                 }`}>
-                  <Download className="w-4 h-4" />
+                  {formData.is_digital ? <Download className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm font-bold text-slate-900">
-                      É um Produto Digital?
+                      Tipo: {formData.is_digital ? 'Arquivo Digital (Download Imediato)' : 'Produto Físico (Envio / Frete)'}
                     </span>
-                    {formData.is_digital && (
+                    {formData.is_digital ? (
                       <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wide">
                         Download Ativo
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 uppercase tracking-wide">
+                        Entrega Física
                       </span>
                     )}
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Marque esta opção se o produto for um arquivo ou molde digital para download (Canva, Google Drive, PDF, etc.).
+                    {formData.is_digital 
+                      ? 'Produto digital para download imediato (Canva, Google Drive, PDF, etc.). Não cobra frete.' 
+                      : 'Produto físico para envio/entrega. O checkout solicitará CEP/endereço e cobrará o frete.'}
                   </p>
                 </div>
               </label>
@@ -1022,7 +1028,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
 
           {/* Caixa Condicional: Link de Entrega Digital / Download (Google Drive, Canva, etc.) */}
-          {formData.is_digital && (
+          {formData.is_digital ? (
             <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-2">
                 <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
@@ -1043,6 +1049,23 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 />
                 <p className="text-[11px] text-emerald-800/80">
                   Este link será liberado na tela de pagamento aprovado e enviado por e-mail ao comprador.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="p-4 bg-sky-50/70 border border-sky-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-sky-950">
+                    <Truck className="w-3.5 h-3.5 text-sky-600" />
+                    Configuração de Envio Físico
+                  </span>
+                  <span className="text-[10px] font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
+                    Calcula Frete no Checkout
+                  </span>
+                </div>
+                <p className="text-[11px] text-sky-900/80">
+                  Ao comprar este produto, o checkout solicitará automaticamente o <strong>endereço completo e CEP</strong> do cliente e calculará as opções de frete configuradas na aba <strong>Frete & Envio</strong>.
                 </p>
               </div>
             </div>
