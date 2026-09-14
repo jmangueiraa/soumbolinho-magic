@@ -51,6 +51,15 @@ ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS is_matriz BOOLEAN DEFAULT FALSE;
 
+-- Garantir que colunas não causem erro de NOT NULL caso a tabela já existisse
+ALTER TABLE public.stores ALTER COLUMN admin_password DROP NOT NULL;
+ALTER TABLE public.stores ALTER COLUMN client_email DROP NOT NULL;
+ALTER TABLE public.stores ALTER COLUMN client_name DROP NOT NULL;
+ALTER TABLE public.stores ALTER COLUMN store_name DROP NOT NULL;
+ALTER TABLE public.stores ALTER COLUMN owner_email DROP NOT NULL;
+ALTER TABLE public.stores ALTER COLUMN owner_name DROP NOT NULL;
+ALTER TABLE public.stores ALTER COLUMN owner_phone DROP NOT NULL;
+
 -- Atualizar CHECK constraint para aceitar tanto 'active' quanto 'ativo', 'pending_dns', 'pendente'
 ALTER TABLE public.stores DROP CONSTRAINT IF EXISTS stores_domain_status_check;
 ALTER TABLE public.stores ADD CONSTRAINT stores_domain_status_check 
@@ -65,7 +74,8 @@ CREATE INDEX IF NOT EXISTS idx_stores_expires_at ON public.stores (expires_at);
 -- Inserir loja base padrão
 INSERT INTO public.stores (
     id, name, slug, custom_domain, domain_status, is_active,
-    subscription_status, expires_at, monthly_fee, owner_name, owner_email
+    subscription_status, expires_at, monthly_fee, owner_name, owner_email,
+    admin_password, store_name, client_name, client_email
 )
 VALUES (
     'store_default',
@@ -78,6 +88,10 @@ VALUES (
     '2099-12-31 23:59:59+00',
     0.00,
     'Super Admin',
+    'admin@editaveisdocanva.com.br',
+    '123456',
+    'Editáveis do Canva',
+    'Super Admin',
     'admin@editaveisdocanva.com.br'
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -86,6 +100,31 @@ ON CONFLICT (id) DO UPDATE SET
     slug = COALESCE(public.stores.slug, EXCLUDED.slug),
     subscription_status = 'active',
     expires_at = '2099-12-31 23:59:59+00';
+
+-- ==============================================================================
+-- 0. CONFIGURAÇÃO DE STORAGE (BUCKETS PÚBLICOS DE IMAGENS E MÍDIAS)
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public) 
+VALUES 
+    ('products', 'products', true),
+    ('site-assets', 'site-assets', true),
+    ('banners', 'banners', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Public Storage Select" ON storage.objects;
+    DROP POLICY IF EXISTS "Public Storage Insert" ON storage.objects;
+    DROP POLICY IF EXISTS "Public Storage Update" ON storage.objects;
+    DROP POLICY IF EXISTS "Public Storage Delete" ON storage.objects;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END $$;
+
+CREATE POLICY "Public Storage Select" ON storage.objects FOR SELECT USING (true);
+CREATE POLICY "Public Storage Insert" ON storage.objects FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Storage Update" ON storage.objects FOR UPDATE USING (true);
+CREATE POLICY "Public Storage Delete" ON storage.objects FOR DELETE USING (true);
 
 -- 2. TABELA DE USUÁRIOS VINCULADOS ÀS LOJAS (store_users)
 CREATE TABLE IF NOT EXISTS public.store_users (
