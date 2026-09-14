@@ -290,7 +290,7 @@ export const CheckoutModal: React.FC = () => {
       action_type: 'payment_approved',
       customer_name: customerInfo.name.trim(),
       customer_email: customerInfo.email.trim(),
-      customer_phone: customerInfo.phone.trim(),
+      customer_phone: (customerInfo.phone || '').trim(),
       items: [...items],
       total_amount: totalPrice,
       order_id: orderIdToUse,
@@ -333,7 +333,7 @@ export const CheckoutModal: React.FC = () => {
 
     const cleanName = customerInfo.name.trim();
     const cleanEmail = customerInfo.email.trim();
-    const cleanPhone = customerInfo.phone.trim();
+    const cleanPhone = (customerInfo.phone || '').trim();
     const cleanCpf = generateValidRandomCpf();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
 
@@ -412,7 +412,7 @@ export const CheckoutModal: React.FC = () => {
 
     const cleanName = customerInfo.name.trim();
     const cleanEmail = customerInfo.email.trim();
-    const cleanPhone = customerInfo.phone.trim();
+    const cleanPhone = (customerInfo.phone || '').trim();
     const cleanCpf = generateValidRandomCpf();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
 
@@ -485,7 +485,7 @@ export const CheckoutModal: React.FC = () => {
     const generatedOrderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const cleanName = customerInfo.name.trim();
     const cleanEmail = customerInfo.email.trim();
-    const cleanPhone = customerInfo.phone.trim();
+    const cleanPhone = (customerInfo.phone || '').trim();
     const targetStoreId = currentStore?.id || 'suamarcaaqui';
 
     try {

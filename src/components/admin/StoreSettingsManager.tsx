@@ -57,7 +57,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
   onNavigateToApiDomain, 
   onNavigateToLayout 
 }) => {
-  const { storeConfig, updateStoreConfig, resetToDefaults } = useStoreData();
+  const { storeConfig, updateStoreConfig, resetToDefaults, showNotification } = useStoreData();
   const { currentStore } = useTenant();
 
   const [formData, setFormData] = useState({
@@ -281,7 +281,9 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
       city: isBase ? 'Rio de Janeiro - RJ' : 'Brasil',
       workingHours: isBase ? 'Segunda a Sábado das 09h às 18h' : (currentStore?.working_hours || 'SEMPRE ABERTO'),
       minOrderValue: '0,00',
+      whatsappDefaultMessage: '',
       benefitCards: DEFAULT_BENEFIT_CARDS,
+      onlyLogo: false,
     });
   };
 

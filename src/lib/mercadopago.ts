@@ -85,7 +85,7 @@ export async function createMercadoPagoPreference(
         customer_email: customerInfo?.email || '',
         customer_phone: customerInfo?.phone || '',
         order_id: finalOrderId,
-        store_id: storeId || storeConfig?.storeId || '',
+        store_id: storeId || storeConfig?.store_id || '',
         back_url_origin: origin,
         access_token: accessToken || undefined,
       }),

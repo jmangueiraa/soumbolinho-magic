@@ -115,7 +115,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             setProduct(data);
           } else {
             setProduct(null);
-            showNotification('Produto não encontrado. Redirecionando para a loja...', 'warning');
+            showNotification('Produto não encontrado. Redirecionando para a loja...', 'info');
             navigate(storeSlug ? `/loja/${storeSlug}` : '/');
           }
         }
@@ -1203,7 +1203,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
           </span>
         </div>
         <p className="text-[11px] text-slate-400">
-          © {new Date().getFullYear()} {storeConfig.name || currentStore?.name || 'Editáveis do Canva'}. Todos os direitos reservados.
+          © {new Date().getFullYear()} {storeConfig.storeName || currentStore?.name || 'Editáveis do Canva'}. Todos os direitos reservados.
         </p>
       </footer>
     </div>

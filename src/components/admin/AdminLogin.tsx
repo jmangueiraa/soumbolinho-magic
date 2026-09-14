@@ -17,11 +17,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onBackToStore }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const primary = currentStore?.primary_color || storeConfig.primaryColor;
+    const primary = currentStore?.theme_settings?.primary_color || storeConfig.primaryColor;
     if (primary) {
       applyThemeToDocument(storeConfig.colorPalette, primary, storeConfig.themeLayout);
     }
-  }, [currentStore?.primary_color, storeConfig.primaryColor, storeConfig.colorPalette, storeConfig.themeLayout]);
+  }, [currentStore?.theme_settings?.primary_color, storeConfig.primaryColor, storeConfig.colorPalette, storeConfig.themeLayout]);
 
   if (isResolvingTenant || isStoreDataLoading || currentStore.id === '__resolving_tenant__') {
     return (

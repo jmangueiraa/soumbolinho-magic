@@ -26,6 +26,7 @@ export const INITIAL_TENANT_PENDING_STORE: Store = {
   id: '__resolving_tenant__',
   name: 'Carregando loja...',
   slug: '',
+  domain_status: 'unconfigured',
   theme_settings: {},
   is_active: true,
   subscription_status: 'active',

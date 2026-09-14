@@ -21,6 +21,7 @@ import { useTenant } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { DEFAULT_BENEFIT_CARDS } from '../../data/storeConfig';
+import type { BenefitCard } from '../../types';
 
 const renderBenefitIcon = (iconName: string) => {
   switch (iconName?.toLowerCase()) {

@@ -536,7 +536,7 @@ export const StoresList: React.FC<StoresListProps> = ({
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
                               <Gift className="w-3.5 h-3.5 text-purple-600" />
-                              🎁 Teste Grátis ({store.daysRemaining !== null ? (store.daysRemaining > 0 ? store.daysRemaining : 0) : 7}d restantes)
+                              🎁 Teste Grátis ({store.daysRemaining != null ? Math.max(store.daysRemaining, 0) : 7}d restantes)
                             </span>
                           )}
 

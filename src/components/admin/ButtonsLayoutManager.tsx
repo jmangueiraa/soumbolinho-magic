@@ -542,7 +542,7 @@ export const ButtonsLayoutManager: React.FC = () => {
                       </label>
                       <select
                         value={card.icon}
-                        onChange={(e) => handleCardChange(idx, 'icon', e.target.value)}
+                        onChange={(e) => handleBenefitChange(idx, 'icon', e.target.value)}
                         className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800 font-medium cursor-pointer"
                       >
                         {AVAILABLE_BENEFIT_ICONS.map((item) => (
@@ -561,7 +561,7 @@ export const ButtonsLayoutManager: React.FC = () => {
                         type="text"
                         required
                         value={card.title}
-                        onChange={(e) => handleCardChange(idx, 'title', e.target.value)}
+                        onChange={(e) => handleBenefitChange(idx, 'title', e.target.value)}
                         placeholder="Ex: Arquivos Digitais"
                         className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
                       />
@@ -574,7 +574,7 @@ export const ButtonsLayoutManager: React.FC = () => {
                       <input
                         type="text"
                         value={card.description}
-                        onChange={(e) => handleCardChange(idx, 'description', e.target.value)}
+                        onChange={(e) => handleBenefitChange(idx, 'description', e.target.value)}
                         placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
                         className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
                       />

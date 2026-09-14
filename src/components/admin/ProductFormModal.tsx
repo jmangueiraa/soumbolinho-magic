@@ -544,6 +544,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: '',
         detailed_description: '',
         gallery_images: '',
+        bonuses: '',
         checkout_url: '',
         guarantee_days: 7,
         is_digital: false,
