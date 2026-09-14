@@ -106,7 +106,6 @@ export async function fetchAllCategories(storeId?: string): Promise<{ data: Cate
         return { data: defaultCategories, error: null };
       }
 
-      }
     }
 
     console.log(`[categoryService] ✅ ${mapped.length} categorias carregadas diretamente do Supabase para store "${targetStoreId}".`);

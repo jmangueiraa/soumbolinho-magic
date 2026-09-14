@@ -11,6 +11,7 @@
     "dev:status": "pm2 status",
     "dev:logs": "pm2 logs soumbolinho-dev",
     "build": "vite build",
+    "build:dev": "vite build --mode development",
     "preview": "vite preview"
   },
   "dependencies": {

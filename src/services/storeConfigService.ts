@@ -542,5 +542,4 @@ export async function saveStoreConfigInSupabase(
     console.error('[storeConfigService] ❌ Exceção ao salvar configurações:', err);
     return { success: false, error: err.message };
   }
-  }
 }
