@@ -53,8 +53,8 @@ export function checkIsTenantRoute(): boolean {
     hostname.endsWith('.local') ||
     hostname.endsWith('.internal');
   const isBaseDomain = 
-    hostname === 'editaveisdocanva.com.br' || 
-    hostname === 'www.editaveisdocanva.com.br' ||
+    hostname === 'suamarcaaqui.com.br' || 
+    hostname === 'www.suamarcaaqui.com.br' ||
     hostname.includes('soumbolinho');
 
   const isMatrizSlug = storeSlugParam === 'suamarcaaqui';
@@ -212,8 +212,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setDetectedHost(hostname);
 
       const isBaseDomain = 
-        hostname === 'editaveisdocanva.com.br' || 
-        hostname === 'www.editaveisdocanva.com.br' ||
+        hostname === 'suamarcaaqui.com.br' || 
+        hostname === 'www.suamarcaaqui.com.br' ||
         hostname.includes('soumbolinho');
       setIsMasterHost(isBaseDomain || isLocal);
 
@@ -353,13 +353,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      // 3. Raiz da plataforma / Matriz (editaveisdocanva.com.br ou acesso sem slug de loja)
+      // 3. Raiz da plataforma / Matriz (acesso à raiz sem slug de loja)
       setTenantNotFound(false);
       // Prioridade 1: Busca loja marcada como matriz no Supabase
       const { data: matrizFromDb } = await supabase
         .from('stores')
         .select('*')
-        .or('is_matriz.eq.true,slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,id.eq.matriz,slug.eq.matriz,custom_domain.ilike.editaveisdocanva.com.br')
+        .or('is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default')
         .limit(1)
         .maybeSingle();
 

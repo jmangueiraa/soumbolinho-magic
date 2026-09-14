@@ -186,6 +186,11 @@ export interface StoreConfig {
   mpAccessToken?: string;
   telegramBotToken?: string;
   telegramChatId?: string;
+  whatsappApiEnabled?: boolean;
+  whatsappApiProvider?: 'evolution' | 'zapi' | 'callmebot' | 'meta' | 'webhook';
+  whatsappApiUrl?: string;
+  whatsappApiToken?: string;
+  whatsappNotifyPhone?: string;
   shippingConfig?: StoreShippingConfig;
   benefitCards?: BenefitCard[];
   primaryColor?: string;
@@ -240,6 +245,11 @@ export interface Store {
   mp_access_token?: string | null;
   telegram_bot_token?: string | null;
   telegram_chat_id?: string | null;
+  whatsapp_api_enabled?: boolean | null;
+  whatsapp_api_provider?: 'evolution' | 'zapi' | 'callmebot' | 'meta' | 'webhook' | null;
+  whatsapp_api_url?: string | null;
+  whatsapp_api_token?: string | null;
+  whatsapp_notify_phone?: string | null;
   created_at?: string;
   updated_at?: string;
 }

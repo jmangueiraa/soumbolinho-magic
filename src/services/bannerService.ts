@@ -46,7 +46,7 @@ export async function fetchAllBanners(storeId?: string): Promise<{ data: BannerS
     if (isBaseStore) {
       query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
     } else if (targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz' || targetStoreId === 'editaveisdocanva') {
-      query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.matriz');
+      query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.matriz,store_id.eq.editaveisdocanva');
     } else {
       query = query.eq('store_id', targetStoreId);
     }

@@ -7,6 +7,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { updateOrderStatusInSupabase } from '../../services/orderService';
 import { notifyTelegram } from '../../services/telegramNotificationService';
+import { notifyWhatsApp } from '../../services/whatsappNotificationService';
 
 export const PaymentFeedbackModal: React.FC = () => {
   const { items, totalPrice, clearCart, openCheckout } = useCart();
@@ -92,8 +93,8 @@ export const PaymentFeedbackModal: React.FC = () => {
           updateOrderStatusInSupabase(finalOrderId, 'approved');
         }
 
-        // 2. Disparar notificação de Pagamento Aprovado no Telegram
-        console.log('[PaymentFeedbackModal] 🚨 Notificando aprovação no Telegram...');
+        // 2. Disparar notificação de Pagamento Aprovado no Telegram e WhatsApp
+        console.log('[PaymentFeedbackModal] 🚨 Notificando aprovação no Telegram e WhatsApp...');
         notifyTelegram({
           action_type: 'payment_approved',
           customer_name: customerName,
@@ -107,6 +108,24 @@ export const PaymentFeedbackModal: React.FC = () => {
           telegram_bot_token: storeConfig.telegramBotToken,
           telegram_chat_id: storeConfig.telegramChatId,
         });
+
+        notifyWhatsApp({
+          action_type: 'payment_approved',
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          items: activeItems,
+          total_amount: activeTotal,
+          order_id: finalOrderId,
+          payment_id: payment_id || finalOrderId,
+          payment_method: 'Mercado Pago Checkout Pro',
+          store_name: storeConfig.name,
+          store_id: storeConfig.id || 'suamarcaaqui',
+          whatsapp_api_provider: storeConfig.whatsappApiProvider,
+          whatsapp_api_url: storeConfig.whatsappApiUrl,
+          whatsapp_api_token: storeConfig.whatsappApiToken,
+          whatsapp_notify_phone: storeConfig.whatsappNotifyPhone,
+        }).catch(e => console.warn('Aviso ao notificar WhatsApp:', e));
 
         // 3. Disparar envio do e-mail de confirmação via Resend (/api/send-delivery-email)
         sendOrderConfirmationEmail({
@@ -129,7 +148,7 @@ export const PaymentFeedbackModal: React.FC = () => {
           updateOrderStatusInSupabase(finalOrderId, 'cancelled');
         }
 
-        // Notificar reprovação/cancelamento no Telegram
+        // Notificar reprovação/cancelamento no Telegram e WhatsApp
         notifyTelegram({
           action_type: 'payment_rejected',
           customer_name: customerName,
@@ -143,6 +162,23 @@ export const PaymentFeedbackModal: React.FC = () => {
           telegram_bot_token: storeConfig.telegramBotToken,
           telegram_chat_id: storeConfig.telegramChatId,
         });
+
+        notifyWhatsApp({
+          action_type: 'payment_rejected',
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          items: activeItems,
+          total_amount: activeTotal,
+          order_id: finalOrderId,
+          payment_method: 'Mercado Pago Checkout Pro',
+          store_name: storeConfig.name,
+          store_id: storeConfig.id || 'suamarcaaqui',
+          whatsapp_api_provider: storeConfig.whatsappApiProvider,
+          whatsapp_api_url: storeConfig.whatsappApiUrl,
+          whatsapp_api_token: storeConfig.whatsappApiToken,
+          whatsapp_notify_phone: storeConfig.whatsappNotifyPhone,
+        }).catch(e => console.warn('Aviso ao notificar WhatsApp:', e));
       }
 
       if (payment_id) {

@@ -257,7 +257,7 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       const { data: mRow } = await supabase
         .from('stores')
         .select('*')
-        .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,slug.eq.matriz,slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.editaveisdocanva.com.br')
+        .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,is_matriz.eq.true')
         .limit(1)
         .maybeSingle();
       if (mRow) matrizStoreRow = mRow;
@@ -415,10 +415,12 @@ export async function saveStoreConfigInSupabase(
   try {
     console.log('[storeConfigService] 💾 Executando salvamento das configurações no Supabase:', payload);
 
-    // 1. Sincroniza SEMPRE na tabela stores (onde as credenciais mp_access_token, telegram_bot_token, telegram_chat_id e theme_settings residem com segurança)
-    const isMatrizOrBase = targetStoreId === 'store_default' || targetStoreId === 'suamarcaaqui' || targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva';
+    const isMatrizOrBase = targetStoreId === 'store_default' || targetStoreId === 'suamarcaaqui';
+    const isEditaveis = targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'editaveisdocanva';
     const storeOrFilter = isMatrizOrBase
-      ? 'slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,id.eq.matriz,slug.eq.matriz,slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.editaveisdocanva.com.br'
+      ? 'slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default'
+      : isEditaveis
+      ? 'slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%'
       : `id.eq.${targetStoreId},slug.eq.${targetStoreId}`;
 
     let storeUpdatedSuccessfully = false;

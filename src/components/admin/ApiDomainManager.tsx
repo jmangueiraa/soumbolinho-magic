@@ -16,13 +16,15 @@ import {
   Link2,
   Truck,
   MapPin,
-  Sparkles
+  Sparkles,
+  MessageCircle
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { updateStoreDomain } from '../../services/storeManagementService';
 import { fetchShippingConfig, saveShippingConfig, lookupCep } from '../../services/shippingService';
+import { testWhatsAppNotification } from '../../services/whatsappNotificationService';
 
 export const ApiDomainManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
@@ -156,6 +158,39 @@ export const ApiDomainManager: React.FC = () => {
   const [testTelegramLoading, setTestTelegramLoading] = useState(false);
   const [testTelegramStatus, setTestTelegramStatus] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Estados de WhatsApp API
+  const [notificationChannel, setNotificationChannel] = useState<'whatsapp' | 'telegram'>('whatsapp');
+  const [whatsappApiProvider, setWhatsappApiProvider] = useState<'evolution' | 'zapi' | 'callmebot' | 'meta' | 'webhook'>('evolution');
+  const [whatsappApiUrl, setWhatsappApiUrl] = useState('');
+  const [whatsappApiToken, setWhatsappApiToken] = useState('');
+  const [whatsappNotifyPhone, setWhatsappNotifyPhone] = useState('');
+  const [showWaToken, setShowWaToken] = useState(false);
+  const [testWaLoading, setTestWaLoading] = useState(false);
+  const [testWaStatus, setTestWaStatus] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestWhatsApp = async () => {
+    setTestWaLoading(true);
+    setTestWaStatus(null);
+    try {
+      const res = await testWhatsAppNotification({
+        storeId: currentStore?.id,
+        storeName: currentStore?.name || storeConfig?.storeName || 'Minha Loja',
+        provider: whatsappApiProvider,
+        apiUrl: whatsappApiUrl,
+        apiToken: whatsappApiToken,
+        notifyPhone: whatsappNotifyPhone,
+      });
+      setTestWaStatus(res);
+    } catch (err: any) {
+      setTestWaStatus({
+        success: false,
+        message: err.message || 'Erro inesperado ao testar notificação via WhatsApp.',
+      });
+    } finally {
+      setTestWaLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (currentStore?.custom_domain) {
       setCustomDomainInput(currentStore.custom_domain);
@@ -168,17 +203,33 @@ export const ApiDomainManager: React.FC = () => {
     const tg = storeConfig.telegramBotToken || currentStore?.telegram_bot_token || currentStore?.theme_settings?.telegram_bot_token || (storeKey ? localStorage.getItem(`store_${storeKey}_telegram_bot_token`) : null) || localStorage.getItem('encantando_festa_telegram_bot_token') || '';
     const chat = storeConfig.telegramChatId || currentStore?.telegram_chat_id || currentStore?.theme_settings?.telegram_chat_id || (storeKey ? localStorage.getItem(`store_${storeKey}_telegram_chat_id`) : null) || localStorage.getItem('encantando_festa_telegram_chat_id') || '';
 
+    const waProv = currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_api_provider`) : null) || 'evolution';
+    const waUrl = currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_api_url`) : null) || '';
+    const waTok = currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_api_token`) : null) || '';
+    const waPhone = currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || currentStore?.whatsapp_number || storeConfig?.whatsappNumber || (storeKey ? localStorage.getItem(`store_${storeKey}_whatsapp_notify_phone`) : null) || '';
+
     if (mp) setMpAccessToken(mp);
     if (tg) setTelegramBotToken(tg);
     if (chat) setTelegramChatId(chat);
+
+    if (waProv) setWhatsappApiProvider(waProv as any);
+    if (waUrl) setWhatsappApiUrl(waUrl);
+    if (waTok) setWhatsappApiToken(waTok);
+    if (waPhone) setWhatsappNotifyPhone(waPhone);
   }, [
     storeConfig.mpAccessToken,
     storeConfig.telegramBotToken,
     storeConfig.telegramChatId,
+    storeConfig.whatsappNumber,
     currentStore?.id,
     currentStore?.mp_access_token,
     currentStore?.telegram_bot_token,
     currentStore?.telegram_chat_id,
+    currentStore?.whatsapp_api_provider,
+    currentStore?.whatsapp_api_url,
+    currentStore?.whatsapp_api_token,
+    currentStore?.whatsapp_notify_phone,
+    currentStore?.whatsapp_number,
     currentStore?.theme_settings,
   ]);
 
@@ -254,6 +305,10 @@ export const ApiDomainManager: React.FC = () => {
     const cleanTgToken = telegramBotToken.trim();
     const cleanChatId = telegramChatId.trim();
     const cleanMeToken = melhorEnvioToken.trim();
+    const cleanWaProvider = whatsappApiProvider;
+    const cleanWaUrl = whatsappApiUrl.trim();
+    const cleanWaToken = whatsappApiToken.trim();
+    const cleanWaPhone = whatsappNotifyPhone.trim();
 
     // Salva configuração do Melhor Envio via shippingService
     try {
@@ -296,6 +351,16 @@ export const ApiDomainManager: React.FC = () => {
         localStorage.removeItem('encantando_festa_telegram_chat_id');
         localStorage.removeItem(`store_${storeKey}_telegram_chat_id`);
       }
+
+      // Salva WhatsApp API no localStorage
+      localStorage.setItem(`store_${storeKey}_whatsapp_api_provider`, cleanWaProvider);
+      localStorage.setItem(`store_${storeKey}_whatsapp_api_url`, cleanWaUrl);
+      localStorage.setItem(`store_${storeKey}_whatsapp_api_token`, cleanWaToken);
+      localStorage.setItem(`store_${storeKey}_whatsapp_notify_phone`, cleanWaPhone);
+      localStorage.setItem('encantando_festa_whatsapp_api_provider', cleanWaProvider);
+      localStorage.setItem('encantando_festa_whatsapp_api_url', cleanWaUrl);
+      localStorage.setItem('encantando_festa_whatsapp_api_token', cleanWaToken);
+      localStorage.setItem('encantando_festa_whatsapp_notify_phone', cleanWaPhone);
     } catch (e) {
       console.warn('[ApiDomainManager] LocalStorage indisponível:', e);
     }
@@ -308,11 +373,19 @@ export const ApiDomainManager: React.FC = () => {
           mp_access_token: cleanMpToken || null,
           telegram_bot_token: cleanTgToken || null,
           telegram_chat_id: cleanChatId || null,
+          whatsapp_api_provider: cleanWaProvider || null,
+          whatsapp_api_url: cleanWaUrl || null,
+          whatsapp_api_token: cleanWaToken || null,
+          whatsapp_notify_phone: cleanWaPhone || null,
           theme_settings: {
             ...(currentStore.theme_settings || {}),
             mp_access_token: cleanMpToken || null,
             telegram_bot_token: cleanTgToken || null,
             telegram_chat_id: cleanChatId || null,
+            whatsapp_api_provider: cleanWaProvider || null,
+            whatsapp_api_url: cleanWaUrl || null,
+            whatsapp_api_token: cleanWaToken || null,
+            whatsapp_notify_phone: cleanWaPhone || null,
             shipping_config: {
               ...(currentStore.theme_settings?.shipping_config || {}),
               originCep: originCep.trim() || '01001-000',
@@ -377,6 +450,10 @@ export const ApiDomainManager: React.FC = () => {
       mpAccessToken: cleanMpToken,
       telegramBotToken: cleanTgToken,
       telegramChatId: cleanChatId,
+      whatsappApiProvider: cleanWaProvider,
+      whatsappApiUrl: cleanWaUrl,
+      whatsappApiToken: cleanWaToken,
+      whatsappNotifyPhone: cleanWaPhone,
     });
 
     // 4. Atualiza o TenantContext para que currentStore em memória reflita as alterações
@@ -390,6 +467,10 @@ export const ApiDomainManager: React.FC = () => {
     setMpAccessToken(cleanMpToken);
     setTelegramBotToken(cleanTgToken);
     setTelegramChatId(cleanChatId);
+    setWhatsappApiProvider(cleanWaProvider);
+    setWhatsappApiUrl(cleanWaUrl);
+    setWhatsappApiToken(cleanWaToken);
+    setWhatsappNotifyPhone(cleanWaPhone);
 
     setIsSavingApis(false);
     setApiSaveSuccess(true);
@@ -696,112 +777,372 @@ export const ApiDomainManager: React.FC = () => {
           </div>
         </div>
 
-        {/* 2.2 Notificações Telegram Bot */}
-        <div className="p-4 sm:p-5 bg-sky-50/50 rounded-3xl border border-sky-200 space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
-              <div className="w-6 h-6 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-xs">
-                <Send className="w-3.5 h-3.5" />
+        {/* 2.2 Notificações Automáticas: WhatsApp API & Telegram */}
+        <div className="p-4 sm:p-6 bg-slate-50/80 rounded-3xl border border-slate-200 space-y-5">
+          {/* Seletor de Canal de Notificação */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-200/80">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Canal de Alertas:</span>
+              <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setNotificationChannel('whatsapp')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    notificationChannel === 'whatsapp'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-emerald-700 hover:bg-white/60'
+                  }`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>WhatsApp API</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNotificationChannel('telegram')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    notificationChannel === 'telegram'
+                      ? 'bg-[#229ED9] text-white shadow-xs'
+                      : 'text-slate-600 hover:text-[#229ED9] hover:bg-white/60'
+                  }`}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Telegram Bot</span>
+                </button>
               </div>
-              <span>Notificações Automáticas no Telegram Bot</span>
             </div>
 
-            {telegramBotToken && telegramChatId ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-                <Check className="w-3 h-3" />
-                Telegram Configurado
-              </span>
+            {notificationChannel === 'whatsapp' ? (
+              whatsappNotifyPhone && (whatsappApiProvider === 'callmebot' ? whatsappApiToken : whatsappApiUrl) ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                  <Check className="w-3 h-3" />
+                  WhatsApp Configurado
+                </span>
+              ) : (
+                <span className="text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold">
+                  Recomendado
+                </span>
+              )
             ) : (
-              <span className="text-[11px] bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full font-semibold">
-                Opcional
-              </span>
+              telegramBotToken && telegramChatId ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-100 border border-sky-300 px-2.5 py-0.5 rounded-full">
+                  <Check className="w-3 h-3" />
+                  Telegram Configurado
+                </span>
+              ) : (
+                <span className="text-[11px] bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full font-semibold">
+                  Opcional
+                </span>
+              )
             )}
           </div>
 
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Receba notificações imediatas no seu celular sempre que um cliente realizar um pedido, aprovar um pagamento ou abandonar um carrinho na sua loja.
-          </p>
+          {/* PAINEL WHATSAPP API */}
+          {notificationChannel === 'whatsapp' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5 text-emerald-950 font-bold text-sm">
+                <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <MessageCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Notificações Automáticas no WhatsApp (WhatsApp API)</h4>
+                  <p className="text-[11px] text-slate-500 font-normal">
+                    Receba notificações imediatas no seu próprio WhatsApp a cada novo pedido, pagamento aprovado ou carrinho abandonado.
+                  </p>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Token do Bot (Telegram)
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type={showTgToken ? "text" : "password"}
-                  value={telegramBotToken}
-                  onChange={(e) => setTelegramBotToken(e.target.value)}
-                  placeholder="Ex: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
-                  className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800 pr-10"
-                />
+              {/* Seletor de Provedor de WhatsApp */}
+              <div className="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-200/70 space-y-2">
+                <label className="block text-xs font-bold text-emerald-950">
+                  Provedor / Tipo de Integração WhatsApp:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappApiProvider('evolution')}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      whatsappApiProvider === 'evolution'
+                        ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <span className="font-bold block text-slate-900">Evolution API / Z-API</span>
+                    <span className="text-[10px] text-slate-500">Gateway Próprio / Instância (Recomendado)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappApiProvider('callmebot')}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      whatsappApiProvider === 'callmebot'
+                        ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <span className="font-bold block text-slate-900">CallMeBot (Grátis)</span>
+                    <span className="text-[10px] text-slate-500">Sem servidor, ativação em 15 segundos</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappApiProvider('webhook')}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      whatsappApiProvider === 'webhook'
+                        ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
+                    }`}
+                  >
+                    <span className="font-bold block text-slate-900">Webhook / n8n / Zapier</span>
+                    <span className="text-[10px] text-slate-500">Disparo via URL POST customizada</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Formulário de Configuração WhatsApp */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Campo: Número de WhatsApp do Lojista */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Seu Número de WhatsApp (com DDD) *
+                  </label>
+                  <input
+                    type="text"
+                    value={whatsappNotifyPhone}
+                    onChange={(e) => setWhatsappNotifyPhone(e.target.value)}
+                    placeholder="Ex: (11) 99999-9999 ou 5511999999999"
+                    className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Número onde você receberá as notificações de vendas e clientes.
+                  </span>
+                </div>
+
+                {/* Campos dependendo do provedor */}
+                {whatsappApiProvider !== 'callmebot' ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      URL da API / Endpoint (POST) *
+                    </label>
+                    <input
+                      type="text"
+                      value={whatsappApiUrl}
+                      onChange={(e) => setWhatsappApiUrl(e.target.value)}
+                      placeholder="Ex: https://api.z-api.io/instances/.../send-text"
+                      className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Compatível com Evolution API, Z-API, WPPConnect, Baileys ou Webhook.
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      API Key do CallMeBot *
+                    </label>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showWaToken ? "text" : "password"}
+                        value={whatsappApiToken}
+                        onChange={(e) => setWhatsappApiToken(e.target.value)}
+                        placeholder="Ex: 123456"
+                        className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowWaToken(!showWaToken)}
+                        className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title={showWaToken ? "Ocultar" : "Visualizar"}
+                      >
+                        {showWaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Chave gerada pelo bot gratuito do CallMeBot.
+                    </span>
+                  </div>
+                )}
+
+                {whatsappApiProvider !== 'callmebot' && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Token de Autenticação / API Key (Opcional ou Conforme sua API)
+                    </label>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showWaToken ? "text" : "password"}
+                        value={whatsappApiToken}
+                        onChange={(e) => setWhatsappApiToken(e.target.value)}
+                        placeholder="Ex: B610C739281... ou Bearer Token"
+                        className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowWaToken(!showWaToken)}
+                        className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title={showWaToken ? "Ocultar" : "Visualizar"}
+                      >
+                        {showWaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Enviado automaticamente nos headers <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px]">apikey</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px]">Client-Token</code> e <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px]">Authorization: Bearer</code>.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Dica do CallMeBot se selecionado */}
+              {whatsappApiProvider === 'callmebot' && (
+                <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-emerald-800">
+                    💡 Como obter sua API Key Grátis do CallMeBot em 15 segundos:
+                  </span>
+                  <ol className="list-decimal list-inside text-[11px] text-emerald-900/90 space-y-0.5 pl-1">
+                    <li>Envie uma mensagem para o número internacional do CallMeBot: <a href="https://wa.me/34911980460?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener noreferrer" className="underline font-bold text-emerald-700">+34 911 98 04 60</a></li>
+                    <li>Envie exatamente o texto: <code className="bg-emerald-100 px-1 py-0.5 rounded font-mono font-bold">I allow callmebot to send me messages</code></li>
+                    <li>O bot responderá imediatamente com sua <strong>API Key</strong> de 6 dígitos. Cole-a no campo acima e teste!</li>
+                  </ol>
+                </div>
+              )}
+
+              {/* Feedback de Teste WhatsApp */}
+              {testWaStatus && (
+                <div className={`p-3 rounded-2xl border text-xs flex items-center gap-2 animate-in fade-in ${
+                  testWaStatus.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}>
+                  {testWaStatus.success ? (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span className="font-medium">{testWaStatus.message}</span>
+                </div>
+              )}
+
+              {/* Botão de Teste WhatsApp */}
+              <div className="pt-1 flex items-center justify-end">
                 <button
                   type="button"
-                  onClick={() => setShowTgToken(!showTgToken)}
-                  className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  onClick={handleTestWhatsApp}
+                  disabled={testWaLoading}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-xs active:scale-98 disabled:opacity-50"
                 >
-                  {showTgToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {testWaLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enviando teste no WhatsApp...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle className="w-4 h-4 text-emerald-100" />
+                      <span>Testar Notificação no WhatsApp</span>
+                    </>
+                  )}
                 </button>
               </div>
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Crie seu bot falando com o <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@BotFather</a> no Telegram.
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Chat ID (Seu ID de Usuário / Grupo)
-              </label>
-              <input
-                type="text"
-                value={telegramChatId}
-                onChange={(e) => setTelegramChatId(e.target.value)}
-                placeholder="Ex: 123456789 ou -100123456789"
-                className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">
-                Descubra seu Chat ID enviando mensagem para <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@userinfobot</a>.
-              </span>
-            </div>
-          </div>
-
-          {/* Feedback de Teste */}
-          {testTelegramStatus && (
-            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in ${
-              testTelegramStatus.success
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-rose-50 border-rose-200 text-rose-800'
-            }`}>
-              {testTelegramStatus.success ? (
-                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              <span className="font-medium">{testTelegramStatus.message}</span>
             </div>
           )}
 
-          {/* Botão de Teste */}
-          <div className="pt-1 flex items-center justify-end">
-            <button
-              type="button"
-              onClick={handleTestTelegram}
-              disabled={testTelegramLoading}
-              className="px-4 py-2 bg-white hover:bg-[#229ED9]/10 text-[#229ED9] border border-[#229ED9] text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
-            >
-              {testTelegramLoading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Enviando teste...</span>
-                </>
-              ) : (
-                <>
+          {/* PAINEL TELEGRAM BOT */}
+          {notificationChannel === 'telegram' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
+                <div className="w-6 h-6 rounded-full bg-[#229ED9] text-white flex items-center justify-center shadow-xs">
                   <Send className="w-3.5 h-3.5" />
-                  <span>Testar Notificação no Telegram</span>
-                </>
+                </div>
+                <span>Notificações Automáticas no Telegram Bot</span>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Receba notificações imediatas no seu celular sempre que um cliente realizar um pedido, aprovar um pagamento ou abandonar um carrinho na sua loja.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Token do Bot (Telegram)
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showTgToken ? "text" : "password"}
+                      value={telegramBotToken}
+                      onChange={(e) => setTelegramBotToken(e.target.value)}
+                      placeholder="Ex: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
+                      className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTgToken(!showTgToken)}
+                      className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      title={showTgToken ? "Ocultar Token" : "Visualizar Token"}
+                    >
+                      {showTgToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Crie seu bot falando com o <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@BotFather</a> no Telegram.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    Chat ID (Seu ID de Usuário / Grupo)
+                  </label>
+                  <input
+                    type="text"
+                    value={telegramChatId}
+                    onChange={(e) => setTelegramChatId(e.target.value)}
+                    placeholder="Ex: 123456789 ou -100123456789"
+                    className="w-full text-xs px-3.5 py-2.5 bg-white border border-sky-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#229ED9] font-mono text-slate-800"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Descubra seu Chat ID enviando mensagem para <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-[#229ED9] underline font-semibold">@userinfobot</a>.
+                  </span>
+                </div>
+              </div>
+
+              {/* Feedback de Teste Telegram */}
+              {testTelegramStatus && (
+                <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in ${
+                  testTelegramStatus.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}>
+                  {testTelegramStatus.success ? (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span className="font-medium">{testTelegramStatus.message}</span>
+                </div>
               )}
-            </button>
-          </div>
+
+              {/* Botão de Teste Telegram */}
+              <div className="pt-1 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={testTelegramLoading}
+                  className="px-4 py-2 bg-white hover:bg-[#229ED9]/10 text-[#229ED9] border border-[#229ED9] text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {testTelegramLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enviando teste...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Testar Notificação no Telegram</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 2.3 Integração Melhor Envio (Cotação 100% via API) */}

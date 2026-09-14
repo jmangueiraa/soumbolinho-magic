@@ -62,6 +62,37 @@ export const MATRIZ_DEFAULT_STORE_DATA: Partial<Store> = {
   }
 };
 
+export const EDITAVEIS_MONTHLY_STORE_DATA: Partial<Store> = {
+  id: 'store_editaveisdocanva',
+  name: 'Editáveis do Canva',
+  store_name: 'Editáveis do Canva',
+  slug: 'editaveisdocanva',
+  custom_domain: 'www.editaveisdocanva.com.br',
+  domain_status: 'active',
+  is_active: true,
+  is_matriz: false,
+  subscription_status: 'active',
+  expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  monthly_fee: 50.00,
+  owner_name: 'Editáveis do Canva',
+  client_name: 'Editáveis do Canva',
+  owner_email: 'contato@editaveisdocanva.com.br',
+  client_email: 'contato@editaveisdocanva.com.br',
+  admin_password: 'admin',
+  whatsapp_number: '5521974975884',
+  whatsapp_display: '(21) 97497-5884',
+  instagram: 'editaveisdocanva',
+  slogan: 'Templates e Artes Editáveis no Canva',
+  address: 'Rio de Janeiro, RJ',
+  working_hours: 'Segunda a Sábado, 09h às 19h',
+  theme_settings: {
+    primary_color: '#00c4cc',
+    secondary_color: '#7d2ae8',
+    color_palette: 'purple_elegant',
+    theme_layout: 'classic'
+  }
+};
+
 /**
  * Garante que a loja modelo oficial SUAMARCAAQUI esteja cadastrada e presente na tabela stores do Supabase
  */
@@ -202,11 +233,120 @@ export async function setStoreAsMatriz(storeId: string): Promise<{ success: bool
 }
 
 /**
- * 1. Lista todas as lojas cadastradas no SaaS para o Painel Master (incluindo a Loja Matriz Oficial SUAMARCAAQUI)
+ * Garante que a loja "Editáveis do Canva" (www.editaveisdocanva.com.br) esteja cadastrada
+ * e configurada no Supabase como uma Loja Mensal (Assinatura Ativa de R$ 50,00/mês).
+ */
+export async function ensureEditaveisMonthlyStoreExists(): Promise<Store> {
+  try {
+    const now = Date.now();
+    const thirtyDaysFromNow = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    // 1. Procura se já existe por slug, id ou custom_domain
+    const { data: existing } = await supabase
+      .from('stores')
+      .select('*')
+      .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%')
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      // Força a desvinculação da matriz e garante status de Loja Mensal ativa
+      const targetExpiresAt = (existing.expires_at && new Date(existing.expires_at).getFullYear() <= 2030 && new Date(existing.expires_at).getTime() > now)
+        ? existing.expires_at
+        : thirtyDaysFromNow;
+
+      await supabase
+        .from('stores')
+        .update({
+          is_matriz: false,
+          subscription_status: 'active',
+          monthly_fee: 50.00,
+          custom_domain: 'www.editaveisdocanva.com.br',
+          domain_status: 'active',
+          expires_at: targetExpiresAt,
+          name: 'Editáveis do Canva',
+          store_name: 'Editáveis do Canva',
+          slug: 'editaveisdocanva',
+          owner_name: (existing.owner_name && existing.owner_name !== 'Super Admin') ? existing.owner_name : 'Editáveis do Canva',
+          client_name: (existing.client_name && existing.client_name !== 'Super Admin') ? existing.client_name : 'Editáveis do Canva',
+          owner_email: (existing.owner_email && existing.owner_email !== 'admin@suamarcaaqui.com.br') ? existing.owner_email : 'contato@editaveisdocanva.com.br',
+          client_email: (existing.client_email && existing.client_email !== 'admin@suamarcaaqui.com.br') ? existing.client_email : 'contato@editaveisdocanva.com.br',
+          admin_password: existing.admin_password || 'admin',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+
+      return {
+        ...existing,
+        name: 'Editáveis do Canva',
+        store_name: 'Editáveis do Canva',
+        slug: 'editaveisdocanva',
+        custom_domain: 'www.editaveisdocanva.com.br',
+        domain_status: 'active',
+        is_matriz: false,
+        subscription_status: 'active',
+        monthly_fee: 50.00,
+        expires_at: targetExpiresAt,
+      } as Store;
+    }
+
+    // 2. Se não existir, insere como nova loja mensal no Supabase
+    console.log('[storeManagementService] 🏬 Inserindo loja mensal Editáveis do Canva no Supabase...');
+    const payload: any = {
+      ...EDITAVEIS_MONTHLY_STORE_DATA,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    let currentPayload = { ...payload };
+    let insertedStore: any = null;
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const res = await supabase
+        .from('stores')
+        .insert([currentPayload])
+        .select()
+        .single();
+
+      if (!res.error) {
+        insertedStore = res.data;
+        break;
+      }
+
+      console.warn(`[storeManagementService] Tentativa ${attempt + 1} de cadastrar Editáveis do Canva:`, res.error.message);
+      const colMatch = res.error.message?.match(/Could not find the '([^']+)' column/i);
+      if (colMatch && colMatch[1]) {
+        delete currentPayload[colMatch[1]];
+        continue;
+      }
+      break;
+    }
+
+    if (insertedStore) {
+      console.log('[storeManagementService] ✅ Loja mensal Editáveis do Canva cadastrada com sucesso no Supabase:', insertedStore.id);
+      return insertedStore as Store;
+    }
+  } catch (err) {
+    console.warn('[storeManagementService] Aviso ao garantir loja mensal Editáveis do Canva:', err);
+  }
+
+  return EDITAVEIS_MONTHLY_STORE_DATA as Store;
+}
+
+/**
+ * 1. Lista todas as lojas cadastradas no SaaS para o Painel Master (incluindo a Loja Matriz Oficial SUAMARCAAQUI e a Loja Mensal Editáveis do Canva)
  */
 export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error: string | null }> {
   try {
     console.log('[storeManagementService] 📋 Buscando lista de lojas no Supabase...');
+    
+    // Garante que a loja mensal Editáveis do Canva esteja cadastrada e configurada no Supabase
+    try {
+      await ensureEditaveisMonthlyStoreExists();
+    } catch (e) {
+      console.warn('[storeManagementService] Aviso ao executar ensureEditaveisMonthlyStoreExists:', e);
+    }
+
     const { data: stores, error } = await supabase
       .from('stores')
       .select('*')
@@ -217,8 +357,26 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
       return { data: [], error: error.message };
     }
 
-    // Retorna as lojas cadastradas no banco sem recriar artificialmente lojas excluídas
     let allStores = stores ? [...stores] : [];
+
+    // Se a consulta no banco não trouxe Editáveis do Canva, inclui no array
+    const hasEditaveis = allStores.some((s) => {
+      const sSlug = (s.slug || '').toLowerCase();
+      const sId = (s.id || '').toLowerCase();
+      const sDomain = (s.custom_domain || '').toLowerCase();
+      const sName = (s.name || s.store_name || '').toLowerCase();
+      return (
+        sSlug === 'editaveisdocanva' ||
+        sId === 'store_editaveisdocanva' ||
+        sDomain.includes('editaveisdocanva.com.br') ||
+        sName.includes('editáveis do canva') ||
+        sName.includes('editaveis do canva')
+      );
+    });
+
+    if (!hasEditaveis) {
+      allStores.push(EDITAVEIS_MONTHLY_STORE_DATA as any);
+    }
 
     // Busca contagem de produtos por loja
     const { data: productsData } = await supabase
@@ -233,37 +391,40 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
         countsMap[sId] = (countsMap[sId] || 0) + 1;
       });
       // Agrega contagem para Editáveis do Canva
-      countsMap['store_editaveisdocanva'] = (countsMap['store_editaveisdocanva'] || 0) + (countsMap['matriz'] || 0);
+      countsMap['store_editaveisdocanva'] = 
+        (countsMap['store_editaveisdocanva'] || 0) + 
+        (countsMap['matriz'] || 0) + 
+        (countsMap['editaveisdocanva'] || 0);
     }
 
     const now = Date.now();
     const withStats: StoreWithStats[] = allStores.map((st) => {
-      // Identifica a loja matriz/base (por is_matriz ou slug/id suamarcaaqui)
-      const isBaseStore = Boolean(st.is_matriz) || st.slug === 'suamarcaaqui' || st.id === 'suamarcaaqui' || st.id === 'store_default';
+      const sSlug = (st.slug || '').toLowerCase();
+      const sId = (st.id || '').toLowerCase();
+      const sDomain = (st.custom_domain || '').toLowerCase();
+      const sName = (st.name || st.store_name || '').toLowerCase();
+
+      // Normaliza Editáveis do Canva como Loja Mensal
+      const isEditaveisCanva = 
+        sSlug === 'editaveisdocanva' ||
+        sId === 'store_editaveisdocanva' ||
+        sDomain.includes('editaveisdocanva.com.br') ||
+        sName.includes('editáveis do canva') ||
+        sName.includes('editaveis do canva') ||
+        sName.includes('editáveis') || 
+        sName.includes('editaveis');
+
+      // Identifica se é a loja matriz/base (SUAMARCAAQUI). Editáveis do Canva NUNCA é base (é Loja Mensal de cliente)
+      const isBaseStore = !isEditaveisCanva && (
+        Boolean(st.is_matriz) || 
+        sSlug === 'suamarcaaqui' || 
+        sId === 'suamarcaaqui' || 
+        sId === 'store_default'
+      );
+
       let daysRemaining: number | null = null;
       let isExpired = false;
       let isExpiringSoon = false;
-
-      // Normaliza Editáveis do Canva como loja comum (slug: editaveisdocanva, id: store_editaveisdocanva, remove Super Admin)
-      const isEditaveisCanva = 
-        st.slug === 'matriz' || 
-        st.id === 'matriz' || 
-        st.slug === 'editaveisdocanva' ||
-        st.name?.toLowerCase().includes('editáveis') || 
-        st.name?.toLowerCase().includes('editaveis');
-
-      if (isEditaveisCanva) {
-        if (st.expires_at) {
-          const expYear = new Date(st.expires_at).getFullYear();
-          if (expYear > 2030) {
-            const target180DaysExp = new Date(now + 180 * 24 * 60 * 60 * 1000).toISOString();
-            st.expires_at = target180DaysExp;
-          }
-        }
-        if (st.id === 'matriz' || st.slug === 'matriz' || st.owner_name === 'Super Admin' || st.client_name === 'Super Admin') {
-          migrateMatrizToRegularStore(st.id);
-        }
-      }
 
       if (!isBaseStore) {
         if (st.subscription_status === 'suspended') {
@@ -277,31 +438,52 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
           } else if (daysRemaining <= 5) {
             isExpiringSoon = true;
           }
+        } else if (isEditaveisCanva) {
+          daysRemaining = 30;
         }
       }
 
+      // Se for a loja mensal Editáveis do Canva:
+      if (isEditaveisCanva) {
+        const target30DaysExp = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const validExpiresAt = (st.expires_at && new Date(st.expires_at).getFullYear() <= 2030 && new Date(st.expires_at).getTime() > now)
+          ? st.expires_at
+          : target30DaysExp;
+
+        return {
+          ...st,
+          id: st.id || 'store_editaveisdocanva',
+          name: 'Editáveis do Canva',
+          store_name: 'Editáveis do Canva',
+          slug: 'editaveisdocanva',
+          custom_domain: 'www.editaveisdocanva.com.br',
+          domain_status: 'active' as DomainStatus,
+          is_active: st.is_active !== false,
+          is_matriz: false,
+          subscription_status: (st.subscription_status === 'suspended' ? 'suspended' : 'active') as SubscriptionStatus,
+          isTrial: false,
+          monthly_fee: (st.monthly_fee && Number(st.monthly_fee) > 0) ? Number(st.monthly_fee) : 50.00,
+          expires_at: validExpiresAt,
+          daysRemaining: daysRemaining ?? 30,
+          isExpired,
+          isExpiringSoon,
+          owner_name: (st.owner_name && st.owner_name !== 'Super Admin') ? st.owner_name : 'Editáveis do Canva',
+          client_name: (st.client_name && st.client_name !== 'Super Admin') ? st.client_name : 'Editáveis do Canva',
+          owner_email: (st.owner_email && st.owner_email !== 'admin@suamarcaaqui.com.br') ? st.owner_email : 'contato@editaveisdocanva.com.br',
+          client_email: (st.client_email && st.client_email !== 'admin@suamarcaaqui.com.br') ? st.client_email : 'contato@editaveisdocanva.com.br',
+          admin_password: st.admin_password || 'admin',
+          productsCount: countsMap['store_editaveisdocanva'] || countsMap['matriz'] || countsMap[st.id] || 0,
+        };
+      }
+
+      // Demais lojas ou loja matriz
       const resolvedName = isBaseStore ? (st.name || st.store_name || 'SUAMARCAAQUI') : (st.name || st.store_name || 'Loja sem nome');
-      const resolvedId = isBaseStore 
-        ? 'suamarcaaqui' 
-        : (isEditaveisCanva && (st.id === 'matriz' || !st.id) ? 'store_editaveisdocanva' : st.id);
-      const resolvedSlug = isBaseStore 
-        ? 'suamarcaaqui' 
-        : (isEditaveisCanva && st.slug === 'matriz' ? 'editaveisdocanva' : (st.slug || (st.name || st.store_name || 'loja').toLowerCase().replace(/[^a-z0-9]/g, '') || 'loja'));
-
-      const resolvedOwnerName = isBaseStore
-        ? 'Super Admin'
-        : (isEditaveisCanva && (st.owner_name === 'Super Admin' || !st.owner_name)
-          ? 'Editáveis do Canva'
-          : (st.owner_name || st.client_name || 'Cliente'));
+      const resolvedId = isBaseStore ? 'suamarcaaqui' : st.id;
+      const resolvedSlug = isBaseStore ? 'suamarcaaqui' : (st.slug || 'loja');
+      const resolvedOwnerName = isBaseStore ? 'Super Admin' : (st.owner_name || st.client_name || 'Cliente');
       const resolvedClientName = resolvedOwnerName;
-
-      const resolvedOwnerEmail = isBaseStore
-        ? 'admin@suamarcaaqui.com.br'
-        : (isEditaveisCanva && (st.owner_email === 'admin@editaveisdocanva.com.br' || !st.owner_email)
-          ? 'contato@editaveisdocanva.com.br'
-          : (st.owner_email || st.client_email || null));
+      const resolvedOwnerEmail = isBaseStore ? 'admin@suamarcaaqui.com.br' : (st.owner_email || st.client_email || null);
       const resolvedClientEmail = resolvedOwnerEmail;
-
       const resolvedPassword = st.admin_password || 'admin';
       const storeIdKey = isBaseStore ? 'suamarcaaqui' : resolvedId;
 
@@ -651,8 +833,6 @@ export async function deleteStore(
     }
     if (storeId === 'suamarcaaqui' || resolvedSlug === 'suamarcaaqui') {
       if (!identifiers.includes('store_default')) identifiers.push('store_default');
-      if (!identifiers.includes('store_editaveisdocanva')) identifiers.push('store_editaveisdocanva');
-      if (!identifiers.includes('matriz')) identifiers.push('matriz');
     }
 
     console.log('[storeManagementService] 🧹 Identificadores para exclusão em cascata:', identifiers);

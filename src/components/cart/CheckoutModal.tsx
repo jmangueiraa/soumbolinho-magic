@@ -37,6 +37,7 @@ import {
 } from '../../lib/mercadopago';
 import { createOrderInSupabase, updateOrderStatusInSupabase } from '../../services/orderService';
 import { notifyTelegram } from '../../services/telegramNotificationService';
+import { notifyWhatsApp } from '../../services/whatsappNotificationService';
 import { sendOrderConfirmationEmail } from '../../services/emailService';
 import { CartUpsellCard } from './CartUpsellCard';
 import { ShippingCalculator } from './ShippingCalculator';
@@ -369,7 +370,27 @@ export const CheckoutModal: React.FC = () => {
     // 1. Atualiza status na tabela 'orders' do Supabase para 'approved'
     await updateOrderStatusInSupabase(orderIdToUse, 'approved');
 
-    // 2. Dispara notificação de Pagamento Aprovado no Telegram
+    // 2. Dispara notificação de Pagamento Aprovado no WhatsApp e Telegram
+    notifyWhatsApp({
+      action_type: 'payment_approved',
+      customer_name: customerInfo.name.trim(),
+      customer_email: customerInfo.email.trim(),
+      customer_phone: (customerInfo.phone || '').trim(),
+      items: finalItems,
+      total_amount: grandTotal,
+      order_id: orderIdToUse,
+      payment_method: paymentMethod === 'pix' ? 'Pix' : 'Cartão de Crédito',
+      shipping_cost: shippingCost,
+      shipping_method: selectedShipping?.name,
+      shipping_address: formattedAddress,
+      store_name: currentStore?.name || storeConfig.storeName,
+      store_id: currentStore?.id,
+      whatsapp_api_provider: currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || storeConfig?.whatsappApiProvider,
+      whatsapp_api_url: currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || storeConfig?.whatsappApiUrl,
+      whatsapp_api_token: currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || storeConfig?.whatsappApiToken,
+      whatsapp_notify_phone: currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || storeConfig?.whatsappNotifyPhone,
+    }).catch(e => console.warn('Aviso ao notificar WhatsApp:', e));
+
     await notifyTelegram({
       action_type: 'payment_approved',
       customer_name: customerInfo.name.trim(),
@@ -454,7 +475,26 @@ export const CheckoutModal: React.FC = () => {
         status: 'pending',
       });
 
-      // Dispara lead no Telegram
+      // Dispara lead no WhatsApp e Telegram
+      notifyWhatsApp({
+        action_type: 'abandoned_cart',
+        customer_name: cleanName,
+        customer_email: cleanEmail,
+        customer_phone: cleanPhone,
+        items: finalItems,
+        total_amount: grandTotal,
+        order_id: generatedOrderId,
+        shipping_cost: shippingCost,
+        shipping_method: selectedShipping?.name,
+        shipping_address: formattedAddress,
+        store_name: currentStore?.name || storeConfig.storeName,
+        store_id: currentStore?.id,
+        whatsapp_api_provider: currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || storeConfig?.whatsappApiProvider,
+        whatsapp_api_url: currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || storeConfig?.whatsappApiUrl,
+        whatsapp_api_token: currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || storeConfig?.whatsappApiToken,
+        whatsapp_notify_phone: currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || storeConfig?.whatsappNotifyPhone,
+      }).catch(e => console.warn('Aviso ao notificar WhatsApp:', e));
+
       await notifyTelegram({
         action_type: 'abandoned_cart',
         customer_name: cleanName,

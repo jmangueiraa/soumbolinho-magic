@@ -27,6 +27,7 @@ import { ShippingOption, DeliveryAddress, CartItem } from '../../types';
 import { createOrderInSupabase } from '../../services/orderService';
 import { createMercadoPagoPreference, isMercadoPagoConfigured } from '../../lib/mercadopago';
 import { notifyTelegram } from '../../services/telegramNotificationService';
+import { notifyWhatsApp } from '../../services/whatsappNotificationService';
 import { validateAndApplyCoupon, incrementCouponUses } from '../../services/couponService';
 import { Header } from '../layout/Header';
 import { Footer } from '../layout/Footer';
@@ -213,6 +214,25 @@ export const CheckoutPage: React.FC = () => {
       telegram_chat_id: storeConfig.telegramChatId,
       isBeacon: true,
     });
+
+    notifyWhatsApp({
+      action_type: 'abandoned_cart',
+      customer_name: currentLead.name.trim(),
+      customer_phone: currentLead.phone.trim(),
+      customer_email: currentLead.email.trim(),
+      items: currentLead.items,
+      total_amount: currentLead.totalAmount,
+      shipping_cost: shippingCost,
+      shipping_method: selectedShipping?.name,
+      shipping_address: getFormattedAddress(),
+      store_name: currentStore?.name || storeConfig.storeName,
+      store_id: currentStore?.id || 'suamarcaaqui',
+      whatsapp_api_provider: currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || storeConfig?.whatsappApiProvider,
+      whatsapp_api_url: currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || storeConfig?.whatsappApiUrl,
+      whatsapp_api_token: currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || storeConfig?.whatsappApiToken,
+      whatsapp_notify_phone: currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || storeConfig?.whatsappNotifyPhone,
+      isBeacon: true,
+    }).catch(e => console.warn('Aviso ao notificar WhatsApp:', e));
   };
 
   // Temporizador de inatividade: se preencheu os dados e ficou 2 minutos parado sem finalizar
@@ -372,8 +392,8 @@ export const CheckoutPage: React.FC = () => {
         status: 'pending',
       });
 
-      // 3. Notificar Telegram com os dados capturados
-      console.log('[CheckoutPage] 🚨 Notificando lead capturado no Telegram...');
+      // 3. Notificar Telegram e WhatsApp com os dados capturados
+      console.log('[CheckoutPage] 🚨 Notificando lead capturado no Telegram e WhatsApp...');
       await notifyTelegram({
         action_type: 'abandoned_cart',
         customer_name: cleanName,
@@ -387,6 +407,24 @@ export const CheckoutPage: React.FC = () => {
         telegram_bot_token: storeConfig.telegramBotToken,
         telegram_chat_id: storeConfig.telegramChatId,
       });
+
+      notifyWhatsApp({
+        action_type: 'abandoned_cart',
+        customer_name: cleanName,
+        customer_phone: cleanPhone,
+        customer_email: cleanEmail,
+        items: finalItems,
+        total_amount: finalTotal,
+        shipping_cost: shippingCost,
+        shipping_method: selectedShipping?.name,
+        shipping_address: formattedAddress,
+        store_name: currentStore?.name || storeConfig.storeName,
+        store_id: currentStore?.id || targetStoreId,
+        whatsapp_api_provider: currentStore?.whatsapp_api_provider || currentStore?.theme_settings?.whatsapp_api_provider || storeConfig?.whatsappApiProvider,
+        whatsapp_api_url: currentStore?.whatsapp_api_url || currentStore?.theme_settings?.whatsapp_api_url || storeConfig?.whatsappApiUrl,
+        whatsapp_api_token: currentStore?.whatsapp_api_token || currentStore?.theme_settings?.whatsapp_api_token || storeConfig?.whatsappApiToken,
+        whatsapp_notify_phone: currentStore?.whatsapp_notify_phone || currentStore?.theme_settings?.whatsapp_notify_phone || storeConfig?.whatsappNotifyPhone,
+      }).catch(e => console.warn('Aviso ao notificar WhatsApp:', e));
 
       // 4. Criar preferência do Mercado Pago Checkout Pro
       console.log('[CheckoutPage] 🚀 Criando preferência Checkout Pro no Mercado Pago...');

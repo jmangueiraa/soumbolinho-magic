@@ -288,7 +288,8 @@ export const StoresList: React.FC<StoresListProps> = ({
       window.location.hostname.startsWith('10.') ||
       window.location.hostname.endsWith('.local')
     );
-    const isBaseStore = Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
+    const isEditaveis = store.slug === 'editaveisdocanva' || store.id === 'store_editaveisdocanva' || Boolean(store.custom_domain && store.custom_domain.toLowerCase().includes('editaveisdocanva.com.br'));
+    const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default');
 
     if (!isLocal && store.custom_domain && (store.domain_status === 'active' || store.domain_status === 'ativo')) {
       const url = store.custom_domain.startsWith('http') ? store.custom_domain : `https://${store.custom_domain}`;
@@ -389,7 +390,8 @@ export const StoresList: React.FC<StoresListProps> = ({
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {filteredStores.map((store) => {
-            const isBaseStore = Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
+            const isEditaveis = store.slug === 'editaveisdocanva' || store.id === 'store_editaveisdocanva' || Boolean(store.custom_domain && store.custom_domain.toLowerCase().includes('editaveisdocanva.com.br'));
+            const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default');
             const isEditingThisDomain = editingDomainId === store.id;
 
             return (
