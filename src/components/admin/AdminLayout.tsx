@@ -10,10 +10,12 @@ import {
   AlertCircle,
   Info,
   Globe,
-  Palette
+  Palette,
+  TrendingUp
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
+import { MetricsDashboard } from './MetricsDashboard';
 import { ProductsManager } from './ProductsManager';
 import { CategoriesManager } from './CategoriesManager';
 import { StoreSettingsManager } from './StoreSettingsManager';
@@ -24,7 +26,7 @@ import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
 
-type AdminTab = 'products' | 'categories' | 'banners' | 'settings' | 'layout' | 'api-domain';
+type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'settings' | 'layout' | 'api-domain';
 
 interface AdminLayoutProps {
   onBackToStore: () => void;
@@ -42,7 +44,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
     expiresAt, 
     monthlyFee 
   } = useTenant();
-  const [activeTab, setActiveTab] = useState<AdminTab>('products');
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const isBaseStore = 
     currentStore?.slug === 'suamarcaaqui' || 
     currentStore?.id === 'suamarcaaqui' || 
@@ -123,8 +125,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
         {/* 2. Admin Navigation Tabs */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2 border-t border-slate-100 overflow-x-auto no-scrollbar py-2">
           <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+              activeTab === 'dashboard'
+                ? 'bg-black text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <span>Métricas & Conversão</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </button>
+
+          <button
             onClick={() => setActiveTab('products')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
               activeTab === 'products'
                 ? 'bg-black text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -230,6 +245,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
 
       {/* 3. Main Admin Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'dashboard' && (
+          <MetricsDashboard onNavigateToProducts={() => setActiveTab('products')} />
+        )}
         {activeTab === 'products' && <ProductsManager />}
         {activeTab === 'categories' && <CategoriesManager />}
         {activeTab === 'banners' && <BannersManager />}

@@ -204,3 +204,18 @@ export interface MasterAdmin {
   email: string;
   created_at?: string;
 }
+
+export interface Coupon {
+  id: string;
+  store_id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  min_order_value?: number;
+  max_uses?: number | null;
+  uses_count?: number;
+  expires_at?: string | null;
+  is_active: boolean;
+  description?: string;
+  created_at?: string;
+}

@@ -265,6 +265,14 @@ CREATE TABLE IF NOT EXISTS public.orders (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 8.1 TABELA DE VISITAS & ANALYTICS EM TEMPO REAL (store_visits)
+CREATE TABLE IF NOT EXISTS public.store_visits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
+    path TEXT DEFAULT '/',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 
 -- 9. TABELA DE USUÁRIOS DE LOJAS (store_users) E ADMINS
 CREATE TABLE IF NOT EXISTS public.store_users (
@@ -319,6 +327,10 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public orders access" ON public.orders;
 CREATE POLICY "Public orders access" ON public.orders FOR ALL USING (true) WITH CHECK (true);
 
+ALTER TABLE public.store_visits ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public store_visits access" ON public.store_visits;
+CREATE POLICY "Public store_visits access" ON public.store_visits FOR ALL USING (true) WITH CHECK (true);
+
 ALTER TABLE public.store_users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public store_users access" ON public.store_users;
 CREATE POLICY "Public store_users access" ON public.store_users FOR ALL USING (true) WITH CHECK (true);
@@ -338,6 +350,7 @@ BEGIN
     BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.store_config; EXCEPTION WHEN OTHERS THEN NULL; END;
     BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.site_settings; EXCEPTION WHEN OTHERS THEN NULL; END;
     BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.orders; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.store_visits; EXCEPTION WHEN OTHERS THEN NULL; END;
 END $$;
 
 

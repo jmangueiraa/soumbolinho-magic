@@ -28,6 +28,7 @@ import { ArquivosPage } from './components/pages/ArquivosPage';
 import { CategoryPills } from './components/filters/CategoryPills';
 import { applyThemeToDocument } from './utils/theme';
 import { ThemeLayoutType, ColorPaletteType } from './types';
+import { recordStoreVisit, recordProductView } from './services/analyticsService';
 
 export const StoreFront: React.FC = () => {
   const { slug, storeSlug } = useParams<{ slug?: string; storeSlug?: string }>();
@@ -46,6 +47,13 @@ export const StoreFront: React.FC = () => {
   useEffect(() => {
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
   }, [activePalette, activePrimary, activeLayout]);
+
+  // Registro de visita em tempo real para o painel de métricas
+  useEffect(() => {
+    if (currentStore?.id && currentStore.id !== '__resolving_tenant__') {
+      recordStoreVisit(currentStore.id, window.location.pathname);
+    }
+  }, [currentStore?.id]);
 
   // Sincronização e resolução da loja da rota caso slug esteja presente
   useEffect(() => {
@@ -167,6 +175,7 @@ export const StoreFront: React.FC = () => {
             </div>
             <ProductGrid 
               onSelectProduct={(prod) => {
+                recordProductView(currentStore?.id || 'suamarcaaqui', prod.id, prod.name, prod.price, prod.image_url || prod.image);
                 const targetSlug = prod.slug || prod.id;
                 navigate(activeSlug ? `/loja/${activeSlug}/produto/${targetSlug}` : `/produto/${targetSlug}`);
               }} 
@@ -181,6 +190,7 @@ export const StoreFront: React.FC = () => {
             {/* Right Product Grid */}
             <ProductGrid 
               onSelectProduct={(prod) => {
+                recordProductView(currentStore?.id || 'suamarcaaqui', prod.id, prod.name, prod.price, prod.image_url || prod.image);
                 const targetSlug = prod.slug || prod.id;
                 navigate(activeSlug ? `/loja/${activeSlug}/produto/${targetSlug}` : `/produto/${targetSlug}`);
               }} 

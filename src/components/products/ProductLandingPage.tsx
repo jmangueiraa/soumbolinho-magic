@@ -48,6 +48,7 @@ import { ProductImageZoomModal } from './ProductImageZoomModal';
 import { DEFAULT_TESTIMONIALS } from '../../data/defaultTestimonials';
 import { ProductBonusItem } from '../../data/defaultBonuses';
 import { getAutomaticPackageItems, getAutomaticProductDescription, getAutomaticPlanDetails, getAutomaticTestimonials, getAutomaticProductFaq } from '../../utils/automaticProductContent';
+import { recordProductView, recordStoreVisit } from '../../services/analyticsService';
 
 interface ProductLandingPageProps {
   productId?: string;
@@ -113,6 +114,8 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         if (isMounted) {
           if (data) {
             setProduct(data);
+            recordProductView(storeId || 'suamarcaaqui', data.id, data.name, data.price, data.image_url || data.image);
+            recordStoreVisit(storeId || 'suamarcaaqui', window.location.pathname);
           } else {
             setProduct(null);
             showNotification('Produto não encontrado. Redirecionando para a loja...', 'info');
