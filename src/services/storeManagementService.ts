@@ -33,25 +33,26 @@ export interface StoreWithStats extends Store {
 }
 
 export const MATRIZ_DEFAULT_STORE_DATA: Partial<Store> = {
-  id: 'suamarcaaqui',
-  name: 'SUAMARCAAQUI',
-  store_name: 'SUAMARCAAQUI',
-  slug: 'suamarcaaqui',
-  custom_domain: 'suamarcaaqui.com.br',
+  id: 'store_ajpstore',
+  name: 'AJPSTORE',
+  store_name: 'AJPSTORE',
+  slug: 'ajpstore',
+  custom_domain: 'seudominio',
   domain_status: 'active',
   is_active: true,
+  is_matriz: true,
   subscription_status: 'active',
   expires_at: '2099-12-31T23:59:59.000Z',
   monthly_fee: 0.00,
-  owner_name: 'Super Admin',
-  client_name: 'Super Admin',
-  owner_email: 'admin@suamarcaaqui.com.br',
-  client_email: 'admin@suamarcaaqui.com.br',
+  owner_name: 'AJPSTORE',
+  client_name: 'AJPSTORE',
+  owner_email: 'ajpsotre@gmail.com',
+  client_email: 'ajpsotre@gmail.com',
   admin_password: 'admin',
   whatsapp_number: '5511999999999',
   whatsapp_display: '(11) 99999-9999',
-  instagram: 'suamarcaaqui',
-  slogan: 'Papelaria & Festas Personalizadas',
+  instagram: 'ajpstore',
+  slogan: 'Sua Loja Oficial',
   address: 'São Paulo, SP',
   working_hours: 'Segunda a Sábado, 09h às 18h',
   theme_settings: {
@@ -94,43 +95,55 @@ export const EDITAVEIS_MONTHLY_STORE_DATA: Partial<Store> = {
 };
 
 /**
- * Garante que a loja modelo oficial SUAMARCAAQUI esteja cadastrada e presente na tabela stores do Supabase
+ * Garante que a loja modelo oficial AJPSTORE esteja cadastrada, marcada como a única Matriz vitalícia
+ * e presente na tabela stores do Supabase (removendo is_matriz de qualquer outra loja).
  */
 export async function ensureMatrizStoreExists(): Promise<Store> {
   try {
-    // 1. Verifica se já existe por slug = 'suamarcaaqui', id = 'suamarcaaqui' ou id = 'store_default'
+    // 1. Procura se a loja AJPSTORE já existe por slug = 'ajpstore' ou nome ilike '%ajpstore%'
     const { data: existingStore } = await supabase
       .from('stores')
       .select('*')
-      .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default')
+      .or('slug.eq.ajpstore,name.ilike.%ajpstore%')
       .limit(1)
       .maybeSingle();
 
     if (existingStore) {
-      if (existingStore.subscription_status !== 'active' || existingStore.expires_at !== '2099-12-31T23:59:59.000Z' || existingStore.monthly_fee !== 0) {
-        supabase
-          .from('stores')
-          .update({
-            subscription_status: 'active',
-            expires_at: '2099-12-31T23:59:59.000Z',
-            monthly_fee: 0.00
-          })
-          .eq('id', existingStore.id)
-          .then();
-      }
+      // Garante que nenhuma outra loja seja matriz
+      await supabase
+        .from('stores')
+        .update({ is_matriz: false })
+        .neq('id', existingStore.id);
+
+      // Força AJPSTORE a ser a Matriz Oficial Vitalícia (sem expiração, sem mensalidade)
+      await supabase
+        .from('stores')
+        .update({
+          is_matriz: true,
+          slug: 'ajpstore',
+          name: 'AJPSTORE',
+          store_name: 'AJPSTORE',
+          subscription_status: 'active',
+          expires_at: '2099-12-31T23:59:59.000Z',
+          monthly_fee: 0.00,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingStore.id);
+
       return {
         ...existingStore,
-        slug: 'suamarcaaqui',
-        name: existingStore.name || 'SUAMARCAAQUI',
-        store_name: existingStore.store_name || 'SUAMARCAAQUI',
+        is_matriz: true,
+        slug: 'ajpstore',
+        name: 'AJPSTORE',
+        store_name: 'AJPSTORE',
         subscription_status: 'active',
         monthly_fee: 0.00,
         expires_at: '2099-12-31T23:59:59.000Z',
       } as Store;
     }
 
-    // 2. Se não existir, insere a loja oficial modelo SUAMARCAAQUI na tabela stores do Supabase
-    console.log('[storeManagementService] 🏬 Cadastrando loja modelo SUAMARCAAQUI na tabela stores do Supabase...');
+    // 2. Se não existir, insere a loja AJPSTORE como Matriz no Supabase
+    console.log('[storeManagementService] 🏬 Cadastrando loja AJPSTORE como Matriz no Supabase...');
     const payload: any = {
       ...MATRIZ_DEFAULT_STORE_DATA,
       created_at: new Date().toISOString(),
@@ -152,7 +165,7 @@ export async function ensureMatrizStoreExists(): Promise<Store> {
         break;
       }
 
-      console.warn(`[storeManagementService] Tentativa ${attempt + 1} de cadastrar SUAMARCAAQUI:`, res.error.message);
+      console.warn(`[storeManagementService] Tentativa ${attempt + 1} de cadastrar AJPSTORE:`, res.error.message);
       const colMatch = res.error.message?.match(/Could not find the '([^']+)' column/i);
       if (colMatch && colMatch[1]) {
         delete currentPayload[colMatch[1]];
@@ -162,32 +175,31 @@ export async function ensureMatrizStoreExists(): Promise<Store> {
     }
 
     if (insertedStore) {
-      console.log('[storeManagementService] ✅ Loja modelo SUAMARCAAQUI cadastrada com sucesso no Supabase:', insertedStore.id);
+      await supabase.from('stores').update({ is_matriz: false }).neq('id', insertedStore.id);
+      console.log('[storeManagementService] ✅ Loja AJPSTORE cadastrada como Matriz:', insertedStore.id);
       return insertedStore as Store;
     }
   } catch (err) {
-    console.warn('[storeManagementService] Aviso ao garantir loja modelo SUAMARCAAQUI no Supabase:', err);
+    console.warn('[storeManagementService] Aviso ao garantir loja AJPSTORE no Supabase:', err);
   }
 
   return MATRIZ_DEFAULT_STORE_DATA as Store;
 }
 
 /**
- * Retorna a loja atualmente configurada como Matriz / Base no sistema.
+ * Retorna a loja atualmente configurada como Matriz / Base no sistema (AJPSTORE).
  */
 export async function getMatrizStore(): Promise<Store> {
   try {
     const { data: stores } = await supabase.from('stores').select('*');
     if (stores && stores.length > 0) {
-      // 1. Loja explicitamente marcada como matriz
+      // 1. AJPSTORE oficial
+      const ajp = stores.find((s) => s.slug === 'ajpstore' || (s.name || '').toUpperCase().includes('AJPSTORE'));
+      if (ajp) return ajp as Store;
+
+      // 2. Loja explicitamente marcada como matriz
       const explicit = stores.find((s) => Boolean(s.is_matriz));
       if (explicit) return explicit as Store;
-
-      // 2. Loja oficial base SUAMARCAAQUI
-      const suamarca = stores.find(
-        (s) => s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'
-      );
-      if (suamarca) return suamarca as Store;
 
       return stores[0] as Store;
     }
@@ -198,38 +210,14 @@ export async function getMatrizStore(): Promise<Store> {
 }
 
 /**
- * Define qualquer loja como Matriz / Base do sistema (removendo a marcação das demais).
+ * Bloqueado: Apenas AJPSTORE é a Matriz oficial e permanente do sistema.
+ * Nenhuma outra loja tem permissão para virar matriz.
  */
-export async function setStoreAsMatriz(storeId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    console.log(`[storeManagementService] 👑 Definindo loja "${storeId}" como Matriz...`);
-
-    // 1. Remove is_matriz das outras lojas
-    await supabase
-      .from('stores')
-      .update({ is_matriz: false })
-      .neq('id', storeId);
-
-    // 2. Marca a loja escolhida como matriz vitalícia
-    const { error } = await supabase
-      .from('stores')
-      .update({
-        is_matriz: true,
-        subscription_status: 'active',
-        monthly_fee: 0.00,
-        expires_at: '2099-12-31T23:59:59.000Z'
-      })
-      .eq('id', storeId);
-
-    if (error) {
-      console.warn('[storeManagementService] Aviso ao persistir is_matriz:', error.message);
-    }
-
-    return { success: true };
-  } catch (err: any) {
-    console.error('[storeManagementService] Erro ao definir matriz:', err);
-    return { success: false, error: err.message || 'Erro ao definir matriz.' };
-  }
+export async function setStoreAsMatriz(_storeId: string): Promise<{ success: boolean; error?: string }> {
+  return {
+    success: false,
+    error: 'A loja AJPSTORE é a Matriz fixa e permanente do sistema. Nenhuma outra loja pode ser definida como Matriz.'
+  };
 }
 
 /**
@@ -386,8 +374,8 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
     const countsMap: Record<string, number> = {};
     if (productsData) {
       productsData.forEach((p) => {
-        const isBase = p.store_id === 'suamarcaaqui' || p.store_id === 'store_default' || !p.store_id;
-        const sId = isBase ? 'suamarcaaqui' : p.store_id;
+        const isBase = p.store_id === 'ajpstore' || p.store_id === 'store_ajpstore' || p.store_id === 'suamarcaaqui' || p.store_id === 'store_default' || !p.store_id;
+        const sId = isBase ? 'ajpstore' : p.store_id;
         countsMap[sId] = (countsMap[sId] || 0) + 1;
       });
       // Agrega contagem para Editáveis do Canva
@@ -404,22 +392,24 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
       const sDomain = (st.custom_domain || '').toLowerCase();
       const sName = (st.name || st.store_name || '').toLowerCase();
 
+      // Identifica AJPSTORE como a Matriz oficial e permanente do sistema
+      const isAjpStore = 
+        sSlug === 'ajpstore' || 
+        sName.includes('ajpstore') || 
+        sId === 'store_ajpstore';
+
+      // Apenas AJPSTORE é a Matriz oficial e vitalícia. Nenhuma outra loja pode ser matriz.
+      const isBaseStore = isAjpStore;
+
       // Normaliza Editáveis do Canva como Loja Mensal
-      const isEditaveisCanva = 
+      const isEditaveisCanva = !isAjpStore && (
         sSlug === 'editaveisdocanva' ||
         sId === 'store_editaveisdocanva' ||
         sDomain.includes('editaveisdocanva.com.br') ||
         sName.includes('editáveis do canva') ||
         sName.includes('editaveis do canva') ||
         sName.includes('editáveis') || 
-        sName.includes('editaveis');
-
-      // Identifica se é a loja matriz/base (SUAMARCAAQUI). Editáveis do Canva NUNCA é base (é Loja Mensal de cliente)
-      const isBaseStore = !isEditaveisCanva && (
-        Boolean(st.is_matriz) || 
-        sSlug === 'suamarcaaqui' || 
-        sId === 'suamarcaaqui' || 
-        sId === 'store_default'
+        sName.includes('editaveis')
       );
 
       let daysRemaining: number | null = null;
@@ -441,6 +431,34 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
         } else if (isEditaveisCanva) {
           daysRemaining = 30;
         }
+      }
+
+      // Se for AJPSTORE (Matriz Vitalícia):
+      if (isBaseStore) {
+        return {
+          ...st,
+          id: st.id || 'store_ajpstore',
+          name: 'AJPSTORE',
+          store_name: 'AJPSTORE',
+          slug: 'ajpstore',
+          custom_domain: st.custom_domain || 'seudominio',
+          domain_status: (st.domain_status || 'active') as DomainStatus,
+          is_active: true,
+          is_matriz: true,
+          subscription_status: 'active' as SubscriptionStatus,
+          isTrial: false,
+          monthly_fee: 0.00,
+          expires_at: '2099-12-31T23:59:59.000Z',
+          daysRemaining: null,
+          isExpired: false,
+          isExpiringSoon: false,
+          owner_name: st.owner_name || 'AJPSTORE',
+          client_name: st.client_name || 'AJPSTORE',
+          owner_email: st.owner_email || 'ajpsotre@gmail.com',
+          client_email: st.client_email || 'ajpsotre@gmail.com',
+          admin_password: st.admin_password || 'admin',
+          productsCount: countsMap['ajpstore'] || countsMap['store_ajpstore'] || countsMap[st.id] || 0,
+        };
       }
 
       // Se for a loja mensal Editáveis do Canva:
@@ -476,16 +494,16 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
         };
       }
 
-      // Demais lojas ou loja matriz
-      const resolvedName = isBaseStore ? (st.name || st.store_name || 'SUAMARCAAQUI') : (st.name || st.store_name || 'Loja sem nome');
-      const resolvedId = isBaseStore ? 'suamarcaaqui' : st.id;
-      const resolvedSlug = isBaseStore ? 'suamarcaaqui' : (st.slug || 'loja');
-      const resolvedOwnerName = isBaseStore ? 'Super Admin' : (st.owner_name || st.client_name || 'Cliente');
+      // Demais lojas clientes (nunca matriz)
+      const resolvedName = st.name || st.store_name || 'Loja sem nome';
+      const resolvedId = st.id;
+      const resolvedSlug = st.slug || 'loja';
+      const resolvedOwnerName = st.owner_name || st.client_name || 'Cliente';
       const resolvedClientName = resolvedOwnerName;
-      const resolvedOwnerEmail = isBaseStore ? 'admin@suamarcaaqui.com.br' : (st.owner_email || st.client_email || null);
+      const resolvedOwnerEmail = st.owner_email || st.client_email || null;
       const resolvedClientEmail = resolvedOwnerEmail;
       const resolvedPassword = st.admin_password || 'admin';
-      const storeIdKey = isBaseStore ? 'suamarcaaqui' : resolvedId;
+      const storeIdKey = resolvedId;
 
       return {
         ...st,
@@ -498,14 +516,14 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
         owner_email: resolvedOwnerEmail,
         client_email: resolvedClientEmail,
         admin_password: resolvedPassword,
-        is_matriz: isBaseStore,
+        is_matriz: false,
         domain_status: st.domain_status || 'active',
-        subscription_status: isBaseStore ? 'active' : (st.subscription_status || 'trial'),
-        isTrial: !isBaseStore && st.subscription_status === 'trial',
-        monthly_fee: isBaseStore ? 0.00 : (st.monthly_fee !== undefined && st.monthly_fee !== null ? Number(st.monthly_fee) : 50.00),
-        daysRemaining: isBaseStore ? null : daysRemaining,
-        isExpired: isBaseStore ? false : isExpired,
-        isExpiringSoon: isBaseStore ? false : isExpiringSoon,
+        subscription_status: st.subscription_status || 'trial',
+        isTrial: st.subscription_status === 'trial',
+        monthly_fee: (st.monthly_fee !== undefined && st.monthly_fee !== null ? Number(st.monthly_fee) : 50.00),
+        daysRemaining,
+        isExpired,
+        isExpiringSoon,
         productsCount: countsMap[storeIdKey] || countsMap[st.id] || 0,
       };
     });
@@ -827,6 +845,11 @@ export async function deleteStore(
       }
     }
 
+    // A loja AJPSTORE é a Matriz fixa e vitalícia do sistema e não pode ser excluída
+    if (storeId === 'ajpstore' || storeId === 'store_ajpstore' || resolvedSlug === 'ajpstore') {
+      return { success: false, error: 'A loja AJPSTORE é a Matriz vitalícia do sistema e não pode ser excluída.' };
+    }
+
     const identifiers = [storeId];
     if (resolvedSlug && !identifiers.includes(resolvedSlug)) {
       identifiers.push(resolvedSlug);
@@ -873,26 +896,6 @@ export async function deleteStore(
     if (directErr && deleteError) {
       console.error('[storeManagementService] ❌ Erro ao deletar loja de stores:', directErr);
       return { success: false, error: directErr.message || deleteError.message };
-    }
-
-    // 3. Se a loja excluída era a Matriz, promove a próxima loja disponível para ser a nova Matriz
-    try {
-      const { data: remainingStores } = await supabase
-        .from('stores')
-        .select('id, is_matriz')
-        .order('created_at', { ascending: false });
-
-      if (remainingStores && remainingStores.length > 0) {
-        const hasMatriz = remainingStores.some((s) => Boolean(s.is_matriz));
-        if (!hasMatriz) {
-          await supabase
-            .from('stores')
-            .update({ is_matriz: true })
-            .eq('id', remainingStores[0].id);
-        }
-      }
-    } catch (promErr) {
-      console.warn('[storeManagementService] Aviso ao promover nova matriz:', promErr);
     }
 
     // Limpa identificadores temporários de preview local

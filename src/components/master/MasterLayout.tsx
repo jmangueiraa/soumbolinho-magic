@@ -82,8 +82,8 @@ export const MasterLayout: React.FC = () => {
     );
   }
 
-  // Estatísticas de Assinatura e Lojas (exclui a loja matriz vitalícia SUAMARCAAQUI)
-  const isBase = (s: Store) => Boolean(s && (s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'));
+  // Estatísticas de Assinatura e Lojas (exclui a loja matriz vitalícia AJPSTORE)
+  const isBase = (s: Store) => Boolean(s && (s.is_matriz || s.slug === 'ajpstore' || s.id === 'store_ajpstore' || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'));
   const safeStores = Array.isArray(stores) ? stores.filter(Boolean) : [];
   const totalStores = safeStores.length;
   const trialStores = safeStores.filter((s) => (s.subscription_status === 'trial' || s.isTrial) && !s.isExpired && !isBase(s)).length;

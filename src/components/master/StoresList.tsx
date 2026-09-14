@@ -35,8 +35,7 @@ import {
   toggleStoreSubscription,
   extendStoreTrial,
   activatePaidSubscription,
-  setStoreExpirationDays,
-  setStoreAsMatriz
+  setStoreExpirationDays
 } from '../../services/storeManagementService';
 
 interface StoresListProps {
@@ -64,32 +63,14 @@ export const StoresList: React.FC<StoresListProps> = ({
   const [customDaysInput, setCustomDaysInput] = useState<string>('180');
   const [customDateInput, setCustomDateInput] = useState<string>('');
   const [isSavingDays, setIsSavingDays] = useState(false);
-  const [isSettingMatrizId, setIsSettingMatrizId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleSetAsMatriz = async (store: Store) => {
-    const storeName = store.name || store.store_name || store.slug;
-    if (!window.confirm(`Deseja definir a loja "${storeName}" como a nova MATRIZ / BASE do sistema?\n\nAo criar novas lojas, todo o catálogo fiel (produtos, categorias e banners) será clonado a partir desta loja.`)) {
-      return;
-    }
-    setIsSettingMatrizId(store.id);
-    try {
-      const res = await setStoreAsMatriz(store.id);
-      if (!res.success) {
-        alert(res.error || 'Erro ao definir matriz.');
-      } else {
-        onRefresh();
-      }
-    } finally {
-      setIsSettingMatrizId(null);
-    }
-  };
-
-  // Contagens para os filtros
+  // Contagens para os filtros (exclui a Matriz permanente AJPSTORE)
   const safeList = Array.isArray(stores) ? stores.filter(Boolean) : [];
-  const trialCount = safeList.filter(s => (s.subscription_status === 'trial' || s.isTrial) && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
-  const activeCount = safeList.filter(s => s.subscription_status === 'active' && !s.isExpired && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
-  const expiredCount = safeList.filter(s => s.isExpired && s.slug !== 'suamarcaaqui' && s.id !== 'suamarcaaqui' && s.id !== 'store_default').length;
+  const isMatrizOrBase = (s: Store) => Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore' || s.slug === 'suamarcaaqui' || s.id === 'store_default';
+  const trialCount = safeList.filter(s => (s.subscription_status === 'trial' || s.isTrial) && !isMatrizOrBase(s)).length;
+  const activeCount = safeList.filter(s => s.subscription_status === 'active' && !s.isExpired && !isMatrizOrBase(s)).length;
+  const expiredCount = safeList.filter(s => s.isExpired && !isMatrizOrBase(s)).length;
 
   // Filtragem defensiva e null-safe
   const filteredStores = safeList.filter((s) => {
@@ -200,10 +181,12 @@ export const StoresList: React.FC<StoresListProps> = ({
 
   const handleDelete = async (store: Store) => {
     const storeName = store.name || store.store_name || store.slug || 'esta loja';
-    const isMatriz = Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default';
-    const confirmMsg = isMatriz
-      ? `🚨 ATENÇÃO: Deseja realmente excluir permanentemente a conta "${storeName}" (${store.slug})?\n\nEsta loja está configurada como Matriz/Base. Todos os produtos, categorias, pedidos e configurações vinculados a esta conta serão removidos do banco de dados.`
-      : `ATENÇÃO: Deseja realmente excluir permanentemente a loja "${storeName}"?\n\nTodos os produtos e dados vinculados serão removidos do banco de dados.`;
+    const isMatriz = Boolean(store.is_matriz) || store.slug === 'ajpstore' || store.id === 'store_ajpstore';
+    if (isMatriz) {
+      alert('A loja AJPSTORE é a Matriz fixa e vitalícia do sistema e não pode ser excluída.');
+      return;
+    }
+    const confirmMsg = `ATENÇÃO: Deseja realmente excluir permanentemente a loja "${storeName}"?\n\nTodos os produtos e dados vinculados serão removidos do banco de dados.`;
 
     const ok = window.confirm(confirmMsg);
     if (!ok) return;
@@ -289,7 +272,7 @@ export const StoresList: React.FC<StoresListProps> = ({
       window.location.hostname.endsWith('.local')
     );
     const isEditaveis = store.slug === 'editaveisdocanva' || store.id === 'store_editaveisdocanva' || Boolean(store.custom_domain && store.custom_domain.toLowerCase().includes('editaveisdocanva.com.br'));
-    const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default');
+    const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'ajpstore' || store.id === 'store_ajpstore');
 
     if (!isLocal && store.custom_domain && (store.domain_status === 'active' || store.domain_status === 'ativo')) {
       const url = store.custom_domain.startsWith('http') ? store.custom_domain : `https://${store.custom_domain}`;
@@ -299,7 +282,7 @@ export const StoresList: React.FC<StoresListProps> = ({
       return admin ? '/admin' : '/';
     }
     // Formato amigável e direto via slug: /loja/:slug
-    return `/loja/${store.slug || 'suamarcaaqui'}${admin ? '/admin' : ''}`;
+    return `/loja/${store.slug || 'ajpstore'}${admin ? '/admin' : ''}`;
   };
 
   return (
@@ -324,53 +307,50 @@ export const StoresList: React.FC<StoresListProps> = ({
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 border-t border-slate-100">
+        {/* Status Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-full sm:w-auto overflow-x-auto text-xs font-semibold">
           <button
             onClick={() => setFilterTab('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
               filterTab === 'all'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Todas ({stores.length})
+            Todas ({safeList.length})
           </button>
-
           <button
             onClick={() => setFilterTab('trial')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               filterTab === 'trial'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'text-purple-700 bg-purple-50 hover:bg-purple-100'
+                ? 'bg-white text-purple-700 shadow-xs'
+                : 'text-slate-600 hover:text-purple-700'
             }`}
           >
-            <Gift className="w-3.5 h-3.5" />
-            <span>Teste Grátis ({trialCount})</span>
+            <Gift className="w-3.5 h-3.5 text-purple-600" />
+            <span>Em Teste ({trialCount})</span>
           </button>
-
           <button
             onClick={() => setFilterTab('active')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               filterTab === 'active'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                ? 'bg-white text-emerald-700 shadow-xs'
+                : 'text-slate-600 hover:text-emerald-700'
             }`}
           >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Assinaturas Ativas ({activeCount})</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Assinantes ({activeCount})</span>
           </button>
-
           <button
             onClick={() => setFilterTab('expired')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               filterTab === 'expired'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'text-rose-700 bg-rose-50 hover:bg-rose-100'
+                ? 'bg-white text-rose-700 shadow-xs'
+                : 'text-slate-600 hover:text-rose-700'
             }`}
           >
-            <AlertOctagon className="w-3.5 h-3.5" />
-            <span>Vencidas / Bloqueadas ({expiredCount})</span>
+            <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
+            <span>Expiradas ({expiredCount})</span>
           </button>
         </div>
       </div>
@@ -391,7 +371,7 @@ export const StoresList: React.FC<StoresListProps> = ({
         <div className="grid grid-cols-1 gap-4">
           {filteredStores.map((store) => {
             const isEditaveis = store.slug === 'editaveisdocanva' || store.id === 'store_editaveisdocanva' || Boolean(store.custom_domain && store.custom_domain.toLowerCase().includes('editaveisdocanva.com.br'));
-            const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'suamarcaaqui' || store.id === 'suamarcaaqui' || store.id === 'store_default');
+            const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'ajpstore' || store.id === 'store_ajpstore');
             const isEditingThisDomain = editingDomainId === store.id;
 
             return (
@@ -694,23 +674,6 @@ export const StoresList: React.FC<StoresListProps> = ({
                       </button>
                     )}
 
-                    {/* Botão para Definir como Matriz */}
-                    {!isBaseStore && (
-                      <button
-                        onClick={() => handleSetAsMatriz(store)}
-                        disabled={isSettingMatrizId === store.id}
-                        className="px-2.5 py-2 bg-pink-50 hover:bg-pink-100 text-[#FF1493] text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-pink-200 cursor-pointer active:scale-98 disabled:opacity-50"
-                        title="Definir esta loja como a Matriz do sistema (novas lojas clonarão o catálogo dela)"
-                      >
-                        {isSettingMatrizId === store.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF1493]" />
-                        ) : (
-                          <Crown className="w-3.5 h-3.5 text-yellow-500" />
-                        )}
-                        <span>Definir Matriz</span>
-                      </button>
-                    )}
-
                     {/* Botão Ver Loja */}
                     <a
                       href={getStoreUrl(store, false)}
@@ -745,38 +708,42 @@ export const StoresList: React.FC<StoresListProps> = ({
                       <span>DNS</span>
                     </button>
 
-                    {/* Pausar / Ativar Loja */}
-                    <button
-                      onClick={() => handleToggleStatus(store)}
-                      className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                        store.is_active
-                          ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 border-slate-200'
-                          : 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                      }`}
-                      title={store.is_active ? 'Pausar Loja' : 'Ativar Loja'}
-                    >
-                      <Power className="w-4 h-4" />
-                    </button>
+                    {/* Pausar / Ativar Loja (não aplicável à Matriz fixa) */}
+                    {!isBaseStore && (
+                      <button
+                        onClick={() => handleToggleStatus(store)}
+                        className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                          store.is_active
+                            ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 border-slate-200'
+                            : 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                        title={store.is_active ? 'Pausar Loja' : 'Ativar Loja'}
+                      >
+                        <Power className="w-4 h-4" />
+                      </button>
+                    )}
 
-                    {/* Excluir Loja / Conta */}
-                    <button
-                      onClick={() => handleDelete(store)}
-                      disabled={deletingId === store.id}
-                      className="px-3 py-2 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50/80 hover:border-rose-600 rounded-xl border border-rose-200 transition-all cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold shadow-2xs"
-                      title="Excluir Conta / Loja permanentemente"
-                    >
-                      {deletingId === store.id ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Excluindo...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Excluir</span>
-                        </>
-                      )}
-                    </button>
+                    {/* Excluir Loja / Conta (não aplicável à Matriz fixa) */}
+                    {!isBaseStore && (
+                      <button
+                        onClick={() => handleDelete(store)}
+                        disabled={deletingId === store.id}
+                        className="px-3 py-2 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50/80 hover:border-rose-600 rounded-xl border border-rose-200 transition-all cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold shadow-2xs"
+                        title="Excluir Conta / Loja permanentemente"
+                      >
+                        {deletingId === store.id ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Excluindo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
 
                 </div>

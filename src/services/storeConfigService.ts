@@ -257,7 +257,7 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       const { data: mRow } = await supabase
         .from('stores')
         .select('*')
-        .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default,is_matriz.eq.true')
+        .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default')
         .limit(1)
         .maybeSingle();
       if (mRow) matrizStoreRow = mRow;

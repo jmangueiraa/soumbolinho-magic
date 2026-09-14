@@ -3,10 +3,10 @@ import { Store, DomainStatus, SubscriptionStatus } from '../types';
 import { supabase } from '../lib/supabase';
 
 export const DEFAULT_STORE: Store = {
-  id: 'suamarcaaqui',
-  name: 'SUAMARCAAQUI',
-  slug: 'suamarcaaqui',
-  custom_domain: 'suamarcaaqui.com.br',
+  id: 'store_ajpstore',
+  name: 'AJPSTORE',
+  slug: 'ajpstore',
+  custom_domain: 'seudominio',
   domain_status: 'active',
   theme_settings: {
     primary_color: '#FF1493',
@@ -15,11 +15,12 @@ export const DEFAULT_STORE: Store = {
     theme_layout: 'classic'
   },
   is_active: true,
+  is_matriz: true,
   subscription_status: 'active',
-  expires_at: '2099-12-31 23:59:59Z',
+  expires_at: '2099-12-31T23:59:59.000Z',
   monthly_fee: 0.00,
-  owner_name: 'Super Admin',
-  owner_email: 'admin@suamarcaaqui.com.br'
+  owner_name: 'AJPSTORE',
+  owner_email: 'ajpsotre@gmail.com'
 };
 
 export const INITIAL_TENANT_PENDING_STORE: Store = {
@@ -57,7 +58,7 @@ export function checkIsTenantRoute(): boolean {
     hostname === 'www.suamarcaaqui.com.br' ||
     hostname.includes('soumbolinho');
 
-  const isMatrizSlug = storeSlugParam === 'suamarcaaqui';
+  const isMatrizSlug = storeSlugParam === 'ajpstore' || storeSlugParam === 'suamarcaaqui';
   if (isMatrizSlug) {
     return false;
   }
@@ -67,20 +68,23 @@ export function checkIsTenantRoute(): boolean {
 
 export function normalizeStore(s: any): Store {
   if (!s) return DEFAULT_STORE;
-  const isBase = s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default';
-  const resolvedId = isBase ? (s.id || 'suamarcaaqui') : s.id;
-  const resolvedSlug = isBase ? 'suamarcaaqui' : s.slug;
-  const resolvedName = isBase ? (s.name || s.store_name || 'SUAMARCAAQUI') : (s.name || s.store_name || 'Loja');
-  // Garante que a loja matriz SUAMARCAAQUI seja estritamente vitalícia no banco caso esteja com trial antigo
-  if (isBase && (s.subscription_status !== 'active' || s.expires_at !== '2099-12-31T23:59:59.000Z' || s.monthly_fee !== 0)) {
+  const isAjpStore = s.slug === 'ajpstore' || s.id === 'store_ajpstore' || (typeof s.name === 'string' && s.name.toLowerCase().includes('ajpstore'));
+  const isMatriz = isAjpStore || Boolean(s.is_matriz);
+  const isBase = isMatriz || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default';
+  const resolvedId = isAjpStore ? (s.id || 'store_ajpstore') : (isBase ? (s.id || 'suamarcaaqui') : s.id);
+  const resolvedSlug = isAjpStore ? (s.slug || 'ajpstore') : (isBase ? 'suamarcaaqui' : s.slug);
+  const resolvedName = isAjpStore ? (s.name || s.store_name || 'AJPSTORE') : (isBase ? (s.name || s.store_name || 'SUAMARCAAQUI') : (s.name || s.store_name || 'Loja'));
+  // Garante que a loja matriz AJPSTORE seja estritamente vitalícia no banco caso esteja com trial antigo
+  if (isAjpStore && (s.subscription_status !== 'active' || s.expires_at !== '2099-12-31T23:59:59.000Z' || s.monthly_fee !== 0 || !s.is_matriz)) {
     supabase
       .from('stores')
       .update({
+        is_matriz: true,
         subscription_status: 'active',
         expires_at: '2099-12-31T23:59:59.000Z',
         monthly_fee: 0.00
       })
-      .or('slug.eq.suamarcaaqui,id.eq.suamarcaaqui')
+      .or('slug.eq.ajpstore,id.eq.store_ajpstore')
       .then();
   }
 
@@ -90,6 +94,7 @@ export function normalizeStore(s: any): Store {
     name: resolvedName,
     store_name: s.store_name || resolvedName,
     slug: resolvedSlug,
+    is_matriz: isAjpStore ? true : (isBase ? Boolean(s.is_matriz) : false),
     subscription_status: isBase ? 'active' : (s.subscription_status || 'active'),
     expires_at: isBase ? '2099-12-31T23:59:59.000Z' : s.expires_at,
     monthly_fee: isBase ? 0.00 : (s.monthly_fee !== undefined ? Number(s.monthly_fee) : 50.00),
@@ -355,11 +360,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // 3. Raiz da plataforma / Matriz (acesso à raiz sem slug de loja)
       setTenantNotFound(false);
-      // Prioridade 1: Busca loja marcada como matriz no Supabase
+      // Prioridade 1: Busca loja marcada como matriz no Supabase (AJPSTORE)
       const { data: matrizFromDb } = await supabase
         .from('stores')
         .select('*')
-        .or('is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default')
+        .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default')
         .limit(1)
         .maybeSingle();
 

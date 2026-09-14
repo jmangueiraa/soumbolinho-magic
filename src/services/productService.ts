@@ -200,12 +200,12 @@ export function mapSupabaseProduct(item: any): Product {
 export function isMatrizStoreId(storeId?: string): boolean {
   if (!storeId) return false;
   const s = storeId.trim().toLowerCase();
-  return s === 'suamarcaaqui' || s === 'store_default';
+  return s === 'ajpstore' || s === 'store_ajpstore' || s === 'suamarcaaqui' || s === 'store_default';
 }
 
 /**
  * 1. Busca TODOS os produtos diretamente do Supabase (filtrado rigorosamente por loja)
- * - O site modelo (suamarcaaqui) carrega apenas produtos da matriz base.
+ * - O site modelo (ajpstore/suamarcaaqui) carrega apenas produtos da matriz base.
  * - Lojas clientes (incluindo Editáveis do Canva) filtram 100% estritamente pelo seu próprio store_id.
  */
 export async function fetchAllProducts(storeId?: string): Promise<{ data: Product[]; error: string | null }> {
@@ -227,7 +227,7 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     // REQUISITO 1: Se a página acessada for a raiz (editaveisdocanva.com.br ou sem slug de loja)
     const isEditaveisHost = hostname.includes('editaveisdocanva.com.br') || hostname.includes('soumbolinho');
     const isEditaveisStore = currentStoreId === 'matriz' || currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva';
-    const isBaseStore = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default';
+    const isBaseStore = currentStoreId === 'ajpstore' || currentStoreId === 'store_ajpstore' || currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default';
 
     // A matriz oficial só é assumida se estivermos no domínio da matriz ou se a loja for a matriz
     const isRootMatriz = !isSpecificStoreRoute && (isEditaveisStore || (isEditaveisHost && !isBaseStore));
@@ -243,9 +243,11 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     if (isRootMatriz) {
       query = query.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
     } 
-    // REQUISITO 2: Quando a rota for de uma loja específica (ex: /loja/suamarcaaqui ou /loja/editaveisdocanva), filtra OBRIGATORIAMENTE por store_id
+    // REQUISITO 2: Quando a rota for de uma loja específica (ex: /loja/ajpstore, /loja/suamarcaaqui ou /loja/editaveisdocanva), filtra OBRIGATORIAMENTE por store_id
     else if (currentStoreId) {
-      if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
+      if (currentStoreId === 'ajpstore' || currentStoreId === 'store_ajpstore') {
+        query = query.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+      } else if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
         query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
       } else if (currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva') {
         query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.matriz');
@@ -276,6 +278,9 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     } else if (currentStoreId) {
       mapped = mapped.filter(p => {
         const sId = (p.store_id || '').toLowerCase().trim();
+        if (currentStoreId === 'ajpstore' || currentStoreId === 'store_ajpstore') {
+          return sId === 'ajpstore' || sId === 'store_ajpstore' || sId === 'suamarcaaqui' || sId === 'store_default' || !sId;
+        }
         if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
           return sId === 'suamarcaaqui' || sId === 'store_default' || !sId;
         }
@@ -698,7 +703,9 @@ export async function fetchProductByIdOrSlug(
           .select('*')
           .or(`slug.ilike.${cleanSlug},slug.ilike.${cleanId}`);
 
-        if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
+        if (targetStoreId === 'ajpstore' || targetStoreId === 'store_ajpstore') {
+          slugQuery = slugQuery.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+        } else if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
           slugQuery = slugQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
         } else if (targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva') {
           slugQuery = slugQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');
@@ -719,7 +726,9 @@ export async function fetchProductByIdOrSlug(
         .select('*')
         .eq('id', cleanId);
 
-      if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
+      if (targetStoreId === 'ajpstore' || targetStoreId === 'store_ajpstore') {
+        idQuery = idQuery.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+      } else if (targetStoreId === 'suamarcaaqui' || targetStoreId === 'store_default') {
         idQuery = idQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
       } else if (targetStoreId === 'matriz' || targetStoreId === 'store_editaveisdocanva') {
         idQuery = idQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva');

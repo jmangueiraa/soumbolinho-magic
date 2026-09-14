@@ -40,8 +40,8 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
   stores,
 }) => {
   const matrizStore = stores?.find(
-    (s) => Boolean(s.is_matriz) || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'
-  ) || stores?.[0];
+    (s) => Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore'
+  ) || stores?.find((s) => s.slug === 'suamarcaaqui') || stores?.[0];
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -109,7 +109,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
         telegramChatId: formData.telegramChatId.trim() || undefined,
         clientPassword: formData.password.trim() || 'admin',
         cloneBaseCatalog: formData.cloneCatalog,
-        sourceMatrizStoreId: matrizStore?.id || matrizStore?.slug || 'suamarcaaqui',
+        sourceMatrizStoreId: matrizStore?.id || matrizStore?.slug || 'ajpstore',
         monthlyFee: parseFloat(formData.monthlyFee.replace(',', '.')) || 50.00,
         initialDays: parseInt(formData.initialDays) || 7,
       });
@@ -171,7 +171,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
                 Loja Matriz a ser Clonada:
               </span>
               <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                {matrizStore?.name || matrizStore?.store_name || 'SUAMARCAAQUI'}
+                {matrizStore?.name || matrizStore?.store_name || 'AJPSTORE'}
                 <span className="text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
                   Matriz Ativa
                 </span>
@@ -509,7 +509,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
               <div className="text-xs">
                 <span className="font-bold text-slate-800 block flex items-center gap-1.5">
                   <Crown className="w-3.5 h-3.5 text-yellow-500" />
-                  Clonar catálogo completo da loja matriz ({matrizStore?.name || matrizStore?.store_name || 'SUAMARCAAQUI'})
+                  Clonar catálogo completo da loja matriz ({matrizStore?.name || matrizStore?.store_name || 'AJPSTORE'})
                 </span>
                 <span className="text-slate-500 text-[11px] block mt-0.5">
                   Copia com fidelidade total todos os produtos reais (com fotos, descrições, preços e links), categorias originais, subcategorias e banners da loja marcada como matriz.
