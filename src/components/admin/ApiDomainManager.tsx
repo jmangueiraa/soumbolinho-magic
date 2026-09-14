@@ -398,7 +398,7 @@ export const ApiDomainManager: React.FC = () => {
             <span>Api e Dominio</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Gerencie o endereço web exclusivo da sua loja e credenciais de integração (Mercado Pago e Telegram)
+            Gerencie o endereço web exclusivo da sua loja e credenciais de integração (Mercado Pago, Telegram e Melhor Envio)
           </p>
         </div>
       </div>
@@ -714,6 +714,80 @@ export const ApiDomainManager: React.FC = () => {
                 </>
               )}
             </button>
+          </div>
+        </div>
+
+        {/* 2.3 Integração Melhor Envio */}
+        <div className="p-4 sm:p-5 bg-orange-50/60 rounded-3xl border border-orange-200 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                ME
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span>Integração Melhor Envio</span>
+                  <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">
+                    Opcional / API
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Cotação automática via API com Jadlog, Correios, Loggi e Latam Cargo.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {melhorEnvioToken ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                  <Check className="w-3 h-3" />
+                  Token Configurado
+                </span>
+              ) : (
+                <span className="text-[11px] bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded-full font-semibold">
+                  Opcional
+                </span>
+              )}
+
+              {/* Interruptor Liga / Desliga */}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={melhorEnvioEnabled}
+                  onChange={(e) => setMelhorEnvioEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                Token da API do Melhor Envio (Bearer Token)
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type={showMeToken ? "text" : "password"}
+                  value={melhorEnvioToken}
+                  onChange={(e) => setMelhorEnvioToken(e.target.value)}
+                  placeholder="Cole o seu Token de Acesso gerado no painel do Melhor Envio..."
+                  className="w-full text-xs font-mono px-3.5 py-2.5 bg-white border border-orange-200 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMeToken(!showMeToken)}
+                  className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  title={showMeToken ? "Ocultar Token" : "Visualizar Token"}
+                >
+                  {showMeToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                Caso o token não esteja preenchido ou a API do Melhor Envio fique indisponível, o sistema utiliza automaticamente com 100% de segurança as regras de frete fixo cadastradas na aba <strong>Frete & Envio</strong>.
+              </p>
+            </div>
           </div>
         </div>
 
