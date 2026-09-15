@@ -456,16 +456,24 @@ export const StoresList: React.FC<StoresListProps> = ({
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 flex-wrap">
-                          {store.custom_domain ? (
-                            <>
+                          {(() => {
+                            const rawDomain = store.custom_domain;
+                            const isSeuDominio = rawDomain && rawDomain.startsWith('seudominio');
+                            const effectiveDomain = (!rawDomain || isSeuDominio)
+                              ? `${store.slug}.ajpstore.com.br`
+                              : rawDomain;
+
+                            return (
                               <a
-                                href={`https://${store.custom_domain.replace(/^https?:\/\//, '')}`}
+                                href={`https://${effectiveDomain.replace(/^https?:\/\//, '')}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs font-bold text-sky-700 hover:underline font-mono"
                               >
-                                {store.custom_domain}
+                                {effectiveDomain}
                               </a>
+                            );
+                          })()}
 
                               {store.domain_status === 'active' || store.domain_status === 'ativo' ? (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">

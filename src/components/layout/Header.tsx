@@ -93,8 +93,17 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
             </div>
           </div>
 
-          {/* LADO DIREITO: Botão do Carrinho Estilo Referência */}
-          <div className="flex items-center shrink-0">
+          {/* LADO DIREITO: Botão Criar Loja (7 Dias Grátis) + Botão do Carrinho */}
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="/cadastro"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all hover:scale-102 active:scale-98 shrink-0"
+              title="Crie sua loja grátis por 7 dias"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-yellow-200" />
+              <span>Criar Loja (7 Dias Grátis)</span>
+            </a>
+
             {/* Botão do Carrinho com borda e badge (ex: R$ 10,00 🛒 1) */}
             <button
               onClick={openCart}

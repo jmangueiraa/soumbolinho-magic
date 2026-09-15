@@ -16,6 +16,11 @@ export const RESERVED_ROUTES = [
   'produto',
   'loja',
   'arquivos',
+  'cadastro',
+  'criar-loja',
+  'planos',
+  'comecar',
+  'onboarding',
   'index.html',
   'favicon.ico',
   'favicon.svg',
@@ -123,6 +128,15 @@ export function useParams<T extends Record<string, string | undefined> = Record<
     if (lojaMatch && lojaMatch[1]) {
       const decoded = decodeURIComponent(lojaMatch[1]);
       return { storeSlug: decoded, slug: decoded, id: decoded } as unknown as T;
+    }
+
+    // 2.6. Rota /:storeSlug/admin direta
+    const rootAdminMatch = path.match(/^\/([^/?#]+)\/admin(?:\/)?$/i) || h.match(/^#?\/?([^/?#]+)\/admin(?:\/)?$/i);
+    if (rootAdminMatch && rootAdminMatch[1]) {
+      const decoded = decodeURIComponent(rootAdminMatch[1]);
+      if (!RESERVED_ROUTES.includes(decoded.toLowerCase())) {
+        return { storeSlug: decoded, slug: decoded, id: decoded } as unknown as T;
+      }
     }
 
     // 3. Rota amigável na raiz /:slug
@@ -238,6 +252,18 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         if (hasLojaPrefix && !isProductSubpath) {
           const currentIsAdmin = cleanPath.endsWith('/admin') || cleanHash.endsWith('/admin');
           if (isLojaAdmin === currentIsAdmin) {
+            return element;
+          }
+        }
+        continue;
+      }
+
+      // 3.7. Rota dinâmica direta de admin da loja: /:slug/admin
+      if (cleanTarget === '/:slug/admin' || cleanTarget.endsWith('/:slug/admin')) {
+        const adminMatch = cleanPath.match(/^\/([^/?#]+)\/admin(?:\/)?$/i) || cleanHash.match(/^#?\/?([^/?#]+)\/admin(?:\/)?$/i);
+        if (adminMatch && adminMatch[1]) {
+          const seg = adminMatch[1].toLowerCase().trim();
+          if (seg && !RESERVED_ROUTES.includes(seg)) {
             return element;
           }
         }

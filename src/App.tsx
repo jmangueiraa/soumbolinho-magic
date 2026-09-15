@@ -26,6 +26,7 @@ import { CreditCardCheckoutPage } from './components/checkout/CreditCardCheckout
 import { StoreHighlights } from './components/home/StoreHighlights';
 import { ArquivosPage } from './components/pages/ArquivosPage';
 import { CategoryPills } from './components/filters/CategoryPills';
+import { MarketingLandingPage } from './components/marketing/MarketingLandingPage';
 import { applyThemeToDocument } from './utils/theme';
 import { ThemeLayoutType, ColorPaletteType } from './types';
 import { recordStoreVisit, recordProductView } from './services/analyticsService';
@@ -279,6 +280,8 @@ const DynamicTitleHandler: React.FC = () => {
 
       if (fullRoute.includes('/master') || fullRoute.includes('/super-admin')) {
         document.title = `Painel Master | ${siteName}`;
+      } else if (fullRoute.includes('/cadastro') || fullRoute.includes('/criar-loja') || fullRoute.includes('/planos') || fullRoute.includes('/comecar') || fullRoute.includes('/onboarding')) {
+        document.title = `Criar Minha Loja (7 Dias Grátis) | ${siteName}`;
       } else if (fullRoute.includes('/admin')) {
         document.title = `Painel Administrativo | ${siteName}`;
       } else if (fullRoute.includes('/checkout') || fullRoute.includes('/finalizar-compra')) {
@@ -321,41 +324,60 @@ const NavigationRouter: React.FC = () => {
         {/* 1. Rota Raiz da Loja */}
         <Route path="/" element={<StoreFront />} />
 
-      {/* 1.1. Rotas Dinâmicas de Loja por Slug (/loja/:slug e /loja/:storeSlug) */}
-      <Route path="/loja/:slug" element={<StoreFront />} />
-      <Route path="/loja/:storeSlug" element={<StoreFront />} />
-      <Route
-        path="/loja/:slug/admin"
-        element={
-          isAuthenticated ? (
-            <AdminLayout onBackToStore={handleBackToStore} />
-          ) : (
-            <AdminLogin onBackToStore={handleBackToStore} />
-          )
-        }
-      />
-      <Route
-        path="/loja/:storeSlug/admin"
-        element={
-          isAuthenticated ? (
-            <AdminLayout onBackToStore={handleBackToStore} />
-          ) : (
-            <AdminLogin onBackToStore={handleBackToStore} />
-          )
-        }
-      />
+        {/* 1.1. Página de Marketing & Onboarding (7 Dias Grátis) */}
+        <Route path="/cadastro" element={<MarketingLandingPage />} />
+        <Route path="/criar-loja" element={<MarketingLandingPage />} />
+        <Route path="/planos" element={<MarketingLandingPage />} />
+        <Route path="/comecar" element={<MarketingLandingPage />} />
+        <Route path="/onboarding" element={<MarketingLandingPage />} />
 
-      {/* 2. Rotas Fixas Administrativas */}
-      <Route
-        path="/admin"
-        element={
-          isAuthenticated ? (
-            <AdminLayout onBackToStore={handleBackToStore} />
-          ) : (
-            <AdminLogin onBackToStore={handleBackToStore} />
-          )
-        }
-      />
+        {/* 1.2. Rotas Dinâmicas de Loja por Slug (/loja/:slug e /loja/:storeSlug) */}
+        <Route path="/loja/:slug" element={<StoreFront />} />
+        <Route path="/loja/:storeSlug" element={<StoreFront />} />
+        <Route
+          path="/loja/:slug/admin"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/loja/:storeSlug/admin"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+
+        {/* 1.3. Rota Direta de Admin da Loja: /:slug/admin */}
+        <Route
+          path="/:slug/admin"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+
+        {/* 2. Rotas Fixas Administrativas */}
+        <Route
+          path="/admin"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
 
       {/* 2.1. Painel Mestre de Vendas (SaaS Multi-Tenant) */}
       <Route path="/master" element={<MasterLayout />} />

@@ -52,7 +52,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
     instagram: 'suamarcaaqui',
     address: 'seuendereço',
     workingHours: 'SEMPRE ABERTO',
-    customDomain: 'seudominio',
+    customDomain: '',
     mpAccessToken: '',
     telegramBotToken: '',
     telegramChatId: '',
@@ -86,7 +86,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
       .toLowerCase();
 
     // Se o cliente colocou domínio sem www e não é subdomínio nem 'seudominio', sugere/aplica www
-    if (domainFormatted && domainFormatted !== 'seudominio' && !domainFormatted.startsWith('www.') && domainFormatted.split('.').length === 2) {
+    if (domainFormatted && domainFormatted !== 'seudominio' && !domainFormatted.includes('ajpstore.com.br') && !domainFormatted.startsWith('www.') && domainFormatted.split('.').length === 2) {
       domainFormatted = `www.${domainFormatted}`;
     }
 
@@ -391,11 +391,11 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
                 type="text"
                 value={formData.customDomain}
                 onChange={(e) => setFormData({ ...formData, customDomain: e.target.value })}
-                placeholder="seudominio"
+                placeholder="Ex: sualoja.ajpstore.com.br ou www.sualoja.com.br"
                 className="w-full text-xs px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#FF1493] font-mono"
               />
               <span className="text-[10px] text-slate-400 mt-1 block">
-                Valor padrão: <code className="text-slate-700 font-bold">seudominio</code> (ou insira domínio próprio como www.sualoja.com.br).
+                Subdomínio automático: <code className="text-slate-700 font-bold">[slug].ajpstore.com.br</code> (ou informe domínio próprio como www.sualoja.com.br).
               </span>
             </div>
 

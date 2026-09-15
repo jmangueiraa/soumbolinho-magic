@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Globe, ExternalLink, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/formatters';
@@ -139,8 +140,53 @@ export default function AdminDashboard({ storeId: propStoreId, onNavigateToProdu
     );
   }
 
+  const storeDomainDisplay = (() => {
+    if (currentStore?.custom_domain && !currentStore.custom_domain.startsWith('seudominio')) {
+      return currentStore.custom_domain.replace(/^https?:\/\//, '');
+    }
+    if (currentStore?.slug && currentStore.slug !== 'suamarcaaqui' && currentStore.slug !== 'store_default') {
+      return `${currentStore.slug}.ajpstore.com.br`;
+    }
+    return null;
+  })();
+
   return (
     <div className="p-6 space-y-6 animate-in fade-in">
+      {/* Banner de Boas-Vindas com Domínio Público Clicável */}
+      {storeDomainDisplay && (
+        <div className="bg-gradient-to-r from-sky-900 via-indigo-950 to-slate-900 p-4 sm:p-5 rounded-2xl border border-sky-500/30 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow-xs">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">
+                Sua Loja Está no Ar
+              </p>
+              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2 flex-wrap">
+                <span>{currentStore?.store_name || currentStore?.name || 'Minha Loja'}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">
+                  ● Online
+                </span>
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={`https://${storeDomainDisplay}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-xs group cursor-pointer"
+              title="Acessar vitrine pública da loja em nova aba"
+            >
+              <span className="font-mono">{storeDomainDisplay}</span>
+              <ExternalLink className="w-3.5 h-3.5 text-sky-600 group-hover:translate-x-0.5 transition-transform" />
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-200">

@@ -122,6 +122,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
 
   const storeDisplayName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Minha Loja';
 
+  const storeDomainDisplay = (() => {
+    if (currentStore?.custom_domain && !currentStore.custom_domain.startsWith('seudominio')) {
+      return currentStore.custom_domain.replace(/^https?:\/\//, '');
+    }
+    if (currentStore?.slug && currentStore.slug !== 'suamarcaaqui' && currentStore.slug !== 'store_default') {
+      return `${currentStore.slug}.ajpstore.com.br`;
+    }
+    return null;
+  })();
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       
@@ -148,12 +158,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
                 <span className="w-8 h-8 rounded-full bg-theme-light text-theme-primary flex items-center justify-center font-sans font-black text-sm border border-theme-primary/20">
                   {storeDisplayName.charAt(0).toUpperCase()}
                 </span>
-                <span className="truncate max-w-[180px] sm:max-w-[260px]">{storeDisplayName}</span>
+                <span className="truncate max-w-[160px] sm:max-w-[220px]">{storeDisplayName}</span>
               </div>
             )}
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-black text-white hidden sm:inline-block">
               Painel Admin
             </span>
+
+            {/* Domínio da Loja Clicável em Destaque */}
+            {storeDomainDisplay && (
+              <a
+                href={`https://${storeDomainDisplay}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 hover:text-sky-900 text-xs font-mono font-bold rounded-xl border border-sky-200 hover:border-sky-300 transition-all group"
+                title="Acessar domínio público da loja em nova aba"
+              >
+                <Globe className="w-3.5 h-3.5 text-sky-600 group-hover:scale-110 transition-transform" />
+                <span>{storeDomainDisplay}</span>
+                <ExternalLink className="w-3 h-3 text-sky-500 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+            )}
           </div>
 
           {/* Lado Direito: Ações Rápidas (Ver Catálogo & Logout) */}
@@ -207,7 +232,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
               <span className="w-7 h-7 rounded-full bg-theme-light text-theme-primary flex items-center justify-center font-sans font-black text-xs border border-theme-primary/20">
                 {storeDisplayName.charAt(0).toUpperCase()}
               </span>
-              <span className="text-xs font-bold truncate max-w-[170px]">{storeDisplayName}</span>
+              <div>
+                <span className="text-xs font-bold truncate max-w-[170px] block">{storeDisplayName}</span>
+                {storeDomainDisplay && (
+                  <a
+                    href={`https://${storeDomainDisplay}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-mono text-sky-600 hover:underline flex items-center gap-1 mt-0.5"
+                  >
+                    <span>{storeDomainDisplay}</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                )}
+              </div>
             </div>
             <button
               onClick={() => setIsMobileMenuOpen(false)}

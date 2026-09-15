@@ -37,7 +37,7 @@ export const MATRIZ_DEFAULT_STORE_DATA: Partial<Store> = {
   name: 'AJPSTORE',
   store_name: 'AJPSTORE',
   slug: 'ajpstore',
-  custom_domain: 'seudominio',
+  custom_domain: 'ajpstore.com.br',
   domain_status: 'active',
   is_active: true,
   is_matriz: true,
@@ -441,7 +441,7 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
           name: 'AJPSTORE',
           store_name: 'AJPSTORE',
           slug: 'ajpstore',
-          custom_domain: st.custom_domain || 'seudominio',
+          custom_domain: st.custom_domain || 'ajpstore.com.br',
           domain_status: (st.domain_status || 'active') as DomainStatus,
           is_active: true,
           is_matriz: true,
@@ -578,9 +578,16 @@ export async function createStoreWithClient(
       isCustom: Boolean(rawDomain)
     });
 
-    // 1. Validar duplicidade de domínio (se for um domínio real customizado)
-    let domainToSave: string | null = finalDomain;
-    if (finalDomain && finalDomain !== 'seudominio') {
+    // 1. Validar duplicidade de domínio e gerar subdomínio automático (${storeSlug}.ajpstore.com.br)
+    let domainToSave: string = `${storeSlug}.ajpstore.com.br`;
+    const isCustomExternalDomain = Boolean(
+      finalDomain && 
+      finalDomain !== 'seudominio' && 
+      !finalDomain.includes('seudominio') && 
+      !finalDomain.endsWith('ajpstore.com.br')
+    );
+
+    if (isCustomExternalDomain) {
       const { data: existingDomain } = await supabase
         .from('stores')
         .select('id, name')
@@ -590,17 +597,10 @@ export async function createStoreWithClient(
       if (existingDomain) {
         return { store: null, error: `O endereço de domínio "${finalDomain}" já está associado à loja "${existingDomain.name}".` };
       }
-    } else if (finalDomain === 'seudominio') {
-      // Se 'seudominio' já existir em outra loja, evita colisão de restrição UNIQUE no banco
-      const { data: existingDefault } = await supabase
-        .from('stores')
-        .select('id')
-        .eq('custom_domain', 'seudominio')
-        .maybeSingle();
-
-      if (existingDefault) {
-        domainToSave = `seudominio-${storeSlug}`;
-      }
+      domainToSave = finalDomain;
+    } else {
+      // Subdomínio automático no padrão oficial da plataforma
+      domainToSave = `${storeSlug}.ajpstore.com.br`;
     }
 
     // 2. Inserir a nova loja na tabela stores com exatamente os dados digitados pelo Super Admin
@@ -619,7 +619,7 @@ export async function createStoreWithClient(
       store_name: resolvedStoreName,
       slug: storeSlug,
       custom_domain: domainToSave,
-      domain_status: rawDomain && rawDomain !== 'seudominio' ? 'pending_dns' : 'ativo',
+      domain_status: isCustomExternalDomain ? 'pending_dns' : 'ativo',
       is_active: true,
       subscription_status: input.subscriptionStatus || 'trial',
       expires_at: expiresAt,
@@ -682,7 +682,7 @@ export async function createStoreWithClient(
 
       // Detecta se houve colisão de restrição UNIQUE em custom_domain
       if (res.error.code === '23505' || res.error.message?.toLowerCase().includes('custom_domain')) {
-        currentPayload.custom_domain = `seudominio-${storeSlug}-${Date.now().toString(36)}`;
+        currentPayload.custom_domain = `${storeSlug}-${Date.now().toString(36)}.ajpstore.com.br`;
         continue;
       }
 

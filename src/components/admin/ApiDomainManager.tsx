@@ -17,7 +17,8 @@ import {
   Truck,
   MapPin,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  ExternalLink
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -771,6 +772,101 @@ export const ApiDomainManager: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* 0. SEÇÃO DO SUBDOMÍNIO AUTOMÁTICO OFICIAL */}
+      {(() => {
+        const rawCustom = currentStore?.custom_domain;
+        const defaultSubdomain = currentStore?.slug ? `${currentStore.slug}.ajpstore.com.br` : 'sualoja.ajpstore.com.br';
+        const activeWebDomain = (rawCustom && !rawCustom.startsWith('seudominio')) ? rawCustom.replace(/^https?:\/\//, '') : defaultSubdomain;
+        const fullStoreUrl = `https://${activeWebDomain}`;
+
+        return (
+          <div className="bg-gradient-to-br from-sky-950 via-slate-900 to-slate-950 p-6 sm:p-8 rounded-3xl border border-sky-500/30 shadow-lg text-white space-y-5">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500 text-slate-950 flex items-center justify-center text-base font-black shadow-md shadow-cyan-500/20">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>Endereço Oficial da Sua Loja</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Ativo e Online
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Subdomínio automático gerado para o seu negócio na infraestrutura AJPSTORE
+                  </p>
+                </div>
+              </div>
+
+              {/* Botões de Ação Imediata */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(fullStoreUrl);
+                      setCopiedKey('store_url');
+                      setTimeout(() => setCopiedKey(null), 2500);
+                      showNotification('Link da loja copiado com sucesso!', 'success');
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {copiedKey === 'store_url' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Copiar Link</span>
+                    </>
+                  )}
+                </button>
+
+                <a
+                  href={fullStoreUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-cyan-500/20 group cursor-pointer"
+                >
+                  <span>Visitar Loja</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-950 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+              </div>
+            </div>
+
+            {/* Caixa em Destaque com o Domínio Clicável */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-sky-500/20 flex items-center justify-between flex-wrap gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-mono font-bold text-cyan-400 tracking-wider">
+                  Link Público para Clientes:
+                </span>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={fullStoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-sm sm:text-base font-bold text-white hover:text-cyan-300 hover:underline flex items-center gap-2 group transition-colors"
+                  >
+                    <span>{fullStoreUrl}</span>
+                    <ExternalLink className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>SSL Automático • Sem Taxas por Pedido</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 1. SEÇÃO DE DOMÍNIO PRÓPRIO */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#FFA6DF]/40 shadow-sm space-y-5">
