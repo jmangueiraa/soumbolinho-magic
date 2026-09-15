@@ -65,55 +65,55 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   }, [customLogoUrl]);
 
   const sizeClasses = {
-    sm: 'w-7 h-7 sm:w-8 sm:h-8',
-    md: 'w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12',
-    lg: 'w-11 h-11 sm:w-13 sm:h-13 md:w-16 md:h-16',
-    xl: 'w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20',
-  }[size] || 'w-11 h-11 sm:w-13 sm:h-13 md:w-16 md:h-16';
+    sm: 'w-8 h-8 sm:w-9 sm:h-9',
+    md: 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14',
+    lg: 'w-12 h-12 sm:w-15 sm:h-15 md:w-18 md:h-18 lg:w-20 lg:h-20',
+    xl: 'w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 lg:w-24 lg:h-24',
+  }[size] || 'w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 lg:w-24 lg:h-24';
 
   const titleClasses = {
     sm: 'text-xs sm:text-sm font-black tracking-tight',
     md: 'text-sm sm:text-lg md:text-xl font-black tracking-tight',
-    lg: 'text-lg sm:text-2xl md:text-3xl font-black tracking-tight',
-    xl: 'text-xl sm:text-3xl md:text-4xl font-black tracking-tight',
-  }[size] || 'text-lg sm:text-2xl md:text-3xl font-black tracking-tight';
+    lg: 'text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-tight',
+    xl: 'text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black tracking-tight',
+  }[size] || 'text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black tracking-tight';
 
   const sloganClasses = {
     sm: 'text-[7px] sm:text-[8px] font-bold tracking-wider',
     md: 'text-[8px] sm:text-[9.5px] md:text-[11px] font-bold tracking-wider sm:tracking-[0.14em]',
-    lg: 'text-[9px] sm:text-[11px] md:text-[12.5px] font-bold tracking-wider sm:tracking-[0.16em]',
-    xl: 'text-[10px] sm:text-[12px] md:text-[14px] font-bold tracking-wider sm:tracking-[0.18em]',
-  }[size] || 'text-[9px] sm:text-[11px] md:text-[12.5px] font-bold tracking-wider sm:tracking-[0.16em]';
+    lg: 'text-[9.5px] sm:text-[11.5px] md:text-[13px] font-bold tracking-wider sm:tracking-[0.18em]',
+    xl: 'text-[10px] sm:text-[12px] md:text-[14px] font-bold tracking-wider sm:tracking-[0.2em]',
+  }[size] || 'text-[10px] sm:text-[12px] md:text-[14px] font-bold tracking-wider sm:tracking-[0.2em]';
 
   const gapClasses = {
     sm: 'gap-1.5',
     md: 'gap-2 sm:gap-2.5',
-    lg: 'gap-2 sm:gap-3',
-    xl: 'gap-2.5 sm:gap-4',
-  }[size] || 'gap-2 sm:gap-3';
+    lg: 'gap-2.5 sm:gap-3.5',
+    xl: 'gap-3 sm:gap-4 md:gap-5',
+  }[size] || 'gap-3 sm:gap-4 md:gap-5';
 
   const sloganMaxWClasses = {
     sm: 'max-w-[120px] sm:max-w-none',
-    md: 'max-w-[150px] sm:max-w-[240px] md:max-w-none',
-    lg: 'max-w-[180px] sm:max-w-[300px] md:max-w-none',
-    xl: 'max-w-[240px] sm:max-w-[380px] md:max-w-none',
-  }[size] || 'max-w-[180px] sm:max-w-[300px] md:max-w-none';
+    md: 'max-w-[160px] sm:max-w-[260px] md:max-w-none',
+    lg: 'max-w-[200px] sm:max-w-[320px] md:max-w-none',
+    xl: 'max-w-[260px] sm:max-w-[400px] md:max-w-none',
+  }[size] || 'max-w-[260px] sm:max-w-[400px] md:max-w-none';
 
   return (
     <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
       {/* Ícone da Marca: Imagem enviada pelo usuário (arredondada / circular) ou SVG Mini Bolo Festivo */}
       <div className="logo-container relative flex items-center justify-center shrink-0">
         {customLogoUrl && !imageError ? (
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border border-white/25 shadow-sm bg-white/10`}>
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary/60 shadow-lg shadow-theme-primary/25 bg-zinc-900 transition-all duration-300 group-hover:ring-theme-primary group-hover:scale-105`}>
             <img
               src={customLogoUrl}
               alt={resolvedName}
               onError={() => setImageError(true)}
-              className="logo-image w-full h-full object-cover rounded-full drop-shadow-sm transition-transform duration-200 group-hover:scale-105"
+              className="logo-image w-full h-full object-cover rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
             />
           </div>
         ) : (
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white/10 dark:bg-zinc-800 border border-white/15 shadow-sm p-0.5 sm:p-1`}>
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-zinc-900 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary/60 shadow-lg shadow-theme-primary/25 p-1 sm:p-1.5 transition-all duration-300 group-hover:ring-theme-primary group-hover:scale-105`}>
             <svg
               className="w-full h-full aspect-square drop-shadow-sm"
               viewBox="0 0 100 100"
@@ -242,15 +242,15 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
               // 4. Caso Nome de Palavra Única
               return (
-                <span className={`font-sans ${titleClasses} text-theme-primary whitespace-nowrap`}>
+                <span className={`font-sans ${titleClasses} text-theme-primary whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]`}>
                   {resolvedName.toUpperCase()}
                 </span>
               );
             })()}
           </div>
           {resolvedSlogan && (
-            <span className={`${sloganClasses} uppercase mt-0.5 sm:mt-1 whitespace-nowrap truncate ${sloganMaxWClasses} ${
-              isLight ? 'text-zinc-400' : 'text-slate-500'
+            <span className={`${sloganClasses} uppercase mt-1 sm:mt-1.5 whitespace-nowrap truncate ${sloganMaxWClasses} ${
+              isLight ? 'text-zinc-300' : 'text-slate-600'
             }`}>
               {resolvedSlogan}
             </span>

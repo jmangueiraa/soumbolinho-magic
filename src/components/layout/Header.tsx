@@ -37,8 +37,8 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
     >
       
       {/* 1. Main Header Container */}
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
-        <div className="flex items-center justify-between gap-1.5 sm:gap-4">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-5">
           
           {/* LADO ESQUERDO: Botão de Menu (Ícone com Cor de Destaque da Marca) */}
           <div className="flex items-center shrink-0">
@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
           {/* CENTRO / LOGO: Logo Festivo Soumbolinho sem Fundo */}
           <a 
             href={storeHomeUrl} 
-            className="flex items-center group shrink-0 sm:shrink min-w-0 cursor-pointer py-0.5" 
+            className="flex items-center group shrink-0 sm:shrink min-w-0 cursor-pointer py-1" 
             onClick={(e) => { 
               e.preventDefault(); 
               window.location.hash = ''; 
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 
             }}
           >
-            <SoumbolinhoLogo variant="light" size="lg" onlyLogo={Boolean(storeConfig?.onlyLogo)} />
+            <SoumbolinhoLogo variant="light" size="xl" onlyLogo={Boolean(storeConfig?.onlyLogo)} />
           </a>
 
           {/* BARRA DE PESQUISA (Desktop) */}
