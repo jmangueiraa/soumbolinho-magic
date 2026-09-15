@@ -132,7 +132,31 @@ export const MarketingLandingPage: React.FC = () => {
         throw new Error(`O endereço "ajpstore.com.br/loja/${cleanSlug}" já está sendo usado por outro lojista. Por favor, escolha outro nome para sua loja.`);
       }
 
-      // 2. Monta payload resiliente para inserção na tabela stores
+      // 2. Consultar a loja matriz no Supabase (slug === 'ajpstore')
+      const { data: matrizStore } = await supabase
+        .from('stores')
+        .select('*')
+        .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true')
+        .limit(1)
+        .maybeSingle();
+
+      const matrizTheme = matrizStore?.theme_settings
+        ? (typeof matrizStore.theme_settings === 'string' ? JSON.parse(matrizStore.theme_settings) : matrizStore.theme_settings)
+        : null;
+
+      const resolvedPrimaryColor = matrizStore?.primary_color || matrizTheme?.primary_color || '#FF1493';
+      const resolvedSecondaryColor = matrizStore?.secondary_color || matrizTheme?.secondary_color || '#00a8e8';
+      const resolvedColorPalette = matrizStore?.color_palette || matrizTheme?.color_palette || 'pink_pastel';
+      const resolvedLayoutStyle = matrizStore?.layout_style || matrizTheme?.theme_layout || 'classic';
+      const resolvedLogoUrl = matrizStore?.logo_url || matrizTheme?.logo_url || null;
+      const resolvedBannerUrl = matrizStore?.banner_url || matrizTheme?.banner_url || null;
+      const resolvedBannerDesktop = matrizStore?.banner_desktop || null;
+      const resolvedBannerMobile = matrizStore?.banner_mobile || null;
+      const resolvedBannersConfig = matrizStore?.banners_config || matrizTheme?.banners_config || null;
+      const resolvedButtonsConfig = matrizStore?.buttons_config || matrizTheme?.buttons_config || null;
+      const resolvedBenefitCards = matrizStore?.benefit_cards || matrizTheme?.benefit_cards || null;
+
+      // 3. Monta payload resiliente para inserção na tabela stores copiando configurações da matriz AJPSTORE
       const now = new Date();
       const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const newStoreId = `store_${cleanSlug}`;
@@ -163,22 +187,35 @@ export const MarketingLandingPage: React.FC = () => {
         slogan: 'Sua Loja Virtual Oficial',
         working_hours: 'Segunda a Sábado, das 09h às 18h',
         address: 'Atendimento Online e Entregas',
+        // Configurações exatas copiadas da Matriz AJPSTORE:
+        logo_url: resolvedLogoUrl,
+        banner_url: resolvedBannerUrl,
+        banner_desktop: resolvedBannerDesktop,
+        banner_mobile: resolvedBannerMobile,
+        banners_config: resolvedBannersConfig,
+        buttons_config: resolvedButtonsConfig,
+        benefit_cards: resolvedBenefitCards,
+        layout_style: resolvedLayoutStyle,
+        primary_color: resolvedPrimaryColor,
+        secondary_color: resolvedSecondaryColor,
+        color_palette: resolvedColorPalette,
         theme_settings: {
-          primary_color: '#00a8e8',
-          secondary_color: '#7d2ae8',
-          color_palette: 'pink_pastel',
-          theme_layout: 'classic',
-          layout_style: 'classic'
+          ...(matrizTheme || {}),
+          primary_color: resolvedPrimaryColor,
+          secondary_color: resolvedSecondaryColor,
+          color_palette: resolvedColorPalette,
+          theme_layout: resolvedLayoutStyle,
+          layout_style: resolvedLayoutStyle,
+          buttons_config: resolvedButtonsConfig,
+          banners_config: resolvedBannersConfig,
+          benefit_cards: resolvedBenefitCards
         },
-        layout_style: 'classic',
-        primary_color: '#00a8e8',
-        color_palette: 'pink_pastel',
         created_at: now.toISOString(),
         criado_em: now.toISOString(),
         updated_at: now.toISOString()
       };
 
-      // 3. Inserção adaptativa para acomodar diferenças de esquema caso existam
+      // 4. Inserção adaptativa para acomodar diferenças de esquema caso existam
       let currentPayload = { ...storePayload };
       let inserted = null;
 
@@ -206,7 +243,7 @@ export const MarketingLandingPage: React.FC = () => {
 
       setSuccessMessage('🎉 Loja criada com sucesso! Seus 7 dias grátis foram ativados. Preparando seu painel...');
 
-      // 4. Autenticação imediata na sessão para que o lojista caia logado no painel sem atrito
+      // 5. Autenticação imediata na sessão para que o lojista caia logado no painel sem atrito
       try {
         sessionStorage.setItem('soumbolinho_admin_auth_session', 'true');
         sessionStorage.setItem('current_store_slug', cleanSlug);
@@ -215,12 +252,12 @@ export const MarketingLandingPage: React.FC = () => {
         console.warn('Erro ao salvar sessão local:', err);
       }
 
-      // 5. Clona produtos e categorias padrão em segundo plano para o lojista já ter catálogo inicial
+      // 6. Clona produtos, categorias e banners da matriz AJPSTORE
       try {
-        cloneStoreTemplate('store_ajpstore', newStoreId, formData.storeName.trim()).catch(err => {
-          console.warn('Aviso de clonagem em background:', err);
-        });
-      } catch {}
+        await cloneStoreTemplate(matrizStore?.id || 'ajpstore', newStoreId, formData.storeName.trim());
+      } catch (cloneErr) {
+        console.warn('Aviso de clonagem da matriz AJPSTORE:', cloneErr);
+      }
 
       // 6. Redirecionamento instantâneo para o painel administrativo da nova loja (ex: /[slug]/admin)
       setTimeout(() => {

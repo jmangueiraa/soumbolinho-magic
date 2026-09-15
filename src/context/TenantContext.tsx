@@ -39,6 +39,80 @@ export const INITIAL_TENANT_PENDING_STORE: Store = {
   monthly_fee: 0,
 };
 
+/**
+ * Verifica se o host é estritamente o domínio raiz da plataforma AJPSTORE (sem subdomínio de loja).
+ * Retorna true exclusivamente para:
+ * - ajpstore.com.br
+ * - www.ajpstore.com.br
+ * - localhost / 127.0.0.1 (e IPs locais de desenvolvimento)
+ */
+export function isPlatformRootHostname(hostname: string): boolean {
+  if (!hostname) return true;
+  const clean = hostname.toLowerCase().trim().replace(/:\d+$/, '');
+  return (
+    clean === 'ajpstore.com.br' ||
+    clean === 'www.ajpstore.com.br' ||
+    clean === 'localhost' ||
+    clean === '127.0.0.1' ||
+    clean.startsWith('192.168.') ||
+    clean.startsWith('10.') ||
+    clean.startsWith('172.') ||
+    clean.endsWith('.local') ||
+    clean.endsWith('.internal')
+  );
+}
+
+/**
+ * Extrai subdomínio de loja válido se houver (ex: 'lilika.ajpstore.com.br' -> 'lilika').
+ */
+export function extractStoreSubdomain(hostname: string): string | null {
+  if (!hostname) return null;
+  const clean = hostname.toLowerCase().trim().replace(/:\d+$/, '');
+
+  if (isPlatformRootHostname(clean)) {
+    return null;
+  }
+
+  if (clean.endsWith('.ajpstore.com.br')) {
+    const sub = clean.slice(0, -'.ajpstore.com.br'.length).trim();
+    const cleanSub = sub.replace(/^www\./, '');
+    if (cleanSub && !['www', 'app', 'admin', 'api', 'painel', 'master'].includes(cleanSub)) {
+      return cleanSub;
+    }
+    return null;
+  }
+
+  if (clean.endsWith('.localhost')) {
+    const sub = clean.slice(0, -'.localhost'.length).trim();
+    const cleanSub = sub.replace(/^www\./, '');
+    if (cleanSub && cleanSub !== 'www') {
+      return cleanSub;
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Verifica se o hostname é um domínio personalizado externo (ex: www.minhaloja.com.br).
+ */
+export function isCustomStoreDomain(hostname: string): boolean {
+  if (!hostname) return false;
+  const clean = hostname.toLowerCase().trim().replace(/:\d+$/, '');
+  if (isPlatformRootHostname(clean)) return false;
+  if (clean.endsWith('.ajpstore.com.br')) return false;
+  if (clean.endsWith('.localhost')) return false;
+  return true;
+}
+
+/**
+ * Retorna true se a requisição é proveniente de um subdomínio válido ou domínio personalizado de loja.
+ */
+export function isTenantHost(hostname: string): boolean {
+  return Boolean(extractStoreSubdomain(hostname) || isCustomStoreDomain(hostname));
+}
+
 export function checkIsTenantRoute(): boolean {
   if (typeof window === 'undefined') return false;
   const hostname = window.location.hostname.toLowerCase().trim();
@@ -49,28 +123,9 @@ export function checkIsTenantRoute(): boolean {
   const searchParams = new URLSearchParams(window.location.search);
   const storeSlugParam = (searchParams.get('store')?.toLowerCase().trim()) || routeSlug;
   const domainParam = searchParams.get('domain')?.toLowerCase().trim();
-  const isLocal = 
-    hostname === 'localhost' || 
-    hostname === '127.0.0.1' || 
-    hostname.startsWith('192.168.') || 
-    hostname.startsWith('10.') || 
-    hostname.startsWith('172.') || 
-    hostname.endsWith('.local') ||
-    hostname.endsWith('.internal');
-  const isBaseDomain = 
-    hostname === 'ajpstore.com.br' ||
-    hostname === 'www.ajpstore.com.br' ||
-    hostname.includes('ajpstore') ||
-    hostname === 'suamarcaaqui.com.br' || 
-    hostname === 'www.suamarcaaqui.com.br' ||
-    hostname.includes('soumbolinho');
 
-  const isMatrizSlug = storeSlugParam === 'ajpstore' || storeSlugParam === 'suamarcaaqui';
-  if (isMatrizSlug) {
-    return false;
-  }
-
-  return Boolean(storeSlugParam || domainParam || (!isLocal && !isBaseDomain));
+  // Se houver parâmetro explícito de loja ou for um subdomínio/domínio customizado
+  return Boolean(storeSlugParam || domainParam || isTenantHost(hostname));
 }
 
 export function normalizeStore(s: any): Store {
@@ -289,28 +344,33 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const domainParam = searchParams.get('domain')?.toLowerCase().trim();
       const previewStoreId = typeof window !== 'undefined' ? sessionStorage.getItem('preview_store_id') : null;
 
-      const isLocal = 
-        hostname === 'localhost' || 
-        hostname === '127.0.0.1' || 
-        hostname.startsWith('192.168.') || 
-        hostname.startsWith('10.') || 
-        hostname.startsWith('172.') || 
-        hostname.endsWith('.local') ||
-        hostname.endsWith('.internal');
-      setIsLocalhost(isLocal);
+      const isRootPlatform = isPlatformRootHostname(hostname);
+      const storeSubdomain = extractStoreSubdomain(hostname);
+      const isCustomDomain = isCustomStoreDomain(hostname);
+
+      setIsLocalhost(hostname === 'localhost' || hostname === '127.0.0.1');
       setDetectedHost(hostname);
+      setIsMasterHost(isRootPlatform);
 
-      const isBaseDomain = 
-        hostname === 'ajpstore.com.br' ||
-        hostname === 'www.ajpstore.com.br' ||
-        hostname.includes('ajpstore') ||
-        hostname === 'suamarcaaqui.com.br' || 
-        hostname === 'www.suamarcaaqui.com.br' ||
-        hostname.includes('soumbolinho');
-      setIsMasterHost(isBaseDomain || isLocal);
+      console.log(`[TenantResolver] 🌐 Resolvendo tenant para host: "${hostname}" | isRoot: ${isRootPlatform} | subdomínio: "${storeSubdomain || ''}" | custom: ${isCustomDomain} | param: "${storeSlugParam || ''}"`);
 
-      console.log(`[TenantResolver] 🌐 Resolvendo loja para host: "${hostname}" | Slug da rota/param: "${storeSlugParam || ''}"`);
+      // =========================================================================
+      // REGRA 1: Domínio Raiz da Plataforma (ajpstore.com.br, www.ajpstore.com.br ou localhost)
+      // Se for o domínio raiz e o usuário NÃO estiver em uma rota explícita de loja (/loja/:slug ou ?store=...):
+      // O SISTEMA NÃO CONSULTA A TABELA 'stores' E MANTÉM A PÁGINA DE MARKETING ATIVA!
+      // =========================================================================
+      if (isRootPlatform && !storeSlugParam && !domainParam) {
+        console.log(`[TenantResolver] 🚀 Acesso ao domínio raiz da plataforma (${hostname}). Não consulta 'stores'. Página de marketing ativa.`);
+        setCurrentStore(DEFAULT_STORE);
+        setTenantNotFound(false);
+        setTenantError(null);
+        setIsResolvingTenant(false);
+        return;
+      }
 
+      // =========================================================================
+      // REGRA 2: Rota explícita de loja por parâmetro / URL (/loja/:slug ou ?store=...)
+      // =========================================================================
       if (storeSlugParam) {
         const { data: storeBySlug } = await supabase
           .from('stores')
@@ -329,28 +389,6 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setIsResolvingTenant(false);
           return;
         } else {
-          if (storeSlugParam === 'suamarcaaqui' || storeSlugParam === 'store_default') {
-            console.warn('[TenantResolver] Loja não encontrada ou excluída:', storeSlugParam);
-            setTenantNotFound(true);
-            setTenantError('Esta loja foi excluída ou não existe.');
-            setIsResolvingTenant(false);
-            return;
-          }
-          if (storeSlugParam === 'editaveisdocanva' || storeSlugParam === 'matriz' || storeSlugParam === 'store_editaveisdocanva') {
-            const { data: matrizDb } = await supabase
-              .from('stores')
-              .select('*')
-              .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,id.eq.matriz,slug.eq.matriz')
-              .limit(1)
-              .maybeSingle();
-            if (matrizDb) {
-              setCurrentStore(normalizeStore(matrizDb));
-              setTenantNotFound(false);
-              setTenantError(null);
-              setIsResolvingTenant(false);
-              return;
-            }
-          }
           console.warn('[TenantResolver] ❌ Loja com slug não encontrada:', storeSlugParam);
           setTenantNotFound(true);
           setTenantError(`Loja "${storeSlugParam}" não encontrada.`);
@@ -359,121 +397,77 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      if (domainParam) {
-        const { data: storeByDomainParam } = await supabase
+      // =========================================================================
+      // REGRA 3: Subdomínio válido da plataforma (ex: lilika.ajpstore.com.br)
+      // =========================================================================
+      if (storeSubdomain) {
+        console.log(`[TenantResolver] 🏬 Subdomínio de loja detectado: "${storeSubdomain}" no host "${hostname}"`);
+        const { data: storeBySubdomain } = await supabase
           .from('stores')
           .select('*')
-          .ilike('custom_domain', domainParam)
+          .or(`slug.eq.${storeSubdomain},custom_domain.ilike.${hostname},custom_domain.ilike.${storeSubdomain}.ajpstore.com.br`)
           .maybeSingle();
 
-        if (storeByDomainParam) {
-          console.log('[TenantResolver] ✅ Loja identificada pelo parâmetro ?domain:', storeByDomainParam.name);
-          setCurrentStore(normalizeStore(storeByDomainParam));
+        if (storeBySubdomain) {
+          console.log('[TenantResolver] ✅ Loja identificada por subdomínio:', storeBySubdomain.name);
+          if (!storeBySubdomain.is_active) {
+            setTenantError('Esta loja encontra-se temporariamente desativada pelo administrador.');
+          } else {
+            setTenantError(null);
+          }
+          setCurrentStore(normalizeStore(storeBySubdomain));
           setTenantNotFound(false);
-          setTenantError(null);
           setIsResolvingTenant(false);
           return;
         } else {
-          console.warn('[TenantResolver] ❌ Domínio não encontrado via parâmetro ?domain:', domainParam);
+          console.warn('[TenantResolver] ❌ Subdomínio não associado a nenhuma loja cadastrada:', storeSubdomain);
           setTenantNotFound(true);
-          setTenantError(`Domínio "${domainParam}" não encontrado.`);
+          setTenantError(`Nenhuma loja cadastrada para o subdomínio "${storeSubdomain}".`);
           setIsResolvingTenant(false);
           return;
         }
       }
 
-      if (previewStoreId && isLocal) {
-        const { data: storeByPreviewId } = await supabase
+      // =========================================================================
+      // REGRA 4: Domínio personalizado mapeado (ex: www.minhaloja.com.br)
+      // =========================================================================
+      if (isCustomDomain || domainParam) {
+        const targetDomain = domainParam || hostname;
+        const cleanHost = targetDomain.replace(/^www\./, '');
+        console.log(`[TenantResolver] 🌐 Domínio personalizado detectado: "${targetDomain}"`);
+
+        const { data: matchedStore } = await supabase
           .from('stores')
           .select('*')
-          .eq('id', previewStoreId)
-          .maybeSingle();
-
-        if (storeByPreviewId) {
-          console.log('[TenantResolver] ✅ Loja identificada por preview de sessão:', storeByPreviewId.name);
-          setCurrentStore(normalizeStore(storeByPreviewId));
-          setTenantNotFound(false);
-          setTenantError(null);
-          setIsResolvingTenant(false);
-          return;
-        }
-      }
-
-      // 2. Resolução padrão por Host da requisição
-      if (!isLocal && hostname && !isBaseDomain) {
-        const cleanHost = hostname.replace(/^www\./, '');
-        
-        // Extrai subdomínio caso seja acessado como subdomínio da plataforma (ex: loja.seudominio.com)
-        const hostParts = cleanHost.split('.');
-        const possibleSubdomain = hostParts.length >= 3 && !['www', 'app', 'admin', 'api'].includes(hostParts[0])
-          ? hostParts[0]
-          : '';
-
-        const orFilters = [
-          `custom_domain.ilike.${hostname}`,
-          `custom_domain.ilike.www.${cleanHost}`,
-          `custom_domain.ilike.${cleanHost}`,
-          `slug.eq.${cleanHost}`
-        ];
-        if (possibleSubdomain) {
-          orFilters.push(`slug.eq.${possibleSubdomain}`);
-        }
-
-        const { data: matchedStore, error } = await supabase
-          .from('stores')
-          .select('*')
-          .or(orFilters.join(','))
+          .or(`custom_domain.ilike.${targetDomain},custom_domain.ilike.www.${cleanHost},custom_domain.ilike.${cleanHost}`)
           .maybeSingle();
 
         if (matchedStore) {
-          console.log('[TenantResolver] ✅ Loja identificada por domínio personalizado:', matchedStore.name, matchedStore.custom_domain);
+          console.log('[TenantResolver] ✅ Loja identificada por domínio personalizado:', matchedStore.name);
           if (!matchedStore.is_active) {
             setTenantError('Esta loja encontra-se temporariamente desativada pelo administrador.');
           } else {
             setTenantError(null);
           }
-          setTenantNotFound(false);
           setCurrentStore(normalizeStore(matchedStore));
+          setTenantNotFound(false);
           setIsResolvingTenant(false);
           return;
         } else {
-          console.warn('[TenantResolver] ❌ Domínio não associado a nenhuma loja cadastrada:', hostname);
+          console.warn('[TenantResolver] ❌ Domínio personalizado não associado a nenhuma loja cadastrada:', targetDomain);
           setTenantNotFound(true);
-          setTenantError(`Nenhuma loja cadastrada para o endereço "${hostname}".`);
+          setTenantError(`Nenhuma loja cadastrada para o endereço "${targetDomain}".`);
           setIsResolvingTenant(false);
           return;
         }
       }
 
-      // 3. Raiz da plataforma / Matriz (acesso à raiz sem slug de loja)
+      // =========================================================================
+      // REGRA 5: Fallback Seguro (sem consultas cegas a lojas aleatórias)
+      // =========================================================================
+      setCurrentStore(DEFAULT_STORE);
       setTenantNotFound(false);
-      // Prioridade 1: Busca loja marcada como matriz no Supabase (AJPSTORE)
-      const { data: matrizFromDb } = await supabase
-        .from('stores')
-        .select('*')
-        .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true,slug.eq.suamarcaaqui,id.eq.suamarcaaqui,id.eq.store_default')
-        .limit(1)
-        .maybeSingle();
-
-      if (matrizFromDb) {
-        console.log('[TenantResolver] 🏬 Loja Matriz carregada diretamente do Supabase:', matrizFromDb.name);
-        setCurrentStore(normalizeStore(matrizFromDb));
-      } else {
-        // Prioridade 2: Busca a loja mais recente cadastrada no Supabase
-        const { data: anyStoreFromDb } = await supabase
-          .from('stores')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (anyStoreFromDb) {
-          console.log('[TenantResolver] 🏬 Loja ativa carregada diretamente do Supabase:', anyStoreFromDb.name);
-          setCurrentStore(normalizeStore(anyStoreFromDb));
-        } else {
-          setCurrentStore(DEFAULT_STORE);
-        }
-      }
+      setTenantError(null);
 
     } catch (err: any) {
       console.error('[TenantResolver] ❌ Falha na resolução de tenant:', err);

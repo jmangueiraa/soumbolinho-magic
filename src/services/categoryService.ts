@@ -51,6 +51,8 @@ export async function fetchAllCategories(storeId?: string): Promise<{ data: Cate
     }
 
     const isBaseStore = 
+      targetStoreId === 'ajpstore' ||
+      targetStoreId === 'store_ajpstore' ||
       targetStoreId === 'suamarcaaqui' || 
       targetStoreId === 'store_default';
 
@@ -62,7 +64,7 @@ export async function fetchAllCategories(storeId?: string): Promise<{ data: Cate
       .order('name', { ascending: true });
 
     if (isBaseStore) {
-      query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+      query = query.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
     } else if (targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz' || targetStoreId === 'editaveisdocanva') {
       query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.matriz,store_id.eq.editaveisdocanva');
     } else {

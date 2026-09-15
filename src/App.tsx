@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TenantProvider, useTenant } from './context/TenantContext';
+import { TenantProvider, useTenant, isTenantHost } from './context/TenantContext';
 import { StoreDataProvider, useStoreData } from './context/StoreDataContext';
 import { CartProvider } from './context/CartContext';
 import { FilterProvider } from './context/FilterContext';
@@ -278,10 +278,14 @@ const DynamicTitleHandler: React.FC = () => {
       const hash = (typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '');
       const fullRoute = path + hash;
 
+      const isTenant = typeof window !== 'undefined' ? isTenantHost(window.location.hostname) : false;
+
       if (fullRoute.includes('/master') || fullRoute.includes('/super-admin')) {
         document.title = `Painel Master | ${siteName}`;
       } else if (fullRoute.includes('/cadastro') || fullRoute.includes('/criar-loja') || fullRoute.includes('/planos') || fullRoute.includes('/comecar') || fullRoute.includes('/onboarding')) {
         document.title = `Criar Minha Loja (7 Dias Grátis) | ${siteName}`;
+      } else if (!isTenant && (path === '/' || path === '' || path === '/index.html')) {
+        document.title = 'AJPSTORE — Crie seu sistema para seu negócio em minutos';
       } else if (fullRoute.includes('/admin')) {
         document.title = `Painel Administrativo | ${siteName}`;
       } else if (fullRoute.includes('/checkout') || fullRoute.includes('/finalizar-compra')) {
@@ -308,6 +312,23 @@ const DynamicTitleHandler: React.FC = () => {
   return null;
 };
 
+/**
+ * Roteador Raiz Inteligente Multi-Tenant:
+ * Se o hostname for exatamente ajpstore.com.br, www.ajpstore.com.br ou localhost,
+ * renderiza estritamente a Landing Page de Marketing principal da plataforma.
+ * A vitrine da loja só carrega se a requisição vier de um subdomínio válido (ex: slug.ajpstore.com.br)
+ * ou de um domínio personalizado mapeado.
+ */
+const RootRouteHandler: React.FC = () => {
+  const isTenant = typeof window !== 'undefined' ? isTenantHost(window.location.hostname) : false;
+
+  if (!isTenant) {
+    return <MarketingLandingPage />;
+  }
+
+  return <StoreFront />;
+};
+
 const NavigationRouter: React.FC = () => {
   const { isAuthenticated } = useStoreData();
   const navigate = useNavigate();
@@ -321,8 +342,8 @@ const NavigationRouter: React.FC = () => {
     <>
       <DynamicTitleHandler />
       <Routes>
-        {/* 1. Rota Raiz da Loja */}
-        <Route path="/" element={<StoreFront />} />
+        {/* 1. Rota Raiz Inteligente (Marketing na Raiz / Vitrine nos Subdomínios) */}
+        <Route path="/" element={<RootRouteHandler />} />
 
         {/* 1.1. Página de Marketing & Onboarding (7 Dias Grátis) */}
         <Route path="/cadastro" element={<MarketingLandingPage />} />

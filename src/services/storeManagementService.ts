@@ -603,7 +603,7 @@ export async function createStoreWithClient(
       domainToSave = `${storeSlug}.ajpstore.com.br`;
     }
 
-    // 2. Inserir a nova loja na tabela stores com exatamente os dados digitados pelo Super Admin
+    // 2. Inserir a nova loja na tabela stores copiando todas as configurações da matriz AJPSTORE
     const resolvedStoreName = storeName;
     const resolvedClientName = input.clientName.trim();
     const resolvedClientEmail = input.clientEmail.toLowerCase().trim();
@@ -612,6 +612,24 @@ export async function createStoreWithClient(
     const days = input.initialDays !== undefined ? input.initialDays : 30;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
     const monthlyFee = input.monthlyFee !== undefined ? input.monthlyFee : 50.00;
+
+    // Consultar a loja matriz no Supabase (slug === 'ajpstore')
+    const matriz = await getMatrizStore();
+    const matrizTheme = matriz?.theme_settings
+      ? (typeof matriz.theme_settings === 'string' ? JSON.parse(matriz.theme_settings) : matriz.theme_settings)
+      : null;
+
+    const resolvedPrimaryColor = matriz?.primary_color || matrizTheme?.primary_color || '#FF1493';
+    const resolvedSecondaryColor = matriz?.secondary_color || matrizTheme?.secondary_color || '#00a8e8';
+    const resolvedColorPalette = matriz?.color_palette || matrizTheme?.color_palette || 'pink_pastel';
+    const resolvedLayoutStyle = matriz?.layout_style || matrizTheme?.theme_layout || 'classic';
+    const resolvedLogoUrl = matriz?.logo_url || matrizTheme?.logo_url || null;
+    const resolvedBannerUrl = matriz?.banner_url || matrizTheme?.banner_url || null;
+    const resolvedBannerDesktop = matriz?.banner_desktop || null;
+    const resolvedBannerMobile = matriz?.banner_mobile || null;
+    const resolvedBannersConfig = matriz?.banners_config || matrizTheme?.banners_config || null;
+    const resolvedButtonsConfig = matriz?.buttons_config || matrizTheme?.buttons_config || null;
+    const resolvedBenefitCards = matriz?.benefit_cards || matrizTheme?.benefit_cards || null;
 
     const storePayload: any = {
       id: newStoreId,
@@ -630,6 +648,29 @@ export async function createStoreWithClient(
       client_email: resolvedClientEmail,
       owner_phone: input.whatsappNumber?.trim() || input.clientPhone?.trim() || 'SeuWhatsApp',
       admin_password: resolvedPassword,
+      // Copiar layout, banners, logo, cores e botões exatos da matriz:
+      logo_url: resolvedLogoUrl,
+      banner_url: resolvedBannerUrl,
+      banner_desktop: resolvedBannerDesktop,
+      banner_mobile: resolvedBannerMobile,
+      banners_config: resolvedBannersConfig,
+      buttons_config: resolvedButtonsConfig,
+      benefit_cards: resolvedBenefitCards,
+      layout_style: resolvedLayoutStyle,
+      primary_color: resolvedPrimaryColor,
+      secondary_color: resolvedSecondaryColor,
+      color_palette: resolvedColorPalette,
+      theme_settings: {
+        ...(matrizTheme || {}),
+        primary_color: resolvedPrimaryColor,
+        secondary_color: resolvedSecondaryColor,
+        color_palette: resolvedColorPalette,
+        theme_layout: resolvedLayoutStyle,
+        layout_style: resolvedLayoutStyle,
+        buttons_config: resolvedButtonsConfig,
+        banners_config: resolvedBannersConfig,
+        benefit_cards: resolvedBenefitCards
+      },
       // Propriedades padrão / digitadas pelo Super Admin:
       whatsapp_number: input.whatsappNumber?.trim() || 'SeuWhatsApp',
       whatsapp_display: input.whatsappDisplay?.trim() || 'SeuWhatsAppWhatsApp',
@@ -641,10 +682,6 @@ export async function createStoreWithClient(
       telegram_bot_token: input.telegramBotToken?.trim() || null,
       telegram_chat_id: input.telegramChatId?.trim() || null,
       clone_catalog: input.cloneBaseCatalog !== false,
-      theme_settings: {
-        primary_color: '#ff3399',
-        secondary_color: '#00a8e8'
-      },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -735,7 +772,7 @@ export async function createStoreWithClient(
       let sourceStoreId = input.sourceMatrizStoreId;
       if (!sourceStoreId) {
         const matriz = await getMatrizStore();
-        sourceStoreId = matriz?.id || matriz?.slug || 'suamarcaaqui';
+        sourceStoreId = matriz?.id || matriz?.slug || 'ajpstore';
       }
 
       console.log(`[storeManagementService] 🧬 Disparando rotina de clonagem fiel da loja matriz "${sourceStoreId}"...`);
