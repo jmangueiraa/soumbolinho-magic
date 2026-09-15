@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TenantProvider, useTenant, isTenantHost } from './context/TenantContext';
+import { TenantProvider, useTenant, isTenantHost, isPlatformRootHostname } from './context/TenantContext';
 import { StoreDataProvider, useStoreData } from './context/StoreDataContext';
 import { CartProvider } from './context/CartContext';
 import { FilterProvider } from './context/FilterContext';
@@ -278,9 +278,13 @@ const DynamicTitleHandler: React.FC = () => {
       const hash = (typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '');
       const fullRoute = path + hash;
 
-      const isTenant = typeof window !== 'undefined' ? isTenantHost(window.location.hostname) : false;
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isRoot = isPlatformRootHostname(hostname);
+      const isTenant = isTenantHost(hostname);
 
-      if (fullRoute.includes('/master') || fullRoute.includes('/super-admin')) {
+      if (isRoot && (path === '/' || path === '' || path === '/index.html')) {
+        document.title = 'AJPSTORE — Crie seu sistema para seu negócio em minutos';
+      } else if (fullRoute.includes('/master') || fullRoute.includes('/super-admin')) {
         document.title = `Painel Master | ${siteName}`;
       } else if (fullRoute.includes('/cadastro') || fullRoute.includes('/criar-loja') || fullRoute.includes('/planos') || fullRoute.includes('/comecar') || fullRoute.includes('/onboarding')) {
         document.title = `Criar Minha Loja (7 Dias Grátis) | ${siteName}`;
@@ -314,14 +318,21 @@ const DynamicTitleHandler: React.FC = () => {
 
 /**
  * Roteador Raiz Inteligente Multi-Tenant:
- * Se o hostname for exatamente ajpstore.com.br, www.ajpstore.com.br ou localhost,
+ * Se o hostname for o domínio principal (ajpstore.com.br, www.ajpstore.com.br, localhost ou vercel.app),
  * renderiza estritamente a Landing Page de Marketing principal da plataforma.
  * A vitrine da loja só carrega se a requisição vier de um subdomínio válido (ex: slug.ajpstore.com.br)
  * ou de um domínio personalizado mapeado.
  */
 const RootRouteHandler: React.FC = () => {
-  const isTenant = typeof window !== 'undefined' ? isTenantHost(window.location.hostname) : false;
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isRoot = isPlatformRootHostname(hostname);
 
+  // Se for o domínio raiz da plataforma, NUNCA renderiza a vitrine de uma loja cliente, renderiza estritamente a Landing Page de Marketing!
+  if (isRoot) {
+    return <MarketingLandingPage />;
+  }
+
+  const isTenant = isTenantHost(hostname);
   if (!isTenant) {
     return <MarketingLandingPage />;
   }
@@ -351,6 +362,11 @@ const NavigationRouter: React.FC = () => {
         <Route path="/planos" element={<MarketingLandingPage />} />
         <Route path="/comecar" element={<MarketingLandingPage />} />
         <Route path="/onboarding" element={<MarketingLandingPage />} />
+        <Route path="/recursos" element={<MarketingLandingPage />} />
+        <Route path="/como-funciona" element={<MarketingLandingPage />} />
+        <Route path="/beneficios" element={<MarketingLandingPage />} />
+        <Route path="/precos" element={<MarketingLandingPage />} />
+        <Route path="/faq" element={<MarketingLandingPage />} />
 
         {/* 1.2. Rotas Dinâmicas de Loja por Slug (/loja/:slug e /loja/:storeSlug) */}
         <Route path="/loja/:slug" element={<StoreFront />} />

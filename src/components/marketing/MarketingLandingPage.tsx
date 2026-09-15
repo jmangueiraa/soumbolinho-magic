@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Rocket, 
   CheckCircle2, 
@@ -6,7 +6,6 @@ import {
   Zap, 
   ArrowRight, 
   Star, 
-  Clock, 
   Globe, 
   CreditCard, 
   Send, 
@@ -14,15 +13,22 @@ import {
   Eye, 
   EyeOff, 
   Sparkles, 
-  MessageCircle, 
   AlertCircle, 
   Check, 
-  HelpCircle,
-  ShoppingBag,
-  TrendingUp,
-  Percent,
-  Sliders,
-  ChevronDown
+  ShoppingBag, 
+  TrendingUp, 
+  ChevronDown,
+  Menu,
+  X,
+  Smartphone,
+  Layers,
+  Shield,
+  QrCode,
+  ShoppingCart,
+  Bell,
+  Play,
+  ExternalLink,
+  Laptop
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from '../../lib/router';
@@ -32,6 +38,8 @@ import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
 export const MarketingLandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const formRef = useRef<HTMLDivElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
 
   // Estados do Formulário de Onboarding
   const [formData, setFormData] = useState({
@@ -49,8 +57,59 @@ export const MarketingLandingPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
-  // FAQ Accordion State
+  // FAQ Accordion State (primeira dúvida aberta por padrão)
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+
+  // Menu Mobile Drawer State
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // CTA Flutuante Mobile: visível apenas quando o formulário não estiver no campo de visão
+  const [showFloatingCta, setShowFloatingCta] = useState(true);
+
+  useEffect(() => {
+    const el = formRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // Quando o formulário estiver visível na tela, esconde o botão flutuante para não obstruir
+          setShowFloatingCta(!entry.isIntersecting);
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Rolagem automática para a seção quando a URL carregar com hash ou path específico (ex: #recursos, #precos, /cadastro)
+  useEffect(() => {
+    const handleScrollToTarget = () => {
+      if (typeof window === 'undefined') return;
+      const rawHash = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase().trim();
+      const rawPath = (window.location.pathname || '').replace(/^\/+|\/+$/g, '').toLowerCase().trim();
+      const targetId = rawHash || (['recursos', 'como-funciona', 'beneficios', 'precos', 'faq', 'cadastro', 'planos', 'comecar', 'onboarding'].includes(rawPath) ? rawPath : '');
+
+      if (targetId) {
+        const mappedId = (targetId === 'planos' || targetId === 'comecar' || targetId === 'onboarding') ? 'cadastro' : targetId;
+        const targetEl = document.getElementById(mappedId);
+        if (targetEl) {
+          setTimeout(() => {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (mappedId === 'cadastro') {
+              firstInputRef.current?.focus();
+            }
+          }, 200);
+        }
+      }
+    };
+
+    handleScrollToTarget();
+    window.addEventListener('hashchange', handleScrollToTarget);
+    return () => window.removeEventListener('hashchange', handleScrollToTarget);
+  }, []);
 
   // Auto-gera o slug a partir do nome da loja caso o usuário ainda não tenha editado manualmente
   const handleStoreNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,9 +134,13 @@ export const MarketingLandingPage: React.FC = () => {
   };
 
   const scrollToRegistration = () => {
-    const el = document.getElementById('cadastro');
+    setMobileMenuOpen(false);
+    const el = formRef.current || document.getElementById('cadastro');
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        firstInputRef.current?.focus();
+      }, 500);
     }
   };
 
@@ -272,193 +335,278 @@ export const MarketingLandingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-black overflow-x-hidden">
       
       {/* ------------------------------------------------------------- */}
-      {/* 1. BARRA DE NAVEGAÇÃO SUPERIOR */}
+      {/* 1. HEADER STICKY & MOBILE DRAWER */}
       {/* ------------------------------------------------------------- */}
-      <nav className="sticky top-0 z-50 backdrop-blur-md bg-slate-950/80 border-b border-slate-800">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-950/85 border-b border-slate-800/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
           {/* Logo Oficial AJPSTORE */}
           <div className="flex items-center gap-3">
-            <a href="/" className="flex items-center gap-3 group">
-              <SoumbolinhoLogo variant="light" size="lg" />
+            <a href="/" className="flex items-center gap-3 group focus:outline-none">
+              <SoumbolinhoLogo variant="light" size="md" />
             </a>
           </div>
 
           {/* Links Centrais (Desktop) */}
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-            <a href="#beneficios" className="hover:text-cyan-400 transition-colors">Benefícios</a>
+          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-slate-300">
             <a href="#recursos" className="hover:text-cyan-400 transition-colors">Recursos</a>
-            <a href="#planos" className="hover:text-cyan-400 transition-colors">Planos (R$ 50/mês)</a>
-            <a href="#faq" className="hover:text-cyan-400 transition-colors">Dúvidas Frequentes</a>
-          </div>
+            <a href="#como-funciona" className="hover:text-cyan-400 transition-colors">Como funciona</a>
+            <a href="#beneficios" className="hover:text-cyan-400 transition-colors">Benefícios</a>
+            <a href="#precos" className="hover:text-cyan-400 transition-colors">Preços</a>
+            <a href="#faq" className="hover:text-cyan-400 transition-colors">FAQ</a>
+          </nav>
 
-          {/* Botões de Ação */}
-          <div className="flex items-center gap-3">
+          {/* Botões de Ação (Desktop) */}
+          <div className="hidden sm:flex items-center gap-3">
             <a 
               href="/admin"
               className="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-900 transition-all"
             >
-              Já sou Lojista
+              Entrar
             </a>
             <button
               onClick={scrollToRegistration}
-              className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
+              className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
               <Sparkles className="w-4 h-4 text-slate-950" />
-              <span>Testar 7 Dias Grátis</span>
+              <span>Começar grátis</span>
             </button>
           </div>
+
+          {/* Botão Menu Hamburger (Mobile) */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              onClick={scrollToRegistration}
+              className="sm:hidden px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs shadow-md shadow-cyan-500/20"
+            >
+              Criar loja
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition-colors focus:outline-none"
+              aria-label="Abrir menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6 text-cyan-400" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+
         </div>
-      </nav>
+
+        {/* Menu Mobile Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden bg-slate-900/95 border-b border-slate-800 backdrop-blur-2xl px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-3 duration-200">
+            <nav className="flex flex-col space-y-2 text-sm font-medium text-slate-200">
+              <a 
+                href="#recursos" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+              >
+                Recursos
+              </a>
+              <a 
+                href="#como-funciona" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+              >
+                Como funciona
+              </a>
+              <a 
+                href="#beneficios" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+              >
+                Benefícios
+              </a>
+              <a 
+                href="#precos" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+              >
+                Preços
+              </a>
+              <a 
+                href="#faq" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+              >
+                Dúvidas Frequentes (FAQ)
+              </a>
+            </nav>
+
+            <div className="pt-3 border-t border-slate-800 flex flex-col gap-2.5">
+              <a
+                href="/admin"
+                className="w-full text-center py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 font-bold text-sm hover:bg-slate-700 transition-colors"
+              >
+                Entrar no Painel Admin
+              </a>
+              <button
+                onClick={scrollToRegistration}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-sm shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2"
+              >
+                <Rocket className="w-4 h-4" />
+                <span>Começar grátis por 7 dias</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. HERO SECTION — A PRIMEIRA IMPRESSÃO DE ALTO IMPACTO */}
+      {/* 2. HERO PRINCIPAL & FORMULÁRIO DE CADASTRO INTEGRADO */}
       {/* ------------------------------------------------------------- */}
-      <section className="relative pt-12 pb-20 lg:pt-20 lg:pb-32 overflow-hidden">
-        {/* Efeitos de Luz de Fundo */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 blur-[140px] rounded-full pointer-events-none" />
-        <div className="absolute top-1/3 right-10 w-[400px] h-[400px] bg-purple-600/10 blur-[130px] rounded-full pointer-events-none" />
+      <section className="relative pt-10 pb-16 lg:pt-16 lg:pb-24 overflow-hidden">
+        {/* Glows de Fundo */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-cyan-500/10 blur-[130px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/3 right-10 w-[380px] h-[380px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
             
-            {/* Coluna Esquerda: Argumentos de Venda & Headline */}
+            {/* Coluna Esquerda: Proposta de Valor, Headline & Benefícios Rápidos */}
             <div className="lg:col-span-7 text-center lg:text-left">
               
-              {/* Badge de Oferta */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-6 shadow-inner animate-pulse">
+              {/* Pequeno Selo */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-950/70 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-6 shadow-inner">
                 <Rocket className="w-3.5 h-3.5 text-cyan-400" />
-                <span>OFERTA EXCLUSIVA — 7 DIAS GRÁTIS</span>
+                <span>🚀 7 DIAS GRÁTIS • SEM CARTÃO DE CRÉDITO</span>
               </div>
 
               {/* Título Principal Requisitado */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
-                AJPSTORE — Crie seu sistema para seu negócio em <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500">minutos</span>.
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1] mb-6">
+                Crie sua loja online <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500">em minutos</span>.
               </h1>
 
               {/* Subtítulo Requisitado */}
-              <p className="text-lg sm:text-xl text-slate-300 font-normal leading-relaxed mb-8 max-w-2xl mx-auto lg:mx-0">
-                Venda online do seu jeito, com sua marca e sua estrutura própria. <strong className="text-white font-semibold">Sem cobrança por pedido pela plataforma</strong>.
+              <p className="text-base sm:text-lg text-slate-300 font-normal leading-relaxed mb-8 max-w-2xl mx-auto lg:mx-0">
+                Venda com sua própria marca, seu próprio domínio e receba diretamente pelo Mercado Pago. Tenha tudo o que precisa para vender online em uma única plataforma.
               </p>
 
-              {/* Gatilhos de Confiança & Micro-benefícios */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10 text-left max-w-xl mx-auto lg:mx-0">
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+              {/* 4 Benefícios Rápidos */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 mb-8 text-left max-w-lg mx-auto lg:mx-0">
+                <div className="flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-slate-900/70 border border-slate-800">
                   <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span className="text-xs text-slate-300 font-medium">Sem taxa por pedido</span>
+                  <span className="text-xs sm:text-sm text-slate-200 font-semibold">7 dias grátis</span>
                 </div>
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-xs text-slate-300 font-medium">Sem cartão de crédito</span>
+                <div className="flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs sm:text-sm text-slate-200 font-semibold">Sem cartão de crédito</span>
                 </div>
-                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <Zap className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-xs text-slate-300 font-medium">Ativação em 2 min</span>
+                <div className="flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                  <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span className="text-xs sm:text-sm text-slate-200 font-semibold">Sem comissão por pedido</span>
+                </div>
+                <div className="flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                  <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span className="text-xs sm:text-sm text-slate-200 font-semibold">Gerencie pelo celular</span>
                 </div>
               </div>
 
-              {/* CTA do Hero */}
+              {/* CTAs do Hero */}
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <button
                   onClick={scrollToRegistration}
                   className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-base shadow-xl shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2 group"
                 >
-                  <span>Criar minha loja grátis por 7 dias</span>
+                  <span>🚀 Criar minha loja grátis</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <a
-                  href="/"
-                  className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-bold text-sm transition-all text-center"
+                  href="#como-funciona"
+                  className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200 hover:text-white font-bold text-sm transition-all text-center flex items-center justify-center gap-2"
                 >
-                  Ver Loja Modelo
+                  <Play className="w-4 h-4 text-cyan-400" />
+                  <span>▶ Ver como funciona</span>
                 </a>
               </div>
 
-              <p className="text-xs text-slate-500 mt-4 flex items-center justify-center lg:justify-start gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-slate-400" />
-                <span>Não precisa de cartão de crédito para testar. Acesso completo liberado na hora.</span>
+              {/* Mensagem de Apoio */}
+              <p className="text-xs sm:text-sm text-slate-400 mt-4 flex items-center justify-center lg:justify-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Comece grátis. Se gostar, continue por apenas <strong>R$ 50/mês</strong>.</span>
               </p>
             </div>
 
-            {/* Coluna Direita: FORMULÁRIO DE CADASTRO INTEGRADO (ONBOARDING) */}
-            <div className="lg:col-span-5" id="cadastro">
-              <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-500/30 via-slate-800 to-slate-900 shadow-2xl shadow-cyan-950/50">
-                <div className="bg-slate-900/95 rounded-[22px] p-6 sm:p-8 backdrop-blur-xl">
+            {/* Coluna Direita: FORMULÁRIO DE CADASTRO (ONBOARDING) */}
+            <div className="lg:col-span-5" id="cadastro" ref={formRef}>
+              <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-500/30 via-slate-800 to-slate-900 shadow-2xl shadow-cyan-950/60">
+                <div className="bg-slate-900/95 rounded-[22px] p-6 sm:p-7 backdrop-blur-xl">
                   
                   {/* Cabeçalho do Formulário */}
-                  <div className="mb-6 text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-3">
+                  <div className="mb-5 text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-2.5">
                       <Rocket className="w-6 h-6" />
                     </div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">
+                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                       Comece seu Teste Grátis
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
-                      Preencha os dados abaixo e seu painel será gerado em segundos.
+                      Preencha os dados e sua loja será gerada em segundos.
                     </p>
                   </div>
 
-                  {/* Alertas de Notificação */}
+                  {/* Alertas */}
                   {errorMessage && (
-                    <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
+                    <div className="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                       <span>{errorMessage}</span>
                     </div>
                   )}
 
                   {successMessage && (
-                    <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2.5">
+                    <div className="mb-4 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                       <span>{successMessage}</span>
                     </div>
                   )}
 
                   {/* Formulário Principal */}
-                  <form onSubmit={handleRegister} className="space-y-4">
+                  <form onSubmit={handleRegister} className="space-y-3.5">
                     
                     {/* Campo 1: Nome Completo */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                         Seu Nome Completo *
                       </label>
                       <input
+                        ref={firstInputRef}
                         type="text"
                         required
                         placeholder="Ex: João da Silva"
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                         value={formData.clientName}
                         onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                       />
                     </div>
 
-                    {/* Campo 2: E-mail de Acesso */}
+                    {/* Campo 2: E-mail */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                         E-mail de Acesso *
                       </label>
                       <input
                         type="email"
                         required
                         placeholder="seuemail@exemplo.com"
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                         value={formData.clientEmail}
                         onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
                       />
                     </div>
 
-                    {/* Campo 3: Nome da Loja / Negócio */}
+                    {/* Campo 3: Nome da Loja */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                         Nome da sua Loja / Negócio *
                       </label>
                       <input
                         type="text"
                         required
                         placeholder="Ex: Doce Sonho Confeitaria"
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                         value={formData.storeName}
                         onChange={handleStoreNameChange}
                       />
@@ -466,77 +614,79 @@ export const MarketingLandingPage: React.FC = () => {
 
                     {/* Campo 4: Endereço da Loja (Slug) com Live Preview */}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
                           Endereço da Loja (Link) *
                         </label>
                         <span className="text-[10px] text-cyan-400 font-mono">
-                          ajpstore.com.br/loja/{formData.slug || 'sua-loja'}
+                          {formData.slug || 'sua-loja'}.ajpstore.com.br
                         </span>
                       </div>
                       <div className="relative flex items-center">
-                        <span className="absolute left-3.5 text-xs text-slate-500 font-mono select-none">
+                        <span className="absolute left-3 text-xs text-slate-500 font-mono select-none">
                           /loja/
                         </span>
                         <input
                           type="text"
                           required
                           placeholder="sua-loja"
-                          className="w-full pl-16 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm font-mono text-cyan-300 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                          className="w-full pl-14 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm font-mono text-cyan-300 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                           value={formData.slug}
                           onChange={handleSlugChange}
                         />
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Seus clientes acessarão por este link (ou você poderá conectar seu domínio próprio .com.br depois).
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Link gratuito imediato. Você poderá conectar seu domínio próprio (.com.br) depois no painel.
                       </p>
                     </div>
 
-                    {/* Campo 5: Senha de Acesso Administrativo */}
+                    {/* Campo 5: Senha */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                         Senha de Acesso do Painel Admin *
                       </label>
                       <div className="relative flex items-center">
                         <input
                           type={showPassword ? 'text' : 'password'}
                           required
-                          placeholder="Crie uma senha forte"
-                          className="w-full pl-4 pr-11 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                          placeholder="Crie sua senha de acesso"
+                          className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                          className="absolute right-3 p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
 
-                    {/* Campo 6 (Opcional): WhatsApp com DDD */}
+                    {/* Campo 6: WhatsApp (Opcional) */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                        <span>WhatsApp da Loja (Opcional)</span>
-                        <span className="text-[10px] text-slate-500 font-normal">Para pedidos rápidos</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          WhatsApp da Loja
+                        </label>
+                        <span className="text-[10px] text-slate-500">Opcional</span>
+                      </div>
                       <input
                         type="text"
                         placeholder="(11) 99999-9999"
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                        className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                         value={formData.clientPhone}
                         onChange={(e) => setFormData({ ...formData, clientPhone: e.target.value })}
                       />
                     </div>
 
-                    {/* Botão de Envio com Efeito de Destaque */}
+                    {/* Botão de Cadastro */}
                     <div className="pt-2">
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -546,26 +696,21 @@ export const MarketingLandingPage: React.FC = () => {
                         ) : (
                           <>
                             <Rocket className="w-4 h-4 text-slate-950" />
-                            <span>Ativar Meus 7 Dias Grátis</span>
+                            <span>🚀 Criar minha loja grátis</span>
                           </>
                         )}
                       </button>
                     </div>
 
-                    {/* Selos de Garantia */}
-                    <div className="pt-2 flex items-center justify-center gap-4 text-[11px] text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-cyan-400" />
-                        100% Seguro
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-400" />
-                        Sem Cartão Agora
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-amber-400" />
-                        Acesso Imediato
-                      </span>
+                    {/* Mensagens de Confiança */}
+                    <div className="pt-2 space-y-1 text-center">
+                      <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5 font-medium">
+                        <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>🔒 Seus dados estão protegidos.</span>
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        Não é necessário cartão de crédito para começar.
+                      </p>
                     </div>
 
                   </form>
@@ -578,157 +723,258 @@ export const MarketingLandingPage: React.FC = () => {
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 3. SEÇÃO DE BENEFÍCIOS (POR QUE A AJPSTORE?) */}
+      {/* 3. DEMONSTRAÇÃO VISUAL — DO CADASTRO À SUA LOJA NO AR */}
       {/* ------------------------------------------------------------- */}
-      <section id="beneficios" className="py-20 bg-slate-900/50 border-y border-slate-800/80 relative">
+      <section className="py-16 sm:py-20 bg-slate-900/40 border-y border-slate-800/70 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-4">
-              <Star className="w-3.5 h-3.5 text-cyan-400" />
-              <span>VANTAGENS EXCLUSIVAS</span>
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3">
+              <Zap className="w-3.5 h-3.5 text-cyan-400" />
+              <span>SIMPLES E DIRETO AO PONTO</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Por que escolher a AJPSTORE para o seu negócio?
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Do cadastro à sua loja no ar.
             </h2>
-            <p className="text-slate-400 text-base mt-4">
-              Desenvolvida especialmente para que você tenha controle absoluto das suas vendas, sem intermediários mordendo o seu faturamento.
+            <p className="text-slate-300 text-sm sm:text-base mt-3 max-w-2xl mx-auto">
+              Cadastre seu negócio, adicione seus produtos e tenha uma estrutura profissional para começar a vender.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* O Fluxo em 4 Passos Visuais */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-14">
             
-            {/* Benefício 1: Sem Taxa por Pedido */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all hover:shadow-xl hover:shadow-cyan-500/10 group">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <Percent className="w-6 h-6" />
+            {/* Passo 01 */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 relative hover:border-cyan-500/40 transition-colors group">
+              <div className="text-2xl font-black text-cyan-400/30 group-hover:text-cyan-400/60 transition-colors mb-2">
+                01
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Sem Taxa por Pedido
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Cadastre seu negócio
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Você fatura <strong className="text-white">100% das suas vendas</strong>. Diferente de outros marketplaces, a AJPSTORE não cobra comissão sobre o que você vende.
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Escolha o nome da sua loja e crie sua conta gratuitamente em menos de 1 minuto.
               </p>
             </div>
 
-            {/* Benefício 2: Sua Própria Marca */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all hover:shadow-xl hover:shadow-cyan-500/10 group">
-              <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <Globe className="w-6 h-6" />
+            {/* Passo 02 */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 relative hover:border-cyan-500/40 transition-colors group">
+              <div className="text-2xl font-black text-cyan-400/30 group-hover:text-cyan-400/60 transition-colors mb-2">
+                02
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Sua Própria Marca
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Adicione seus produtos
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Conecte seu próprio domínio (.com.br), coloque seu logotipo, personalize cores, banner e identidade visual sem marcas d'água invasivas.
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Insira fotos, descrições, preços e arquivos digitais com facilidade pelo computador ou celular.
               </p>
             </div>
 
-            {/* Benefício 3: Estrutura Completa */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all hover:shadow-xl hover:shadow-cyan-500/10 group">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <ShoppingBag className="w-6 h-6" />
+            {/* Passo 03 */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 relative hover:border-cyan-500/40 transition-colors group">
+              <div className="text-2xl font-black text-cyan-400/30 group-hover:text-cyan-400/60 transition-colors mb-2">
+                03
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Estrutura Completa
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Sua página fica pronta
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Landing pages automáticas para cada produto, checkout transparente via Mercado Pago (Pix e Cartão), cupons e controle de estoque.
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Sua vitrine completa e landing pages automáticas entram no ar instantaneamente.
               </p>
             </div>
 
-            {/* Benefício 4: Suporte 24 Horas */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 transition-all hover:shadow-xl hover:shadow-cyan-500/10 group">
-              <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <MessageCircle className="w-6 h-6" />
+            {/* Passo 04 */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 relative hover:border-cyan-500/40 transition-colors group">
+              <div className="text-2xl font-black text-cyan-400/30 group-hover:text-cyan-400/60 transition-colors mb-2">
+                04
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Suporte 24 Horas
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Compartilhe e venda
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Ajuda de verdade em qualquer etapa da sua operação. Atendimento com especialistas para tirar sua loja do papel sem dor de cabeça.
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Divulgue seu link no Instagram, WhatsApp ou TikTok e receba diretamente pelo Mercado Pago.
               </p>
             </div>
 
           </div>
 
-          {/* Destaque Adicional de Recuperação de Carrinho via Telegram */}
-          <div className="mt-10 p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-blue-950/40 border border-slate-800 flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-                <Send className="w-7 h-7" />
+          {/* Chamada para Ver a Loja Modelo */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/30 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <Globe className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="text-xl font-black text-white">
-                  Notificações & Recuperação de Carrinho via Telegram
+                <h4 className="text-base sm:text-lg font-bold text-white">
+                  Veja uma loja criada com a AJPSTORE
                 </h4>
-                <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-                  Seja avisado instantaneamente no seu celular quando um cliente fizer um pedido ou abandonar o carrinho, permitindo contato imediato para fechar a venda.
+                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+                  Explore a vitrine modelo funcionando com checkout transparente Pix e Cartão.
                 </p>
               </div>
             </div>
-            <button
-              onClick={scrollToRegistration}
-              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm whitespace-nowrap transition-all shadow-lg shadow-blue-500/20 cursor-pointer shrink-0"
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2 shrink-0"
             >
-              Testar Gratuitamente
-            </button>
+              <span>Ver loja</span>
+              <ExternalLink className="w-4 h-4 text-cyan-400" />
+            </a>
           </div>
 
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 4. SEÇÃO DE RECURSOS (TUDO INCLUÍDO) */}
+      {/* 4. SEÇÃO DE PROBLEMA & SOLUÇÃO */}
       {/* ------------------------------------------------------------- */}
-      <section id="recursos" className="py-20">
+      <section className="py-16 sm:py-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Tudo o que você precisa em uma única plataforma
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Vender online não precisa ser complicado.
             </h2>
-            <p className="text-slate-400 text-base mt-4">
-              Elimine a necessidade de contratar múltiplos softwares, plugins e integrações complexas.
+            <p className="text-slate-300 text-sm sm:text-base mt-3 leading-relaxed">
+              Você não precisa contratar programador, juntar várias ferramentas ou pagar comissão sobre cada pedido para ter uma estrutura profissional de vendas.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
             
-            {/* Recurso 1 */}
-            <div className="p-7 rounded-2xl bg-slate-900/70 border border-slate-800">
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-4 font-bold">
-                01
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">Checkout Mercado Pago Integrado</h3>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4">
-                Receba pagamentos via Pix com aprovação imediata e cartão de crédito parcelado. O dinheiro vai direto para a sua conta.
+            {/* Card Problema 1 */}
+            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+              <div className="text-xl mb-3">❌</div>
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Ferramentas demais
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Pare de depender de vários sistemas diferentes para catálogo, checkout e mensagens.
               </p>
-              <ul className="space-y-2 text-xs text-slate-300">
+            </div>
+
+            {/* Card Problema 2 */}
+            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+              <div className="text-xl mb-3">❌</div>
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Configuração complicada
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Tenha uma estrutura simples para começar a divulgar e faturar hoje mesmo.
+              </p>
+            </div>
+
+            {/* Card Problema 3 */}
+            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+              <div className="text-xl mb-3">❌</div>
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Comissões sobre vendas
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                A AJPSTORE não cobra comissão por pedido. Você fatura 100% das suas vendas.
+              </p>
+            </div>
+
+            {/* Card Problema 4 */}
+            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+              <div className="text-xl mb-3">❌</div>
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Loja sem identidade
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Use sua própria marca e seu próprio domínio sem parecer um marketplace genérico.
+              </p>
+            </div>
+
+          </div>
+
+          {/* Fechamento Conclusivo */}
+          <div className="text-center">
+            <div className="inline-flex flex-col sm:flex-row items-center gap-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900 to-blue-950/60 border border-cyan-500/30 max-w-2xl mx-auto">
+              <span className="text-sm sm:text-base font-black text-white">
+                Com a AJPSTORE, você tem tudo em um só lugar.
+              </span>
+              <button
+                onClick={scrollToRegistration}
+                className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer whitespace-nowrap"
+              >
+                Começar agora →
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 5. SEÇÃO DE FUNCIONALIDADES / RECURSOS (BENEFÍCIOS) */}
+      {/* ------------------------------------------------------------- */}
+      <section id="recursos" className="py-16 sm:py-20 bg-slate-900/40 border-y border-slate-800/70 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3">
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <span>RECURSOS COMPLETOS</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Tudo o que você precisa em uma única plataforma
+            </h2>
+            <p className="text-slate-300 text-sm sm:text-base mt-3">
+              Recursos pensados para converter visitantes em clientes fiéis.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* 01 — Checkout Mercado Pago */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-4">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Checkout Mercado Pago integrado
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+                  Receba pagamentos por Pix e cartão através do Mercado Pago e ofereça uma experiência simples para seus clientes.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs text-slate-300 pt-3 border-t border-slate-800/70">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Pix com QR Code copia e cola dinâmico</span>
+                  <span>Pix com aprovação imediata</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Cartão de crédito em até 12x</span>
+                  <span>QR Code e Copia e Cola dinâmicos</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Cartão de crédito com parcelamento</span>
                 </li>
               </ul>
             </div>
 
-            {/* Recurso 2 */}
-            <div className="p-7 rounded-2xl bg-slate-900/70 border border-slate-800">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4 font-bold">
-                02
+            {/* 02 — Landing Pages automáticas */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-4">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Landing pages para vender
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+                  Cada produto cadastrado pode ter uma página de vendas profissional pronta para você divulgar em anúncios ou redes sociais.
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Landing Pages de Alta Conversão</h3>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4">
-                Cada produto cadastrado ganha automaticamente uma página exclusiva, rápida e otimizada para campanhas no Instagram, TikTok e Google.
-              </p>
-              <ul className="space-y-2 text-xs text-slate-300">
+              <ul className="space-y-2 text-xs text-slate-300 pt-3 border-t border-slate-800/70">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Fotos de alta resolução e galeria</span>
+                  <span>Otimizada para carregamento ultrarrápido</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-purple-400" />
@@ -737,25 +983,127 @@ export const MarketingLandingPage: React.FC = () => {
               </ul>
             </div>
 
-            {/* Recurso 3 */}
-            <div className="p-7 rounded-2xl bg-slate-900/70 border border-slate-800">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4 font-bold">
-                03
+            {/* 03 — Upsell */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Aumente o valor de cada venda
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+                  Apresente ofertas adicionais de "compre junto" aos seus clientes no checkout e aumente o ticket médio da sua loja.
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Gestão de Pedidos & Cupons</h3>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4">
-                Acompanhe o faturamento em tempo real, crie cupons de desconto por porcentagem ou valor fixo e gerencie o estoque com facilidade.
-              </p>
-              <ul className="space-y-2 text-xs text-slate-300">
+              <ul className="space-y-2 text-xs text-slate-300 pt-3 border-t border-slate-800/70">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Dashboard com métricas e faturamento</span>
+                  <span>Adição de itens complementares com 1 clique</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Controle de cupons e datas de validade</span>
+                  <span>Mais faturamento por pedido realizado</span>
                 </li>
               </ul>
+            </div>
+
+            {/* 04 — Domínio próprio */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center mb-4">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Sua marca, seu domínio
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+                  Conecte seu próprio domínio (.com.br) e tenha uma presença profissional e segura na internet com SSL gratuito.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs text-slate-300 pt-3 border-t border-slate-800/70">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Subdomínio gratuito [slug].ajpstore.com.br</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Suporte a domínios personalizados</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* 05 — Carrinho abandonado */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-4">
+                  <ShoppingCart className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Recupere oportunidades perdidas
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+                  Tenha recursos para acompanhar e recuperar clientes que iniciaram uma compra e não finalizaram o pagamento.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs text-slate-300 pt-3 border-t border-slate-800/70">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Identificação rápida de pedidos pendentes</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Contato direto para fechar a compra</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* 06 — Notificações & Telegram */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-4">
+                  <Send className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Saiba quando uma venda acontecer
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-4">
+                  Receba notificações para acompanhar suas vendas e pedidos. Receba alertas automáticos pelo Telegram em tempo real.
+                </p>
+              </div>
+              <ul className="space-y-2 text-xs text-slate-300 pt-3 border-t border-slate-800/70">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Alertas instantâneos no Telegram</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Acompanhamento em tempo real</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* 07 — Gestão pelo Celular */}
+            <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 transition-all md:col-span-2 lg:col-span-3 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4 text-left">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Gerencie sua loja de qualquer lugar
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
+                    Tenha acesso ao painel pelo celular para acompanhar pedidos, cadastrar novos produtos e administrar seu negócio onde você estiver.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={scrollToRegistration}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 font-bold text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer"
+              >
+                Testar no celular →
+              </button>
             </div>
 
           </div>
@@ -764,31 +1112,268 @@ export const MarketingLandingPage: React.FC = () => {
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 5. SEÇÃO DE PREÇO IRRECUSÁVEL (PLANOS) */}
+      {/* 6. SEÇÃO "POR QUE A AJPSTORE?" */}
       {/* ------------------------------------------------------------- */}
-      <section id="planos" className="py-20 bg-slate-900/40 border-y border-slate-800 relative">
+      <section id="beneficios" className="py-16 sm:py-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>PREÇO SIMPLES E JUSTO</span>
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3">
+              <Shield className="w-3.5 h-3.5 text-cyan-400" />
+              <span>DIFERENCIAIS REAIS</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Apenas R$ 50,00 por mês. Sem surpresas.
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Por que escolher a AJPSTORE para o seu negócio?
             </h2>
-            <p className="text-slate-400 text-base mt-4">
-              Você começa testando tudo na prática por 7 dias grátis. Se gostar, continua por uma mensalidade fixa e sem comissões.
+            <p className="text-slate-300 text-sm sm:text-base mt-3">
+              Tenha sua própria estrutura de vendas, sua marca e controle sobre seu negócio, sem depender de marketplaces.
+            </p>
+          </div>
+
+          {/* Destaque Principal Solicitado */}
+          <div className="mb-10 p-7 sm:p-9 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/30 border border-cyan-500/30 text-center max-w-4xl mx-auto shadow-xl shadow-cyan-950/30">
+            <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-3">
+              Você vende. Você fica com o seu faturamento.
+            </h3>
+            <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed mb-4">
+              A AJPSTORE não cobra comissão sobre os pedidos realizados na sua loja. Você paga uma mensalidade fixa pela plataforma.
+            </p>
+            <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-3 max-w-xl mx-auto">
+              A AJPSTORE não cobra comissão sobre suas vendas. As tarifas eventualmente aplicadas pelo meio de pagamento são cobradas pelo próprio Mercado Pago.
+            </p>
+          </div>
+
+          {/* 4 Cards Estratégicos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="text-2xl mb-3">💰</div>
+              <h4 className="text-base font-bold text-white mb-1.5">
+                Sem comissão da AJPSTORE por pedido
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Seu faturamento não é reduzido por uma comissão da plataforma.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="text-2xl mb-3">🌐</div>
+              <h4 className="text-base font-bold text-white mb-1.5">
+                Sua própria marca
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Use sua identidade visual, seu logotipo e seu domínio próprio.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="text-2xl mb-3">📱</div>
+              <h4 className="text-base font-bold text-white mb-1.5">
+                Controle pelo celular
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Gerencie sua operação de onde estiver com interface adaptada.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="text-2xl mb-3">⚡</div>
+              <h4 className="text-base font-bold text-white mb-1.5">
+                Comece rapidamente
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Crie sua estrutura e comece a configurar sua loja em poucos minutos.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 7. SEÇÃO "COMO FUNCIONA" */}
+      {/* ------------------------------------------------------------- */}
+      <section id="como-funciona" className="py-16 sm:py-20 bg-slate-900/40 border-y border-slate-800/70 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Comece a vender em 3 passos
+            </h2>
+            <p className="text-slate-400 text-sm sm:text-base mt-2">
+              Sem necessidade de conhecimentos técnicos ou códigos.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
+            
+            {/* PASSO 01 */}
+            <div className="p-7 rounded-2xl bg-slate-900 border border-slate-800 text-center flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 font-black text-lg flex items-center justify-center mb-4 border border-cyan-500/20">
+                1
+              </div>
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">PASSO 01</span>
+              <h3 className="text-lg font-bold text-white mb-2">Crie sua conta</h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Preencha seus dados e crie sua loja gratuitamente.
+              </p>
+            </div>
+
+            {/* PASSO 02 */}
+            <div className="p-7 rounded-2xl bg-slate-900 border border-slate-800 text-center flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 font-black text-lg flex items-center justify-center mb-4 border border-cyan-500/20">
+                2
+              </div>
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">PASSO 02</span>
+              <h3 className="text-lg font-bold text-white mb-2">Configure sua loja</h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Adicione produtos, imagens, preços e informações do seu negócio.
+              </p>
+            </div>
+
+            {/* PASSO 03 */}
+            <div className="p-7 rounded-2xl bg-slate-900 border border-slate-800 text-center flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 font-black text-lg flex items-center justify-center mb-4 border border-cyan-500/20">
+                3
+              </div>
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">PASSO 03</span>
+              <h3 className="text-lg font-bold text-white mb-2">Publique e venda</h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Compartilhe sua loja ou conecte seu próprio domínio.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="text-center">
+            <button
+              onClick={scrollToRegistration}
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer inline-flex items-center gap-2"
+            >
+              <span>🚀 Quero começar grátis</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 8. SEÇÃO DE PROVA VISUAL (O QUE VOCÊ PODE CRIAR) */}
+      {/* ------------------------------------------------------------- */}
+      <section className="py-16 sm:py-20 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Veja o que você pode criar com a AJPSTORE
+            </h2>
+            <p className="text-slate-400 text-sm sm:text-base mt-3">
+              Telas reais e responsivas projetadas para a melhor experiência de compra do seu cliente.
+            </p>
+          </div>
+
+          {/* Cards de Demonstração de Telas Reais */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            
+            {/* Demonstração 1: Vitrine de Produtos */}
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden group">
+              <div className="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Laptop className="w-3.5 h-3.5 text-cyan-400" />
+                  Vitrine da Loja
+                </span>
+                <span className="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 px-2 py-0.5 rounded">
+                  Desktop & Mobile
+                </span>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="h-32 rounded-xl bg-slate-800/70 flex items-center justify-center text-slate-500 text-xs border border-slate-700/60 p-3 text-center">
+                  Grade de produtos com fotos em alta resolução, busca e categorias inteligentes.
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-300">
+                  <span className="font-semibold text-white">Loja Personalizada</span>
+                  <span className="text-emerald-400 font-bold">100% Responsiva</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Demonstração 2: Checkout Transparente Mercado Pago */}
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden group">
+              <div className="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  Checkout Transparente
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded">
+                  Mercado Pago
+                </span>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="h-32 rounded-xl bg-slate-800/70 flex items-center justify-center text-slate-500 text-xs border border-slate-700/60 p-3 text-center">
+                  Pix Copia e Cola imediato com QR Code, cartão de crédito e recibo instantâneo.
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-300">
+                  <span className="font-semibold text-white">Pagamento Seguro</span>
+                  <span className="text-cyan-400 font-bold">Sem atrito</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Demonstração 3: Painel Administrativo */}
+            <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden group">
+              <div className="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-purple-400" />
+                  Painel de Controle
+                </span>
+                <span className="text-[10px] text-purple-400 font-mono bg-purple-950/60 px-2 py-0.5 rounded">
+                  Gestão Fácil
+                </span>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="h-32 rounded-xl bg-slate-800/70 flex items-center justify-center text-slate-500 text-xs border border-slate-700/60 p-3 text-center">
+                  Acompanhamento de pedidos, controle de faturamento, cupons e estoque no seu celular.
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-300">
+                  <span className="font-semibold text-white">Gestão Completa</span>
+                  <span className="text-purple-400 font-bold">Prático</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 9. SEÇÃO DE PREÇO SIMPLES E JUSTO */}
+      {/* ------------------------------------------------------------- */}
+      <section id="precos" className="py-16 sm:py-20 bg-slate-900/40 border-y border-slate-800/70 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3">
+              <Star className="w-3.5 h-3.5 text-cyan-400" />
+              <span>⭐ PREÇO SIMPLES E JUSTO</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Comece grátis. Continue por apenas R$ 50/mês.
+            </h2>
+            <p className="text-slate-300 text-sm sm:text-base mt-3">
+              Teste todos os recursos por 7 dias. Não precisa cadastrar cartão de crédito.
             </p>
           </div>
 
           {/* Cartão de Preço Principal */}
           <div className="max-w-lg mx-auto">
-            <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-400 via-blue-500 to-purple-600 shadow-2xl shadow-cyan-950/80">
-              <div className="bg-slate-950 rounded-[22px] p-8 sm:p-10 text-center">
+            <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-400 via-blue-500 to-purple-600 shadow-2xl shadow-cyan-950/70">
+              <div className="bg-slate-950 rounded-[22px] p-7 sm:p-9 text-center">
                 
                 <span className="inline-block px-4 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-black uppercase tracking-wider mb-4 border border-cyan-500/20">
-                  Plano Pro Completo
+                  PLANO PRO COMPLETO
                 </span>
 
                 <div className="flex items-baseline justify-center gap-2 mb-2">
@@ -797,53 +1382,69 @@ export const MarketingLandingPage: React.FC = () => {
                   <span className="text-slate-400 text-sm font-semibold">/ mês</span>
                 </div>
 
-                <p className="text-xs text-emerald-400 font-bold mb-8">
-                  🎁 7 Dias de Acesso Total Gratuito para Testar
-                </p>
+                <div className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                  <span>🎁 7 DIAS DE ACESSO TOTAL GRÁTIS</span>
+                </div>
 
                 {/* Lista de Inclusões */}
-                <div className="space-y-3.5 text-left mb-8 text-sm text-slate-300 border-y border-slate-800/80 py-6">
+                <div className="space-y-3 text-left mb-8 text-xs sm:text-sm text-slate-300 border-y border-slate-800/80 py-6">
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span><strong>Zero taxa</strong> sobre seus pedidos (100% de lucro seu)</span>
+                    <span>Sem comissão por pedido da AJPSTORE</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Conexão de <strong>domínio próprio</strong> (.com.br)</span>
+                    <span>Domínio próprio</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Checkout transparente via <strong>Mercado Pago</strong> (Pix e Cartão)</span>
+                    <span>Checkout Mercado Pago</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Recuperação de carrinho & alertas no <strong>Telegram</strong></span>
+                    <span>Pix e cartão</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Landing Pages exclusivas para cada produto</span>
+                    <span>Landing pages</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Produtos e fotos ilimitados</span>
+                    <span>Upsell</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Suporte humanizado no WhatsApp</span>
+                    <span>Recuperação de carrinho</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>Notificações</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>Gestão pelo celular</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>Painel administrativo</span>
                   </div>
                 </div>
 
-                {/* Botão de Assinatura / Teste */}
+                {/* Botão de Teste */}
                 <button
                   onClick={scrollToRegistration}
                   className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Rocket className="w-4 h-4" />
-                  <span>Quero Testar 7 Dias Grátis</span>
+                  <span>🚀 Criar minha loja grátis por 7 dias</span>
                 </button>
 
-                <p className="text-[11px] text-slate-500 mt-4">
-                  Cancele quando quiser diretamente no painel. Sem contratos de fidelidade.
+                <p className="text-xs text-slate-400 mt-4">
+                  Sem cartão de crédito • 7 dias grátis
+                </p>
+
+                <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                  A AJPSTORE não cobra comissão sobre suas vendas. As tarifas eventualmente aplicadas pelo meio de pagamento são cobradas pelo próprio Mercado Pago.
                 </p>
 
               </div>
@@ -854,41 +1455,49 @@ export const MarketingLandingPage: React.FC = () => {
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 6. PERGUNTAS FREQUENTES (FAQ) */}
+      {/* 11. SEÇÃO DE PERGUNTAS FREQUENTES (FAQ) */}
       {/* ------------------------------------------------------------- */}
-      <section id="faq" className="py-20">
+      <section id="faq" className="py-16 sm:py-20 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-black text-white tracking-tight">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Perguntas Frequentes
             </h2>
             <p className="text-slate-400 text-sm mt-2">
-              Tudo o que você precisa saber antes de começar o seu teste grátis.
+              Tudo o que você precisa saber antes de começar o seu teste gratuito de 7 dias.
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             {[
               {
-                q: "Preciso informar cartão de crédito para ativar os 7 dias grátis?",
-                a: "Não! Você não precisa cadastrar nenhum cartão de crédito para iniciar. Basta preencher o formulário com o nome da sua loja e seu e-mail para ter acesso imediato ao painel administrativo."
+                q: "Preciso informar cartão de crédito para começar os 7 dias grátis?",
+                a: "Não. Você não precisa cadastrar cartão de crédito para iniciar o teste gratuito. Basta criar sua conta e configurar sua loja."
               },
               {
-                q: "A plataforma cobra comissão sobre as minhas vendas?",
-                a: "Não cobramos absolutamente nenhuma taxa ou comissão por venda. Você fatura 100% do valor dos seus produtos. O único custo após o período de teste é a mensalidade fixa de R$ 50,00."
+                q: "A AJPSTORE cobra comissão sobre minhas vendas?",
+                a: "Não. A AJPSTORE não cobra comissão por pedido. Você paga apenas a mensalidade da plataforma. As tarifas eventualmente aplicadas pelo meio de pagamento são cobradas pelo próprio Mercado Pago."
               },
               {
-                q: "Posso usar meu próprio domínio (ex: www.minhaloja.com.br)?",
-                a: "Sim! Dentro do seu painel administrativo você tem a opção de apontar seu domínio personalizado gratuitamente, com certificado de segurança SSL incluso."
+                q: "Posso usar meu próprio domínio?",
+                a: "Sim. A AJPSTORE permite conectar seu próprio domínio à sua loja."
               },
               {
-                q: "Como recebo o dinheiro das vendas realizadas pelo site?",
-                a: "O pagamento é processado diretamente pelo Mercado Pago. O valor cai diretamente na sua própria conta do Mercado Pago via Pix instantâneo ou Cartão de Crédito."
+                q: "Consigo gerenciar minha loja pelo celular?",
+                a: "Sim. O painel pode ser acessado pelo celular para você administrar sua loja e acompanhar seu negócio."
               },
               {
-                q: "Consigo gerenciar a loja pelo celular?",
-                a: "Com certeza! Tanto a vitrine de produtos quanto o painel administrativo da AJPSTORE são 100% responsivos e funcionam perfeitamente no navegador do seu smartphone."
+                q: "Como recebo o dinheiro das vendas?",
+                a: "Os pagamentos são processados pelo Mercado Pago. O dinheiro segue as regras e prazos definidos pelo próprio Mercado Pago."
+              },
+              {
+                q: "Preciso saber programação?",
+                a: "Não. A AJPSTORE foi desenvolvida para que você possa criar e administrar sua loja sem precisar programar."
+              },
+              {
+                q: "Quanto custa depois dos 7 dias grátis?",
+                a: "Depois do período gratuito, o plano custa R$ 50,00 por mês."
               }
             ].map((item, idx) => (
               <div 
@@ -897,13 +1506,13 @@ export const MarketingLandingPage: React.FC = () => {
               >
                 <button
                   onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 font-bold text-sm sm:text-base text-white hover:text-cyan-400 transition-colors cursor-pointer"
+                  className="w-full px-5 py-4 text-left flex items-center justify-between gap-4 font-bold text-sm sm:text-base text-white hover:text-cyan-400 transition-colors cursor-pointer"
                 >
                   <span>{item.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openFaqIndex === idx ? 'rotate-180 text-cyan-400' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${openFaqIndex === idx ? 'rotate-180 text-cyan-400' : ''}`} />
                 </button>
                 {openFaqIndex === idx && (
-                  <div className="px-6 pb-5 pt-1 text-sm text-slate-400 leading-relaxed border-t border-slate-800/60">
+                  <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/60">
                     {item.a}
                   </div>
                 )}
@@ -915,40 +1524,77 @@ export const MarketingLandingPage: React.FC = () => {
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 7. CTA FINAL DE CONVERSÃO */}
+      {/* 12. CTA FINAL DE CONVERSÃO */}
       {/* ------------------------------------------------------------- */}
-      <section className="py-16 bg-gradient-to-b from-slate-950 to-slate-900 border-t border-slate-800 text-center relative overflow-hidden">
+      <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-t border-slate-800 text-center relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 relative z-10">
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-4">
-            Pronto para transformar o seu negócio online?
+          <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight mb-4">
+            Sua loja pode estar no ar hoje.
           </h2>
-          <p className="text-base text-slate-400 max-w-xl mx-auto mb-8">
-            Crie sua loja em menos de 2 minutos e aproveite 7 dias de acesso total gratuito.
+          <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto mb-8 leading-relaxed">
+            Comece gratuitamente, teste a AJPSTORE por 7 dias e descubra como é ter sua própria estrutura de vendas online.
           </p>
           <button
             onClick={scrollToRegistration}
             className="px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-base shadow-xl shadow-cyan-500/30 transition-all hover:scale-105 active:scale-95 cursor-pointer inline-flex items-center gap-2"
           >
             <Sparkles className="w-5 h-5" />
-            <span>Criar Minha Loja Grátis por 7 Dias</span>
+            <span>🚀 Criar minha loja grátis</span>
           </button>
+          <p className="text-xs text-slate-400 mt-4">
+            7 dias grátis • Sem cartão de crédito • R$ 50/mês depois
+          </p>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 8. RODAPÉ OFICIAL */}
+      {/* 13. FOOTER OFICIAL */}
       {/* ------------------------------------------------------------- */}
-      <footer className="py-8 bg-slate-950 border-t border-slate-900 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-300">AJPSTORE</span>
-            <span>— Plataforma de Lojas Virtuais & Catálogo Digital</span>
+      <footer className="py-10 bg-slate-950 border-t border-slate-900 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-900">
+            
+            <div className="flex flex-col items-center md:items-start gap-1">
+              <SoumbolinhoLogo variant="light" size="sm" />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Plataforma de lojas virtuais e páginas de vendas.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-6 text-slate-400 font-medium text-xs">
+              <a href="/" className="hover:text-cyan-400 transition-colors">Início</a>
+              <a href="#recursos" className="hover:text-cyan-400 transition-colors">Recursos</a>
+              <a href="#precos" className="hover:text-cyan-400 transition-colors">Preços</a>
+              <a href="#faq" className="hover:text-cyan-400 transition-colors">FAQ</a>
+              <a href="/admin" className="hover:text-cyan-400 transition-colors">Entrar</a>
+              <button onClick={scrollToRegistration} className="hover:text-cyan-400 transition-colors cursor-pointer">Criar loja</button>
+            </div>
+
           </div>
-          <div>
+
+          <div className="pt-6 text-center text-[11px] text-slate-500">
             © {new Date().getFullYear()} AJPSTORE. Todos os direitos reservados.
           </div>
         </div>
       </footer>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 14. CTA FLUTUANTE NO MOBILE (FIXO E ELEGANTE) */}
+      {/* ------------------------------------------------------------- */}
+      {showFloatingCta && (
+        <div className="fixed bottom-3 left-3 right-3 z-40 md:hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="p-2 rounded-2xl bg-slate-900/90 border border-cyan-500/40 backdrop-blur-xl shadow-2xl shadow-cyan-950/80">
+            <button
+              onClick={scrollToRegistration}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
+            >
+              <Rocket className="w-4 h-4" />
+              <span>🚀 Criar minha loja grátis</span>
+              <span className="text-[10px] bg-slate-950/20 px-2 py-0.5 rounded font-bold">7 dias</span>
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

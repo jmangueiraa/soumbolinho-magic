@@ -58,7 +58,8 @@ export function isPlatformRootHostname(hostname: string): boolean {
     clean.startsWith('10.') ||
     clean.startsWith('172.') ||
     clean.endsWith('.local') ||
-    clean.endsWith('.internal')
+    clean.endsWith('.internal') ||
+    clean.endsWith('.vercel.app')
   );
 }
 
@@ -108,14 +109,19 @@ export function isCustomStoreDomain(hostname: string): boolean {
 
 /**
  * Retorna true se a requisição é proveniente de um subdomínio válido ou domínio personalizado de loja.
+ * Retorna estritamente FALSE para o domínio raiz principal da plataforma (ajpstore.com.br, www.ajpstore.com.br, localhost, vercel.app).
  */
 export function isTenantHost(hostname: string): boolean {
+  if (!hostname || isPlatformRootHostname(hostname)) {
+    return false;
+  }
   return Boolean(extractStoreSubdomain(hostname) || isCustomStoreDomain(hostname));
 }
 
 export function checkIsTenantRoute(): boolean {
   if (typeof window === 'undefined') return false;
   const hostname = window.location.hostname.toLowerCase().trim();
+  const isRoot = isPlatformRootHostname(hostname);
   const pathname = window.location.pathname.toLowerCase();
   const hash = window.location.hash.toLowerCase();
   const pathSlugMatch = pathname.match(/\/loja\/([^/?#]+)/i) || hash.match(/loja\/([^/?#]+)/i);
@@ -123,6 +129,11 @@ export function checkIsTenantRoute(): boolean {
   const searchParams = new URLSearchParams(window.location.search);
   const storeSlugParam = (searchParams.get('store')?.toLowerCase().trim()) || routeSlug;
   const domainParam = searchParams.get('domain')?.toLowerCase().trim();
+
+  // No domínio raiz da plataforma, só é rota de tenant se houver parâmetro explícito de loja (/loja/:slug ou ?store=...)
+  if (isRoot) {
+    return Boolean(storeSlugParam || domainParam);
+  }
 
   // Se houver parâmetro explícito de loja ou for um subdomínio/domínio customizado
   return Boolean(storeSlugParam || domainParam || isTenantHost(hostname));

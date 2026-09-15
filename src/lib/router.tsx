@@ -21,6 +21,17 @@ export const RESERVED_ROUTES = [
   'planos',
   'comecar',
   'onboarding',
+  'recursos',
+  'como-funciona',
+  'beneficios',
+  'precos',
+  'faq',
+  'duvidas',
+  'contato',
+  'depoimentos',
+  'demonstracao',
+  'sobre',
+  'garantia',
   'index.html',
   'favicon.ico',
   'favicon.svg',
@@ -146,11 +157,13 @@ export function useParams<T extends Record<string, string | undefined> = Record<
       return { slug: decoded, id: decoded, productId: decoded } as unknown as T;
     }
 
-    // 4. Rota amigável hash #/:slug
-    const cleanHash = h.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
-    if (cleanHash && !cleanHash.includes('/') && !RESERVED_ROUTES.includes(cleanHash)) {
-      const decoded = decodeURIComponent(cleanHash);
-      return { slug: decoded, id: decoded, productId: decoded } as unknown as T;
+    // 4. Rota amigável hash #/:slug (apenas para rotas SPA explícitas com #/)
+    if (h.startsWith('#/')) {
+      const cleanHash = h.replace(/^#\/?/, '').replace(/\/+$/, '').toLowerCase();
+      if (cleanHash && !cleanHash.includes('/') && !RESERVED_ROUTES.includes(cleanHash)) {
+        const decoded = decodeURIComponent(cleanHash);
+        return { slug: decoded, id: decoded, productId: decoded } as unknown as T;
+      }
     }
 
     return {} as unknown as T;
@@ -189,6 +202,12 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     const hashOnly = rawHash.replace(/^#\/?/, '').replace(/\/+$/, '');
     const cleanHash = hashOnly ? `/${hashOnly}` : '';
 
+    // Verifica se o hash é uma âncora interna de seção (ex: #recursos, #como-funciona, #beneficios, #precos, #faq, #cadastro)
+    const isInPageAnchor = !rawHash.startsWith('#/') && [
+      'recursos', 'como-funciona', 'beneficios', 'precos', 'faq', 'cadastro', 
+      'planos', 'comecar', 'onboarding', 'duvidas', 'contato', 'sobre', 'garantia'
+    ].includes(hashOnly);
+
     const routeList = React.Children.toArray(children) as React.ReactElement<RouteProps>[];
 
     for (const child of routeList) {
@@ -201,7 +220,7 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       if (cleanTarget === '/') {
         if (
           (cleanPath === '/' || cleanPath === '' || cleanPath === '/index.html') &&
-          (!cleanHash || cleanHash === '/' || cleanHash === '')
+          (!cleanHash || cleanHash === '/' || cleanHash === '' || isInPageAnchor)
         ) {
           return element;
         }
@@ -275,11 +294,11 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         const pathSegment = cleanPath.replace(/^\/+|\/+$/g, '');
         const hashSegment = cleanHash.replace(/^\/+|\/+$/g, '');
 
-        // Ignora palavras reservadas do sistema
+        // Ignora palavras reservadas do sistema e âncoras internas
         if (pathSegment && !pathSegment.includes('/') && !RESERVED_ROUTES.includes(pathSegment)) {
           return element;
         }
-        if (hashSegment && !hashSegment.includes('/') && !RESERVED_ROUTES.includes(hashSegment)) {
+        if (rawHash.startsWith('#/') && hashSegment && !hashSegment.includes('/') && !RESERVED_ROUTES.includes(hashSegment) && !isInPageAnchor) {
           return element;
         }
         continue;
