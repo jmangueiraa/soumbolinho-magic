@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
           {/* CENTRO / LOGO: Logo Festivo Soumbolinho sem Fundo */}
           <a 
             href={storeHomeUrl} 
-            className="flex items-center group shrink min-w-0 cursor-pointer overflow-hidden" 
+            className="flex items-center group shrink-0 sm:shrink min-w-0 cursor-pointer py-0.5" 
             onClick={(e) => { 
               e.preventDefault(); 
               window.location.hash = ''; 
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 
             }}
           >
-            <SoumbolinhoLogo variant="light" size="md" onlyLogo={Boolean(storeConfig?.onlyLogo)} />
+            <SoumbolinhoLogo variant="light" size="lg" onlyLogo={Boolean(storeConfig?.onlyLogo)} />
           </a>
 
           {/* BARRA DE PESQUISA (Desktop) */}

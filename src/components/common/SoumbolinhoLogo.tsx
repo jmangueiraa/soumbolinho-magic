@@ -5,7 +5,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 interface SoumbolinhoLogoProps {
   className?: string;
   variant?: 'light' | 'dark';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   storeName?: string;
   slogan?: string;
   logoUrl?: string;
@@ -66,12 +66,41 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
   const sizeClasses = {
     sm: 'w-7 h-7 sm:w-8 sm:h-8',
-    md: 'w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11',
-    lg: 'w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16',
-  }[size];
+    md: 'w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12',
+    lg: 'w-11 h-11 sm:w-13 sm:h-13 md:w-16 md:h-16',
+    xl: 'w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20',
+  }[size] || 'w-11 h-11 sm:w-13 sm:h-13 md:w-16 md:h-16';
+
+  const titleClasses = {
+    sm: 'text-xs sm:text-sm font-black tracking-tight',
+    md: 'text-sm sm:text-lg md:text-xl font-black tracking-tight',
+    lg: 'text-lg sm:text-2xl md:text-3xl font-black tracking-tight',
+    xl: 'text-xl sm:text-3xl md:text-4xl font-black tracking-tight',
+  }[size] || 'text-lg sm:text-2xl md:text-3xl font-black tracking-tight';
+
+  const sloganClasses = {
+    sm: 'text-[7px] sm:text-[8px] font-bold tracking-wider',
+    md: 'text-[8px] sm:text-[9.5px] md:text-[11px] font-bold tracking-wider sm:tracking-[0.14em]',
+    lg: 'text-[9px] sm:text-[11px] md:text-[12.5px] font-bold tracking-wider sm:tracking-[0.16em]',
+    xl: 'text-[10px] sm:text-[12px] md:text-[14px] font-bold tracking-wider sm:tracking-[0.18em]',
+  }[size] || 'text-[9px] sm:text-[11px] md:text-[12.5px] font-bold tracking-wider sm:tracking-[0.16em]';
+
+  const gapClasses = {
+    sm: 'gap-1.5',
+    md: 'gap-2 sm:gap-2.5',
+    lg: 'gap-2 sm:gap-3',
+    xl: 'gap-2.5 sm:gap-4',
+  }[size] || 'gap-2 sm:gap-3';
+
+  const sloganMaxWClasses = {
+    sm: 'max-w-[120px] sm:max-w-none',
+    md: 'max-w-[150px] sm:max-w-[240px] md:max-w-none',
+    lg: 'max-w-[180px] sm:max-w-[300px] md:max-w-none',
+    xl: 'max-w-[240px] sm:max-w-[380px] md:max-w-none',
+  }[size] || 'max-w-[180px] sm:max-w-[300px] md:max-w-none';
 
   return (
-    <div className={`inline-flex items-center gap-1.5 sm:gap-2.5 select-none bg-transparent min-w-0 ${className}`}>
+    <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
       {/* Ícone da Marca: Imagem enviada pelo usuário (arredondada / circular) ou SVG Mini Bolo Festivo */}
       <div className="logo-container relative flex items-center justify-center shrink-0">
         {customLogoUrl && !imageError ? (
@@ -170,10 +199,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
               if (upper === 'SOUMBOLINHO' || upper === 'SOUM BOLINHO') {
                 return (
                   <div className="flex items-center tracking-tight whitespace-nowrap">
-                    <span className={`font-sans text-xs sm:text-base md:text-xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       SOUM
                     </span>
-                    <span className="font-sans text-xs sm:text-base md:text-xl font-black text-theme-primary ml-0.5">
+                    <span className={`font-sans ${titleClasses} text-theme-primary ml-0.5 sm:ml-1`}>
                       BOLINHO
                     </span>
                   </div>
@@ -184,10 +213,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
               if (upper.replace(/\s+/g, '') === 'SUAMARCAAQUI') {
                 return (
                   <div className="flex items-center tracking-tight whitespace-nowrap">
-                    <span className={`font-sans text-xs sm:text-base md:text-xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       SUAMARCA
                     </span>
-                    <span className="font-sans text-xs sm:text-base md:text-xl font-black text-theme-primary">
+                    <span className={`font-sans ${titleClasses} text-theme-primary`}>
                       AQUI
                     </span>
                   </div>
@@ -201,10 +230,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
                 const lastPart = words[words.length - 1].toUpperCase();
                 return (
                   <div className="flex items-center tracking-tight whitespace-nowrap">
-                    <span className={`font-sans text-xs sm:text-base md:text-xl font-black ${isLight ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       {firstPart}
                     </span>
-                    <span className="font-sans text-xs sm:text-base md:text-xl font-black text-theme-primary ml-1">
+                    <span className={`font-sans ${titleClasses} text-theme-primary ml-1`}>
                       {lastPart}
                     </span>
                   </div>
@@ -213,14 +242,14 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
               // 4. Caso Nome de Palavra Única
               return (
-                <span className="font-sans text-xs sm:text-base md:text-xl font-black text-theme-primary whitespace-nowrap">
+                <span className={`font-sans ${titleClasses} text-theme-primary whitespace-nowrap`}>
                   {resolvedName.toUpperCase()}
                 </span>
               );
             })()}
           </div>
           {resolvedSlogan && (
-            <span className={`text-[7px] sm:text-[8.5px] md:text-[9.5px] font-bold tracking-wider sm:tracking-[0.16em] uppercase mt-0.5 whitespace-nowrap truncate max-w-[130px] sm:max-w-[240px] md:max-w-none ${
+            <span className={`${sloganClasses} uppercase mt-0.5 sm:mt-1 whitespace-nowrap truncate ${sloganMaxWClasses} ${
               isLight ? 'text-zinc-400' : 'text-slate-500'
             }`}>
               {resolvedSlogan}
