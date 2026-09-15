@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { useStoreData } from '../../context/StoreDataContext';
+import { AJP_OFFICIAL_LOGO_BASE64 } from '../../assets/officialLogo';
 
 interface SoumbolinhoLogoProps {
   className?: string;
@@ -46,8 +47,8 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     !currentStore ||
     storeSlug === 'suamarcaaqui';
 
-  // URL da Logo Oficial da AJPSTORE como padrão inicial
-  const defaultAjpLogo = '/ajpstore-logo.svg';
+  // Logo Oficial AJPSTORE: usa o Base64 embutido para carregamento instantâneo sem depender de rede
+  const defaultAjpLogo = AJP_OFFICIAL_LOGO_BASE64;
 
   const rawLogo = (
     propLogoUrl ||
@@ -57,8 +58,9 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     ''
   ).trim();
 
-  // Se não houver logo customizada ou se for o contexto da AJPSTORE, usa a logo oficial AJPSTORE
-  const customLogoUrl = rawLogo || (isAjpStore ? defaultAjpLogo : '');
+  // Se o contexto for AJPSTORE e a logo apontar para caminhos padrão/antigos, prioriza a logo oficial em Base64
+  const isAjpDefaultPath = isAjpStore && (!rawLogo || rawLogo.includes('ajpstore-logo') || rawLogo.includes('logo.jpg') || rawLogo.includes('logo.png'));
+  const customLogoUrl = isAjpDefaultPath ? AJP_OFFICIAL_LOGO_BASE64 : (rawLogo || (isAjpStore ? AJP_OFFICIAL_LOGO_BASE64 : ''));
 
   // Nome da loja
   const rawName = propStoreName !== undefined
@@ -129,6 +131,14 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
               alt={resolvedName}
               onError={() => setImageError(true)}
               className="logo-image w-full h-full object-contain rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
+            />
+          </div>
+        ) : isAjpStore ? (
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white`}>
+            <img
+              src={AJP_OFFICIAL_LOGO_BASE64}
+              alt={resolvedName}
+              className="logo-image w-full h-full object-contain rounded-full"
             />
           </div>
         ) : (

@@ -411,7 +411,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
     setFormData({
       storeName: isBase ? 'AJPSTORE' : (currentStore?.store_name || currentStore?.name || 'suamarcaaqui'),
       slogan: isBase ? 'Sua Loja Online em Minutos' : (currentStore?.slogan || 'subtitulo da sua loja'),
-      logoUrl: isBase ? '/ajpstore-logo.svg' : (currentStore?.logo_url || currentStore?.theme_settings?.logo_url || ''),
+      logoUrl: isBase ? '/ajpstore-logo.png' : (currentStore?.logo_url || currentStore?.theme_settings?.logo_url || ''),
       whatsappNumber: isBase ? '5511999999999' : (currentStore?.whatsapp_number || 'SeuWhatsApp'),
       whatsappDisplay: isBase ? '(11) 99999-9999' : (currentStore?.whatsapp_display || 'SeuWhatsAppWhatsApp'),
       instagram: isBase ? '@ajpstore' : (currentStore?.instagram || 'suamarcaaqui'),

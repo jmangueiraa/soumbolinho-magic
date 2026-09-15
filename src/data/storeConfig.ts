@@ -41,6 +41,6 @@ export const STORE_CONFIG: StoreConfig = {
   themeLayout: 'classic',
   colorPalette: 'blue_cyan',
   primaryColor: '#0062FF',
-  logoUrl: '/ajpstore-logo.svg',
+  logoUrl: '/ajpstore-logo.png',
 };
 

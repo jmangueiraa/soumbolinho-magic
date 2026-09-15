@@ -67,6 +67,19 @@ export const COLOR_PALETTES: Record<ColorPaletteType, ColorPaletteConfig> = {
     headerBorder: '#065F46',
     previewColors: ['#10B981', '#34D399', '#D1FAE5'],
   },
+  blue_cyan: {
+    id: 'blue_cyan',
+    name: 'Azul & Ciano AJPSTORE',
+    description: 'Visual oficial AJPSTORE de alta tecnologia, inovação e máxima conversão.',
+    primary: '#0062FF',
+    primaryHover: '#0052D4',
+    primaryLight: '#E0F2FE',
+    primarySubtle: '#F0F9FF',
+    accent: '#00C853',
+    headerBg: '#000000',
+    headerBorder: '#1E293B',
+    previewColors: ['#0062FF', '#00C853', '#00E5FF'],
+  },
 };
 
 export interface ThemeLayoutConfig {

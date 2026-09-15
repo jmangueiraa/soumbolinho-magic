@@ -168,7 +168,7 @@ export interface BenefitCard {
 }
 
 export type ThemeLayoutType = 'classic' | 'modern' | 'minimal' | 'featured_grid';
-export type ColorPaletteType = 'pink_pastel' | 'blue_corporate' | 'purple_elegant' | 'green_nature';
+export type ColorPaletteType = 'pink_pastel' | 'blue_corporate' | 'purple_elegant' | 'green_nature' | 'blue_cyan';
 
 export interface StoreConfig {
   id?: string;
@@ -177,6 +177,8 @@ export interface StoreConfig {
   storeName: string;
   slogan: string;
   logoUrl?: string;
+  bannerUrl?: string;
+  banner_url?: string;
   whatsappNumber: string; // ex: 5521974975884
   whatsappDisplay: string;
   instagram: string;
@@ -212,6 +214,13 @@ export interface Store {
   custom_domain?: string | null;
   domain_status: DomainStatus;
   logo_url?: string;
+  secondary_color?: string;
+  banner_url?: string | null;
+  banner_desktop?: string | null;
+  banner_mobile?: string | null;
+  banners_config?: any;
+  buttons_config?: any;
+  benefit_cards?: BenefitCard[];
   theme_settings?: {
     primary_color?: string;
     secondary_color?: string;
