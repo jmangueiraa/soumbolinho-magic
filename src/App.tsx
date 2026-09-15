@@ -37,11 +37,39 @@ export const StoreFront: React.FC = () => {
   const { storeConfig, isLoading: isStoreDataLoading } = useStoreData();
   const navigate = useNavigate();
 
-  const [notFound, setNotFound] = useState<boolean>(false);
+  const cachedLayout = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const storeId = currentStore?.id;
+        const cached = (storeId ? localStorage.getItem(`store_${storeId}_theme_layout`) : null) || 
+                       (currentStore?.slug === 'editaveisdocanva' || storeId === 'store_editaveisdocanva' ? localStorage.getItem('store_store_editaveisdocanva_theme_layout') || localStorage.getItem('store_editaveisdocanva_theme_layout') : null) ||
+                       localStorage.getItem('soumbolinho_theme_layout');
+        if (cached && ['classic', 'modern', 'minimal', 'featured_grid'].includes(cached)) {
+          return cached as ThemeLayoutType;
+        }
+      }
+    } catch {}
+    return null;
+  })();
 
-  const activeLayout: ThemeLayoutType = storeConfig.themeLayout || currentStore?.theme_settings?.theme_layout || 'classic';
-  const activePalette: ColorPaletteType = storeConfig.colorPalette || currentStore?.theme_settings?.color_palette || 'pink_pastel';
-  const activePrimary = storeConfig.primaryColor || currentStore?.theme_settings?.primary_color;
+  const activeLayout: ThemeLayoutType = 
+    (currentStore?.layout_style as ThemeLayoutType) ||
+    currentStore?.theme_settings?.theme_layout ||
+    (currentStore?.theme_settings?.layout_style as ThemeLayoutType) ||
+    storeConfig.themeLayout ||
+    cachedLayout ||
+    'classic';
+
+  const activePalette: ColorPaletteType = 
+    (currentStore?.color_palette as ColorPaletteType) ||
+    currentStore?.theme_settings?.color_palette ||
+    storeConfig.colorPalette || 
+    'pink_pastel';
+
+  const activePrimary = 
+    currentStore?.primary_color || 
+    currentStore?.theme_settings?.primary_color || 
+    storeConfig.primaryColor;
 
   // Injeção de variáveis CSS de tema em tempo real
   useEffect(() => {
@@ -152,17 +180,47 @@ export const StoreFront: React.FC = () => {
       {/* 4. Catálogo Principal com Variação Estrutural de Layout */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         
-        {/* No modo Moderno ou Grid em Destaque, exibe barra horizontal de categorias no topo */}
-        {(activeLayout === 'modern' || activeLayout === 'featured_grid') && (
+        {/* Nos modos Moderno, Minimalista ou Grid em Destaque: exibe barra horizontal rápida de categorias no topo */}
+        {activeLayout !== 'classic' && (
           <div className="mb-4 sm:mb-6">
             <CategoryPills />
           </div>
         )}
 
-        {/* Layout Condicional: Grid em Destaque ocupa 100% de largura sem sidebar fixa no desktop */}
+        {/* Layout Condicional Estrutural */}
         {activeLayout === 'featured_grid' ? (
+          /* MODO 4: Grid em Destaque - 100% largura total, até 5 colunas no desktop, máxima conversão */
           <div>
-            {/* SidebarFilters montada para dar suporte ao drawer no mobile */}
+            <div className="md:hidden">
+              <SidebarFilters />
+            </div>
+            <ProductGrid 
+              onSelectProduct={(prod) => {
+                recordProductView(currentStore?.id || 'suamarcaaqui', prod.id, prod.name, prod.price, prod.image_url || prod.image);
+                const targetSlug = prod.slug || prod.id;
+                navigate(activeSlug ? `/loja/${activeSlug}/produto/${targetSlug}` : `/produto/${targetSlug}`);
+              }} 
+              isFullWidth={true} 
+            />
+          </div>
+        ) : activeLayout === 'modern' ? (
+          /* MODO 2: Moderno - Visual fluido com Pills horizontais no topo e catálogo expandido com cards modernos */
+          <div>
+            <div className="md:hidden">
+              <SidebarFilters />
+            </div>
+            <ProductGrid 
+              onSelectProduct={(prod) => {
+                recordProductView(currentStore?.id || 'suamarcaaqui', prod.id, prod.name, prod.price, prod.image_url || prod.image);
+                const targetSlug = prod.slug || prod.id;
+                navigate(activeSlug ? `/loja/${activeSlug}/produto/${targetSlug}` : `/produto/${targetSlug}`);
+              }} 
+              isFullWidth={true} 
+            />
+          </div>
+        ) : activeLayout === 'minimal' ? (
+          /* MODO 3: Minimalista - Design limpo, sem barra lateral pesada, foco total nos produtos */
+          <div>
             <div className="md:hidden">
               <SidebarFilters />
             </div>
@@ -176,11 +234,9 @@ export const StoreFront: React.FC = () => {
             />
           </div>
         ) : (
+          /* MODO 1: Clássico - Barra lateral de categorias à esquerda + grade balanceada à direita */
           <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Left Sidebar Filter */}
             <SidebarFilters />
-
-            {/* Right Product Grid */}
             <ProductGrid 
               onSelectProduct={(prod) => {
                 recordProductView(currentStore?.id || 'suamarcaaqui', prod.id, prod.name, prod.price, prod.image_url || prod.image);
@@ -205,7 +261,48 @@ export const StoreFront: React.FC = () => {
   );
 };
 
-export const Storefront = StoreFront;
+const DynamicTitleHandler: React.FC = () => {
+  const { currentStore } = useTenant();
+  const { storeConfig } = useStoreData();
+
+  useEffect(() => {
+    const updateTitle = () => {
+      const siteName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'AJPSTORE';
+      if (!siteName || siteName === '__resolving_tenant__' || siteName === 'Carregando loja...') {
+        return;
+      }
+
+      const path = (typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '');
+      const hash = (typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '');
+      const fullRoute = path + hash;
+
+      if (fullRoute.includes('/master') || fullRoute.includes('/super-admin')) {
+        document.title = `Painel Master | ${siteName}`;
+      } else if (fullRoute.includes('/admin')) {
+        document.title = `Painel Administrativo | ${siteName}`;
+      } else if (fullRoute.includes('/checkout') || fullRoute.includes('/finalizar-compra')) {
+        document.title = `Finalizar Pedido | ${siteName}`;
+      } else if (fullRoute.includes('/arquivos')) {
+        document.title = `Arquivos Digitais | ${siteName}`;
+      } else if (!fullRoute.includes('/produto') && !fullRoute.includes('/p/')) {
+        const slogan = currentStore?.slogan || storeConfig.slogan;
+        document.title = slogan && slogan !== 'subtitulo da sua loja'
+          ? `${siteName} - ${slogan}`
+          : siteName;
+      }
+    };
+
+    updateTitle();
+    window.addEventListener('popstate', updateTitle);
+    window.addEventListener('hashchange', updateTitle);
+    return () => {
+      window.removeEventListener('popstate', updateTitle);
+      window.removeEventListener('hashchange', updateTitle);
+    };
+  }, [currentStore?.name, currentStore?.store_name, currentStore?.slogan, storeConfig.storeName, storeConfig.slogan]);
+
+  return null;
+};
 
 const NavigationRouter: React.FC = () => {
   const { isAuthenticated } = useStoreData();
@@ -217,9 +314,11 @@ const NavigationRouter: React.FC = () => {
   };
 
   return (
-    <Routes>
-      {/* 1. Rota Raiz da Loja */}
-      <Route path="/" element={<StoreFront />} />
+    <>
+      <DynamicTitleHandler />
+      <Routes>
+        {/* 1. Rota Raiz da Loja */}
+        <Route path="/" element={<StoreFront />} />
 
       {/* 1.1. Rotas Dinâmicas de Loja por Slug (/loja/:slug e /loja/:storeSlug) */}
       <Route path="/loja/:slug" element={<StoreFront />} />
@@ -284,7 +383,8 @@ const NavigationRouter: React.FC = () => {
       {/* 6. Rota Dinâmica Amigável na Raiz (/:slug) no Final da Lista */}
       <Route path="/:slug" element={<ProductDetails />} />
     </Routes>
-  );
+  </>
+);
 };
 
 export const App: React.FC = () => {

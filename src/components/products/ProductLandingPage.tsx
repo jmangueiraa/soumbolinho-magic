@@ -85,9 +85,9 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
   // Injeção de variáveis CSS de tema (--primary-color)
   useEffect(() => {
-    const activePalette = storeConfig.colorPalette || currentStore?.theme_settings?.color_palette || 'pink_pastel';
-    const activePrimary = storeConfig.primaryColor || currentStore?.theme_settings?.primary_color || '#FF1493';
-    const activeLayout = storeConfig.themeLayout || currentStore?.theme_settings?.theme_layout || 'classic';
+    const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
+    const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || '#FF1493';
+    const activeLayout = (currentStore?.layout_style as ThemeLayoutType) || currentStore?.theme_settings?.theme_layout || (currentStore?.theme_settings?.layout_style as ThemeLayoutType) || storeConfig.themeLayout || 'classic';
     document.documentElement.style.setProperty('--primary-color', activePrimary);
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
   }, [storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout, currentStore]);
@@ -116,6 +116,8 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         if (isMounted) {
           if (data) {
             setProduct(data);
+            const siteTitle = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Loja';
+            document.title = `${data.name} | ${siteTitle}`;
             recordProductView(storeId || 'suamarcaaqui', data.id, data.name, data.price, data.image_url || data.image);
             recordStoreVisit(storeId || 'suamarcaaqui', window.location.pathname);
           } else {

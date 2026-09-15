@@ -5,13 +5,16 @@ import { CartDrawer } from '../cart/CartDrawer';
 import { FloatingWhatsApp } from '../layout/FloatingWhatsApp';
 import { Toast } from '../common/Toast';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 import { applyThemeToDocument } from '../../utils/theme';
 
 export const ArquivosPage: React.FC = () => {
   const { storeConfig } = useStoreData();
+  const { currentStore } = useTenant();
 
   useEffect(() => {
-    document.title = `Arquivos | ${storeConfig.storeName || 'Soumbolinho'}`;
+    const siteTitle = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'AJPSTORE';
+    document.title = `Arquivos | ${siteTitle}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (storeConfig?.primaryColor) {
       applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);

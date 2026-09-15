@@ -88,11 +88,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
 
   // Injeta a variável global --primary-color e o tema na raiz do documento ao carregar o painel admin
   useEffect(() => {
-    const activePalette = storeConfig.colorPalette || currentStore?.theme_settings?.color_palette || 'pink_pastel';
-    const activePrimary = storeConfig.primaryColor || currentStore?.theme_settings?.primary_color || '#FF1493';
-    const activeLayout = storeConfig.themeLayout || currentStore?.theme_settings?.theme_layout || 'classic';
+    const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
+    const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || '#FF1493';
+    const activeLayout = (currentStore?.layout_style as ThemeLayoutType) || currentStore?.theme_settings?.theme_layout || (currentStore?.theme_settings?.layout_style as ThemeLayoutType) || storeConfig.themeLayout || 'classic';
     document.documentElement.style.setProperty('--primary-color', activePrimary);
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
+
+    const titleName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Loja';
+    document.title = `Painel Administrativo | ${titleName}`;
   }, [storeConfig.primaryColor, storeConfig.colorPalette, storeConfig.themeLayout, currentStore]);
 
   const hasInitialLoadedRef = useRef(false);

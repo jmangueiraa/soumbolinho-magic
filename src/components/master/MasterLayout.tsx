@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Store } from '../../types';
 import { fetchAllStores } from '../../services/storeManagementService';
+import { useTenant } from '../../context/TenantContext';
 import { StoresList } from './StoresList';
 import { CreateStoreModal } from './CreateStoreModal';
 import { DnsInstructionsModal } from './DnsInstructionsModal';
@@ -25,6 +26,13 @@ import { MasterLogin } from './MasterLogin';
 const MASTER_SESSION_KEY = 'saas_master_auth_session';
 
 export const MasterLayout: React.FC = () => {
+  const { currentStore } = useTenant();
+  const siteName = currentStore?.store_name || currentStore?.name || 'AJPSTORE';
+
+  useEffect(() => {
+    document.title = `Painel Master | ${siteName}`;
+  }, [siteName]);
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(MASTER_SESSION_KEY) === 'true';
