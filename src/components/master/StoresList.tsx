@@ -490,13 +490,6 @@ export const StoresList: React.FC<StoresListProps> = ({
                                   Aguardando DNS
                                 </button>
                               )}
-                            </>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">
-                              Sem domínio próprio configurado
-                            </span>
-                          )}
-
                           <button
                             onClick={() => handleStartEditDomain(store)}
                             className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md cursor-pointer transition-colors"

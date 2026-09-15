@@ -284,7 +284,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
                           <Icon className={`w-4 h-4 ${isActive ? 'text-theme-primary' : 'text-slate-500'}`} />
                           <span>{item.label}</span>
                         </div>
-                        {item.isLive && (
+                        {'isLive' in item && item.isLive && (
                           <span className="flex items-center gap-1 text-[10px] font-bold">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             <span className={isActive ? 'text-emerald-400' : 'text-emerald-600'}>Ao vivo</span>

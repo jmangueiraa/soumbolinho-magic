@@ -384,7 +384,7 @@ export const ShippingManager: React.FC = () => {
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Clientes que comprarem a partir de <strong>R$ {config.freeShippingMinAmount.toFixed(2).replace('.', ',')}</strong> terão a opção de Frete Grátis liberada automaticamente no checkout.
+                  Clientes que comprarem a partir de <strong>R$ {(config.freeShippingMinAmount ?? 0).toFixed(2).replace('.', ',')}</strong> terão a opção de Frete Grátis liberada automaticamente no checkout.
                 </p>
               </div>
             </div>
