@@ -6,13 +6,17 @@ export const DEFAULT_STORE: Store = {
   id: 'store_ajpstore',
   name: 'AJPSTORE',
   slug: 'ajpstore',
-  custom_domain: 'seudominio',
+  custom_domain: 'ajpstore.com.br',
   domain_status: 'active',
+  layout_style: 'classic',
+  primary_color: '#FF1493',
+  color_palette: 'pink_pastel',
   theme_settings: {
     primary_color: '#FF1493',
     secondary_color: '#00a8e8',
     color_palette: 'pink_pastel',
-    theme_layout: 'classic'
+    theme_layout: 'classic',
+    layout_style: 'classic',
   },
   is_active: true,
   is_matriz: true,
@@ -54,6 +58,9 @@ export function checkIsTenantRoute(): boolean {
     hostname.endsWith('.local') ||
     hostname.endsWith('.internal');
   const isBaseDomain = 
+    hostname === 'ajpstore.com.br' ||
+    hostname === 'www.ajpstore.com.br' ||
+    hostname.includes('ajpstore') ||
     hostname === 'suamarcaaqui.com.br' || 
     hostname === 'www.suamarcaaqui.com.br' ||
     hostname.includes('soumbolinho');
@@ -111,6 +118,38 @@ export function normalizeStore(s: any): Store {
       .then();
   }
 
+  const stTheme = s.theme_settings || {};
+  let cachedLayout: any = undefined;
+  let cachedPalette: any = undefined;
+  let cachedPrimary: string | undefined = undefined;
+  if (typeof window !== 'undefined') {
+    try {
+      const lsL = localStorage.getItem(`store_${resolvedId}_theme_layout`) || 
+                  (isEditaveis ? localStorage.getItem('store_store_editaveisdocanva_theme_layout') || localStorage.getItem('store_editaveisdocanva_theme_layout') : null) ||
+                  localStorage.getItem('soumbolinho_theme_layout');
+      if (lsL && ['classic', 'modern', 'minimal', 'featured_grid'].includes(lsL)) {
+        cachedLayout = lsL;
+      }
+      const lsP = localStorage.getItem(`store_${resolvedId}_color_palette`) || localStorage.getItem('soumbolinho_color_palette');
+      if (lsP && ['pink_pastel', 'blue_corporate', 'purple_elegant', 'green_nature'].includes(lsP)) {
+        cachedPalette = lsP;
+      }
+      const lsC = localStorage.getItem(`store_${resolvedId}_primary_color`) || localStorage.getItem('soumbolinho_primary_color');
+      if (lsC && lsC.startsWith('#')) {
+        cachedPrimary = lsC;
+      }
+    } catch {}
+  }
+
+  const dbLayout = s.layout_style || s.theme_layout || stTheme.layout_style || stTheme.theme_layout;
+  const resolvedLayout = dbLayout || cachedLayout || 'classic';
+
+  const dbPalette = s.color_palette || stTheme.color_palette;
+  const resolvedPalette = dbPalette || cachedPalette || 'pink_pastel';
+
+  const dbPrimary = s.primary_color || stTheme.primary_color;
+  const resolvedPrimary = dbPrimary || cachedPrimary || '#FF1493';
+
   return {
     ...s,
     id: resolvedId,
@@ -122,15 +161,34 @@ export function normalizeStore(s: any): Store {
     expires_at: isBase ? '2099-12-31T23:59:59.000Z' : s.expires_at,
     monthly_fee: isBase ? 0.00 : (s.monthly_fee !== undefined ? Number(s.monthly_fee) : 50.00),
     isTrial: isBase ? false : Boolean(s.subscription_status === 'trial' || s.isTrial),
-    logo_url: s.logo_url || s.theme_settings?.logo_url || null,
+    logo_url: s.logo_url || stTheme.logo_url || null,
+    whatsapp_number: s.whatsapp_number || s.owner_phone || null,
+    whatsapp_display: s.whatsapp_display || null,
+    slogan: s.slogan || null,
+    address: s.address || null,
+    working_hours: s.working_hours || null,
     owner_name: s.owner_name || s.client_name || null,
     client_name: s.client_name || s.owner_name || null,
     owner_email: s.owner_email || s.client_email || null,
     client_email: s.client_email || s.owner_email || null,
     admin_password: s.admin_password || (isBase ? 'admin' : null),
-    mp_access_token: s.mp_access_token || s.theme_settings?.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem(`store_${s.id}_mp_access_token`) || localStorage.getItem('store_store_editaveisdocanva_mp_access_token') || localStorage.getItem('store_editaveisdocanva_mp_access_token') || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
-    telegram_bot_token: s.telegram_bot_token || s.theme_settings?.telegram_bot_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_bot_token`) || localStorage.getItem(`store_${s.id}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token')) : null) || null,
-    telegram_chat_id: s.telegram_chat_id || s.theme_settings?.telegram_chat_id || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_chat_id`) || localStorage.getItem(`store_${s.id}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id')) : null) || null,
+    layout_style: resolvedLayout,
+    theme_layout: resolvedLayout,
+    primary_color: resolvedPrimary,
+    color_palette: resolvedPalette,
+    theme_settings: {
+      ...stTheme,
+      layout_style: resolvedLayout,
+      theme_layout: resolvedLayout,
+      primary_color: resolvedPrimary,
+      color_palette: resolvedPalette,
+      logo_url: s.logo_url || stTheme.logo_url || null,
+      benefit_cards: stTheme.benefit_cards,
+      whatsapp_default_message: stTheme.whatsapp_default_message,
+    },
+    mp_access_token: s.mp_access_token || stTheme.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem(`store_${s.id}_mp_access_token`) || localStorage.getItem('store_store_editaveisdocanva_mp_access_token') || localStorage.getItem('store_editaveisdocanva_mp_access_token') || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,
+    telegram_bot_token: s.telegram_bot_token || stTheme.telegram_bot_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_bot_token`) || localStorage.getItem(`store_${s.id}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token')) : null) || null,
+    telegram_chat_id: s.telegram_chat_id || stTheme.telegram_chat_id || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_telegram_chat_id`) || localStorage.getItem(`store_${s.id}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id')) : null) || null,
   };
 }
 
@@ -243,6 +301,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setDetectedHost(hostname);
 
       const isBaseDomain = 
+        hostname === 'ajpstore.com.br' ||
+        hostname === 'www.ajpstore.com.br' ||
+        hostname.includes('ajpstore') ||
         hostname === 'suamarcaaqui.com.br' || 
         hostname === 'www.suamarcaaqui.com.br' ||
         hostname.includes('soumbolinho');
@@ -440,6 +501,39 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [resolveTenant]);
 
+  // Sincronização em tempo real da tabela 'stores' para refletir alterações visuais instantaneamente
+  useEffect(() => {
+    const storeId = currentStore?.id;
+    if (!storeId || storeId === '__resolving_tenant__') return;
+
+    const channelName = `realtime_stores_tenant_${storeId}`;
+    const storesChannel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stores' },
+        (payload: any) => {
+          const updated = payload.new;
+          if (!updated) return;
+
+          const isMatch =
+            updated.id === storeId ||
+            (currentStore?.slug && updated.slug === currentStore.slug) ||
+            (currentStore?.is_matriz && (updated.slug === 'ajpstore' || updated.id === 'store_ajpstore' || updated.is_matriz));
+
+          if (isMatch) {
+            console.log('[TenantContext] ⚡ Realtime: Tabela stores atualizada para a loja ativa:', updated.name, updated.id);
+            setCurrentStore(prev => normalizeStore({ ...prev, ...updated }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(storesChannel);
+    };
+  }, [currentStore?.id, currentStore?.slug, currentStore?.is_matriz]);
+
   const updateCurrentStore = useCallback((updates: Partial<Store>) => {
     setCurrentStore(prev => normalizeStore({ ...prev, ...updates }));
   }, []);
@@ -460,8 +554,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // -------------------------------------------------------------
   // 4. CÁLCULO DINÂMICO DE VENCIMENTO DA MENSALIDADE
   // -------------------------------------------------------------
-  // REQUISITO RIGOROSO 1: SUAMARCAAQUI é a loja matriz vitalícia (sem expiração)
-  const isBaseStore = currentStore.slug === 'suamarcaaqui' || currentStore.id === 'suamarcaaqui' || currentStore.id === 'store_default';
+  // REQUISITO RIGOROSO 1: AJPSTORE é a loja matriz vitalícia (sem expiração)
+  const isBaseStore = currentStore.is_matriz || currentStore.slug === 'ajpstore' || currentStore.id === 'store_ajpstore' || currentStore.slug === 'suamarcaaqui' || currentStore.id === 'suamarcaaqui' || currentStore.id === 'store_default';
   const now = Date.now();
   let daysRemaining: number | null = null;
   let isExpired = false;

@@ -36,6 +36,7 @@ export const StoreFront: React.FC = () => {
   const { currentStore, switchStore, isResolvingTenant, tenantNotFound, tenantError } = useTenant();
   const { storeConfig, isLoading: isStoreDataLoading } = useStoreData();
   const navigate = useNavigate();
+  const [notFound, setNotFound] = useState(false);
 
   const cachedLayout = (() => {
     try {
@@ -267,7 +268,7 @@ const DynamicTitleHandler: React.FC = () => {
 
   useEffect(() => {
     const updateTitle = () => {
-      const siteName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'AJPSTORE';
+      const siteName = currentStore?.store_name || currentStore?.name || storeConfig?.storeName || 'AJPSTORE';
       if (!siteName || siteName === '__resolving_tenant__' || siteName === 'Carregando loja...') {
         return;
       }
@@ -285,7 +286,7 @@ const DynamicTitleHandler: React.FC = () => {
       } else if (fullRoute.includes('/arquivos')) {
         document.title = `Arquivos Digitais | ${siteName}`;
       } else if (!fullRoute.includes('/produto') && !fullRoute.includes('/p/')) {
-        const slogan = currentStore?.slogan || storeConfig.slogan;
+        const slogan = currentStore?.slogan || storeConfig?.slogan;
         document.title = slogan && slogan !== 'subtitulo da sua loja'
           ? `${siteName} - ${slogan}`
           : siteName;
@@ -299,7 +300,7 @@ const DynamicTitleHandler: React.FC = () => {
       window.removeEventListener('popstate', updateTitle);
       window.removeEventListener('hashchange', updateTitle);
     };
-  }, [currentStore?.name, currentStore?.store_name, currentStore?.slogan, storeConfig.storeName, storeConfig.slogan]);
+  }, [currentStore?.name, currentStore?.store_name, currentStore?.slogan, storeConfig?.storeName, storeConfig?.slogan]);
 
   return null;
 };

@@ -134,6 +134,21 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           if (storeRow.slogan && (!mapped.slogan || mapped.slogan === INITIAL_STORE_CONFIG.slogan)) mapped.slogan = storeRow.slogan;
           if (storeRow.address && (!mapped.address || mapped.address === INITIAL_STORE_CONFIG.address)) mapped.address = storeRow.address;
           if (storeRow.working_hours && (!mapped.workingHours || mapped.workingHours === INITIAL_STORE_CONFIG.workingHours)) mapped.workingHours = storeRow.working_hours;
+
+          // Mapeia layout, paleta e cor primária da tabela stores (layout_style, theme_layout e theme_settings)
+          const resolvedRowLayout = storeRow.layout_style || storeRow.theme_layout || stTheme.theme_layout || stTheme.layout_style;
+          if (resolvedRowLayout) mapped.themeLayout = resolvedRowLayout;
+
+          const resolvedRowPalette = storeRow.color_palette || stTheme.color_palette;
+          if (resolvedRowPalette) mapped.colorPalette = resolvedRowPalette;
+
+          const resolvedRowPrimary = storeRow.primary_color || stTheme.primary_color;
+          if (resolvedRowPrimary) mapped.primaryColor = resolvedRowPrimary;
+
+          if (stTheme.whatsapp_default_message) mapped.whatsappDefaultMessage = stTheme.whatsapp_default_message;
+          if (stTheme.benefit_cards && Array.isArray(stTheme.benefit_cards) && stTheme.benefit_cards.length > 0) {
+            mapped.benefitCards = stTheme.benefit_cards;
+          }
         }
 
         if (siteThemeData) {
@@ -160,6 +175,20 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
 
         // Fallback do localStorage para a loja específica ou global
         try {
+          if (!mapped.themeLayout && typeof window !== 'undefined') {
+            const lsLayout = localStorage.getItem(`store_${storeId}_theme_layout`) || 
+                             (targetStoreId.includes('editaveis') ? localStorage.getItem('store_store_editaveisdocanva_theme_layout') || localStorage.getItem('store_editaveisdocanva_theme_layout') : null) ||
+                             localStorage.getItem('soumbolinho_theme_layout');
+            if (lsLayout) mapped.themeLayout = lsLayout as any;
+          }
+          if (!mapped.colorPalette && typeof window !== 'undefined') {
+            const lsPal = localStorage.getItem(`store_${storeId}_color_palette`) || localStorage.getItem('soumbolinho_color_palette');
+            if (lsPal) mapped.colorPalette = lsPal as any;
+          }
+          if (!mapped.primaryColor && typeof window !== 'undefined') {
+            const lsCol = localStorage.getItem(`store_${storeId}_primary_color`) || localStorage.getItem('soumbolinho_primary_color');
+            if (lsCol) mapped.primaryColor = lsCol;
+          }
           if (!mapped.mpAccessToken && typeof window !== 'undefined') {
             const lsMp = localStorage.getItem(`store_${storeId}_mp_access_token`) || localStorage.getItem('encantando_festa_mp_access_token');
             if (lsMp) mapped.mpAccessToken = lsMp;
@@ -280,6 +309,20 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
         else if (matrizStoreRow.theme_settings?.telegram_chat_id) mapped.telegramChatId = matrizStoreRow.theme_settings.telegram_chat_id;
 
         if (matrizStoreRow.logo_url && !mapped.logoUrl) mapped.logoUrl = matrizStoreRow.logo_url;
+
+        const matTheme = matrizStoreRow.theme_settings || {};
+        const matLayout = matrizStoreRow.layout_style || matrizStoreRow.theme_layout || matTheme.theme_layout || matTheme.layout_style;
+        if (matLayout) mapped.themeLayout = matLayout;
+        const matPalette = matrizStoreRow.color_palette || matTheme.color_palette;
+        if (matPalette) mapped.colorPalette = matPalette;
+        const matPrimary = matrizStoreRow.primary_color || matTheme.primary_color;
+        if (matPrimary) mapped.primaryColor = matPrimary;
+        if (matTheme.benefit_cards && Array.isArray(matTheme.benefit_cards) && matTheme.benefit_cards.length > 0) {
+          mapped.benefitCards = matTheme.benefit_cards;
+        }
+        if (matTheme.whatsapp_default_message) {
+          mapped.whatsappDefaultMessage = matTheme.whatsapp_default_message;
+        }
       }
       if (baseSiteTheme) {
         if (baseSiteTheme.whatsapp) mapped.whatsappNumber = baseSiteTheme.whatsapp;
@@ -459,15 +502,19 @@ export async function saveStoreConfigInSupabase(
         logo_url: config.logoUrl || null,
         mp_access_token: config.mpAccessToken?.trim() || null,
         telegram_bot_token: config.telegramBotToken?.trim() || null,
-        telegram_chat_id: config.telegramChatId?.trim() || null,
+        layout_style: config.themeLayout || currentTheme.theme_layout || 'classic',
+        theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
+        primary_color: config.primaryColor || currentTheme.primary_color || '#FF1493',
+        color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
         theme_settings: {
           ...currentTheme,
-          primary_color: config.primaryColor || currentTheme.primary_color,
+          layout_style: config.themeLayout || currentTheme.layout_style || currentTheme.theme_layout || 'classic',
+          theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
+          primary_color: config.primaryColor || currentTheme.primary_color || '#FF1493',
+          color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
           logo_url: config.logoUrl !== undefined ? config.logoUrl : currentTheme.logo_url,
           benefit_cards: config.benefitCards || DEFAULT_BENEFIT_CARDS,
           whatsapp_default_message: config.whatsappDefaultMessage,
-          theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
-          color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
           mp_access_token: config.mpAccessToken?.trim() || currentTheme.mp_access_token || null,
           telegram_bot_token: config.telegramBotToken?.trim() || currentTheme.telegram_bot_token || null,
           telegram_chat_id: config.telegramChatId?.trim() || currentTheme.telegram_chat_id || null,
@@ -479,22 +526,25 @@ export async function saveStoreConfigInSupabase(
       // garantindo que theme_settings (JSONB) sempre preserve os tokens do Telegram e Mercado Pago.
       let payloadToUpdate = { ...storeUpdatePayload };
       for (let attempt = 0; attempt < 8; attempt++) {
-        const { error: storeUpdateErr } = await supabase
+        const { data: updatedRows, error: storeUpdateErr } = await supabase
           .from('stores')
           .update(payloadToUpdate)
-          .eq('id', actualStoreId);
+          .eq('id', actualStoreId)
+          .select();
 
-        if (!storeUpdateErr) {
+        if (!storeUpdateErr && updatedRows && updatedRows.length > 0) {
           storeUpdatedSuccessfully = true;
           console.log(`[storeConfigService] ✅ Tabela stores atualizada com sucesso para loja id="${actualStoreId}"!`);
           break;
         }
 
-        console.warn(`[storeConfigService] Tentativa ${attempt + 1} de atualizar stores id="${actualStoreId}":`, storeUpdateErr.message);
-        const colMatch = storeUpdateErr.message?.match(/Could not find the '([^']+)' column/i);
-        if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
-          delete payloadToUpdate[colMatch[1]];
-          continue;
+        if (storeUpdateErr) {
+          console.warn(`[storeConfigService] Tentativa ${attempt + 1} de atualizar stores id="${actualStoreId}":`, storeUpdateErr.message);
+          const colMatch = storeUpdateErr.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete payloadToUpdate[colMatch[1]];
+            continue;
+          }
         }
         break;
       }
@@ -502,43 +552,76 @@ export async function saveStoreConfigInSupabase(
       if (!storeUpdatedSuccessfully && currentStoreRow?.slug) {
         let slugPayload = { ...storeUpdatePayload };
         for (let attempt = 0; attempt < 8; attempt++) {
-          const { error: slugErr } = await supabase
+          const { data: slugRows, error: slugErr } = await supabase
             .from('stores')
             .update(slugPayload)
-            .eq('slug', currentStoreRow.slug);
+            .eq('slug', currentStoreRow.slug)
+            .select();
 
-          if (!slugErr) {
+          if (!slugErr && slugRows && slugRows.length > 0) {
             storeUpdatedSuccessfully = true;
             console.log(`[storeConfigService] ✅ Tabela stores atualizada via slug="${currentStoreRow.slug}"!`);
             break;
           }
 
-          const colMatch = slugErr.message?.match(/Could not find the '([^']+)' column/i);
-          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
-            delete slugPayload[colMatch[1]];
-            continue;
+          if (slugErr) {
+            const colMatch = slugErr.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete slugPayload[colMatch[1]];
+              continue;
+            }
           }
           break;
         }
       }
 
-      if (isEditaveis) {
+      if (!storeUpdatedSuccessfully && (targetStoreId === 'ajpstore' || targetStoreId === 'store_ajpstore' || currentStoreRow?.slug === 'ajpstore')) {
+        let matrizPayload = { ...storeUpdatePayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { data: mRows, error: mErr } = await supabase
+            .from('stores')
+            .update(matrizPayload)
+            .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true')
+            .select();
+
+          if (!mErr && mRows && mRows.length > 0) {
+            storeUpdatedSuccessfully = true;
+            console.log('[storeConfigService] ✅ Tabela stores atualizada via Matriz AJPSTORE!');
+            break;
+          }
+
+          if (mErr) {
+            const colMatch = mErr.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete matrizPayload[colMatch[1]];
+              continue;
+            }
+          }
+          break;
+        }
+      }
+
+      if (!storeUpdatedSuccessfully && isEditaveis) {
         let editaveisPayload = { ...storeUpdatePayload };
         for (let attempt = 0; attempt < 8; attempt++) {
-          const { error: eErr } = await supabase
+          const { data: eRows, error: eErr } = await supabase
             .from('stores')
             .update(editaveisPayload)
-            .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva');
+            .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva')
+            .select();
 
-          if (!eErr) {
+          if (!eErr && eRows && eRows.length > 0) {
             storeUpdatedSuccessfully = true;
             console.log('[storeConfigService] ✅ Tabela stores atualizada via variantes Editáveis!');
             break;
           }
-          const colMatch = eErr.message?.match(/Could not find the '([^']+)' column/i);
-          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
-            delete editaveisPayload[colMatch[1]];
-            continue;
+
+          if (eErr) {
+            const colMatch = eErr.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete editaveisPayload[colMatch[1]];
+              continue;
+            }
           }
           break;
         }
@@ -564,6 +647,22 @@ export async function saveStoreConfigInSupabase(
             localStorage.removeItem(`store_${actualStoreId}_mp_access_token`);
             localStorage.removeItem('mp_access_token');
             localStorage.removeItem('encantando_festa_mp_access_token');
+          }
+          if (config.themeLayout) {
+            localStorage.setItem(`store_${actualStoreId}_theme_layout`, config.themeLayout);
+            localStorage.setItem('soumbolinho_theme_layout', config.themeLayout);
+            if (isEditaveis) {
+              localStorage.setItem('store_store_editaveisdocanva_theme_layout', config.themeLayout);
+              localStorage.setItem('store_editaveisdocanva_theme_layout', config.themeLayout);
+            }
+          }
+          if (config.colorPalette) {
+            localStorage.setItem(`store_${actualStoreId}_color_palette`, config.colorPalette);
+            localStorage.setItem('soumbolinho_color_palette', config.colorPalette);
+          }
+          if (config.primaryColor) {
+            localStorage.setItem(`store_${actualStoreId}_primary_color`, config.primaryColor);
+            localStorage.setItem('soumbolinho_primary_color', config.primaryColor);
           }
         } catch (e) {}
       }
@@ -611,6 +710,18 @@ export async function saveStoreConfigInSupabase(
         }
       } else {
         console.log(`[storeConfigService] ✅ site_settings atualizado com sucesso via .eq('store_id', '${targetStoreId}')!`);
+      }
+
+      // Se for Editáveis do Canva, atualiza também para as chaves alternativas
+      if (isEditaveis) {
+        for (const aliasId of ['store_editaveisdocanva', 'editaveisdocanva']) {
+          if (aliasId !== targetStoreId) {
+            await supabase
+              .from('site_settings')
+              .update({ ...siteSettingsUpdate, store_id: aliasId })
+              .eq('store_id', aliasId);
+          }
+        }
       }
     } catch (siteEx) {
       console.warn('[storeConfigService] Exceção em site_settings:', siteEx);

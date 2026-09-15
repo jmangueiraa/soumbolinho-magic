@@ -29,6 +29,7 @@ import { CouponsManager } from './CouponsManager';
 import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
+import { ColorPaletteType, ThemeLayoutType } from '../../types';
 
 type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'coupons' | 'settings' | 'layout' | 'api-domain';
 

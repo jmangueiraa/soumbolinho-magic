@@ -57,11 +57,11 @@ const renderBenefitIcon = (iconName: string) => {
 const getBenefitColorClass = (iconName: string, index: number) => {
   switch (iconName?.toLowerCase()) {
     case 'heart':
-      return 'text-theme-primary';
     case 'shield':
     case 'truck':
     case 'download':
-      return 'text-[#00a8e8]';
+    case 'gift':
+      return 'text-theme-primary';
     case 'message':
       return 'text-[#25D366]';
     case 'zap':
@@ -75,10 +75,8 @@ const getBenefitColorClass = (iconName: string, index: number) => {
       return 'text-[#10b981]';
     case 'clock':
       return 'text-[#3b82f6]';
-    case 'gift':
-      return 'text-theme-primary';
     default: {
-      const fallbackColors = ['text-theme-primary', 'text-[#00a8e8]', 'text-[#00a8e8]', 'text-[#25D366]'];
+      const fallbackColors = ['text-theme-primary', 'text-theme-primary', 'text-theme-primary', 'text-[#25D366]'];
       return fallbackColors[index % fallbackColors.length];
     }
   }

@@ -218,8 +218,16 @@ export interface Store {
     benefit_cards?: BenefitCard[];
     whatsapp_default_message?: string;
     theme_layout?: ThemeLayoutType;
+    layout_style?: ThemeLayoutType | string;
     color_palette?: ColorPaletteType;
+    mp_access_token?: string | null;
+    telegram_bot_token?: string | null;
+    telegram_chat_id?: string | null;
   };
+  layout_style?: ThemeLayoutType | string;
+  theme_layout?: ThemeLayoutType;
+  primary_color?: string;
+  color_palette?: ColorPaletteType;
   is_active: boolean;
   is_matriz?: boolean;
   subscription_status?: SubscriptionStatus;

@@ -35,16 +35,16 @@ import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
 const AVAILABLE_BENEFIT_ICONS = [
   { value: 'heart', label: 'Coração (Arquivos Digitais / Mimo)', icon: Heart, color: 'text-theme-primary' },
-  { value: 'shield', label: 'Escudo (Compra Segura / Confiança)', icon: ShieldCheck, color: 'text-[#00a8e8]' },
-  { value: 'truck', label: 'Caminhão (Envio / Entrega)', icon: Truck, color: 'text-[#00a8e8]' },
-  { value: 'download', label: 'Download (Link Imediato / Baixar)', icon: Download, color: 'text-[#00a8e8]' },
+  { value: 'shield', label: 'Escudo (Compra Segura / Confiança)', icon: ShieldCheck, color: 'text-theme-primary' },
+  { value: 'truck', label: 'Caminhão (Envio / Entrega)', icon: Truck, color: 'text-theme-primary' },
+  { value: 'download', label: 'Download (Link Imediato / Baixar)', icon: Download, color: 'text-theme-primary' },
   { value: 'zap', label: 'Raio (Liberação Rápida / Automático)', icon: Zap, color: 'text-[#eab308]' },
   { value: 'message', label: 'WhatsApp / Chat (Atendimento)', icon: MessageCircle, color: 'text-[#25D366]' },
   { value: 'star', label: 'Estrela (Destaque / Qualidade)', icon: Star, color: 'text-[#f59e0b]' },
   { value: 'sparkles', label: 'Brilho / Especial', icon: Sparkles, color: 'text-[#a855f7]' },
   { value: 'check', label: 'Selo Verificado', icon: CheckCircle2, color: 'text-[#10b981]' },
   { value: 'clock', label: 'Relógio / Sempre Aberto', icon: Clock, color: 'text-[#3b82f6]' },
-  { value: 'gift', label: 'Presente / Brinde', icon: Gift, color: 'text-[#ec4899]' },
+  { value: 'gift', label: 'Presente / Brinde', icon: Gift, color: 'text-theme-primary' },
   { value: 'award', label: 'Troféu / Garantia', icon: Award, color: 'text-[#eab308]' },
 ];
 
@@ -58,7 +58,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
   onNavigateToLayout 
 }) => {
   const { storeConfig, updateStoreConfig, resetToDefaults, showNotification } = useStoreData();
-  const { currentStore } = useTenant();
+  const { currentStore, updateCurrentStore, refreshTenant } = useTenant();
 
   const [formData, setFormData] = useState({
     storeName: storeConfig.storeName || currentStore?.store_name || currentStore?.name || '',
@@ -197,6 +197,117 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
     const defaultMsg = (formData.whatsappDefaultMessage || storeConfig.whatsappDefaultMessage || '').trim();
 
     // 1. Atualização na tabela site_settings filtrando pela loja ativa atual (CRUCIAL)
+    const currentLayout = currentStore?.layout_style || currentStore?.theme_settings?.theme_layout || storeConfig.themeLayout || 'classic';
+    const currentPalette = currentStore?.color_palette || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
+    const currentPrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || '#FF1493';
+
+    // 1. Gravação direta e verificada na tabela 'stores' (Multi-Tenant por ID, Slug e Matriz)
+    try {
+      const storeDirectPayload: any = {
+        name: formData.storeName.trim(),
+        store_name: formData.storeName.trim(),
+        slogan: formData.slogan.trim(),
+        whatsapp_number: cleanWhatsApp,
+        whatsapp_display: formData.whatsappDisplay.trim(),
+        instagram: formData.instagram.trim(),
+        address: formData.address.trim(),
+        working_hours: formData.workingHours.trim(),
+        logo_url: formData.logoUrl?.trim() || null,
+        layout_style: currentLayout,
+        theme_layout: currentLayout,
+        primary_color: currentPrimary,
+        color_palette: currentPalette,
+        theme_settings: {
+          ...(currentStore?.theme_settings || {}),
+          layout_style: currentLayout,
+          theme_layout: currentLayout,
+          primary_color: currentPrimary,
+          color_palette: currentPalette,
+          logo_url: formData.logoUrl?.trim() || null,
+          whatsapp_default_message: defaultMsg,
+          benefit_cards: formData.benefitCards,
+        },
+        updated_at: new Date().toISOString(),
+      };
+
+      let storeSaved = false;
+      let payloadId = { ...storeDirectPayload };
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const { data: idRows, error: errId } = await supabase
+          .from('stores')
+          .update(payloadId)
+          .eq('id', currentStoreId)
+          .select();
+
+        if (!errId && idRows && idRows.length > 0) {
+          storeSaved = true;
+          console.log('[StoreSettingsManager] ✅ Tabela stores atualizada por ID com sucesso!');
+          break;
+        }
+        if (errId) {
+          const colMatch = errId.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete payloadId[colMatch[1]];
+            continue;
+          }
+        }
+        break;
+      }
+
+      if (!storeSaved && currentStore?.slug) {
+        let payloadSlug = { ...storeDirectPayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { data: slugRows, error: errSlug } = await supabase
+            .from('stores')
+            .update(payloadSlug)
+            .eq('slug', currentStore.slug)
+            .select();
+
+          if (!errSlug && slugRows && slugRows.length > 0) {
+            storeSaved = true;
+            console.log('[StoreSettingsManager] ✅ Tabela stores atualizada por slug com sucesso!');
+            break;
+          }
+          if (errSlug) {
+            const colMatch = errSlug.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete payloadSlug[colMatch[1]];
+              continue;
+            }
+          }
+          break;
+        }
+      }
+
+      if (!storeSaved && (currentStoreId.includes('ajp') || currentStore?.slug === 'ajpstore' || currentStore?.is_matriz)) {
+        let payloadMatriz = { ...storeDirectPayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { data: mRows, error: errM } = await supabase
+            .from('stores')
+            .update(payloadMatriz)
+            .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true')
+            .select();
+
+          if (!errM && mRows && mRows.length > 0) {
+            storeSaved = true;
+            console.log('[StoreSettingsManager] ✅ Tabela stores atualizada via Matriz AJPSTORE!');
+            break;
+          }
+          if (errM) {
+            const colMatch = errM.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete payloadMatriz[colMatch[1]];
+              continue;
+            }
+          }
+          break;
+        }
+      }
+    } catch (storeEx) {
+      console.warn('[StoreSettingsManager] Aviso ao atualizar stores diretamente:', storeEx);
+    }
+
+    // 2. Atualização na tabela site_settings filtrando pela loja ativa atual (CRUCIAL)
     try {
       const siteSettingsPayload: any = {
         store_id: currentStoreId,
@@ -209,28 +320,20 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
         whatsapp_default_message: defaultMsg,
         logo_url: formData.logoUrl?.trim() || null,
         benefit_cards: formData.benefitCards,
+        theme_layout: currentLayout,
+        color_palette: currentPalette,
+        primary_color: currentPrimary,
         updated_at: new Date().toISOString()
       };
-
-      if (storeConfig.primaryColor) {
-        siteSettingsPayload.primary_color = storeConfig.primaryColor;
-      }
-      if (storeConfig.colorPalette) {
-        siteSettingsPayload.color_palette = storeConfig.colorPalette;
-      }
-      if (storeConfig.themeLayout) {
-        siteSettingsPayload.theme_layout = storeConfig.themeLayout;
-      }
 
       console.log(`[StoreSettingsManager] 🔄 Atualizando site_settings para store_id="${currentStoreId}"...`);
       const { data: updatedRows, error: siteSettingsError } = await supabase
         .from('site_settings')
         .update(siteSettingsPayload)
-        .eq('store_id', currentStoreId) // CRUCIAL: Deve filtrar pela loja ativa atual
+        .eq('store_id', currentStoreId)
         .select();
 
       if (siteSettingsError || !updatedRows || updatedRows.length === 0) {
-        // Se ainda não existia linha para esse store_id, faz upsert ou insere
         const { error: upsertErr } = await supabase
           .from('site_settings')
           .upsert([siteSettingsPayload], { onConflict: 'store_id' });
@@ -247,7 +350,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
       console.warn('[StoreSettingsManager] Exceção em site_settings:', err);
     }
 
-    // 2. Atualiza via StoreDataContext (que persiste em store_config, stores e emite notificação toast)
+    // 3. Atualiza via StoreDataContext (persiste em store_config e emite notificação toast)
     await updateStoreConfig({
       storeName: formData.storeName.trim(),
       slogan: formData.slogan.trim(),
@@ -262,7 +365,42 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
       benefitCards: formData.benefitCards,
       whatsappDefaultMessage: defaultMsg,
       onlyLogo: formData.onlyLogo,
+      themeLayout: currentLayout as any,
+      colorPalette: currentPalette as any,
+      primaryColor: currentPrimary,
     });
+
+    // 4. Atualiza o TenantContext em memória imediatamente
+    if (updateCurrentStore) {
+      updateCurrentStore({
+        name: formData.storeName.trim(),
+        store_name: formData.storeName.trim(),
+        slogan: formData.slogan.trim(),
+        whatsapp_number: cleanWhatsApp,
+        whatsapp_display: formData.whatsappDisplay.trim(),
+        instagram: formData.instagram.trim(),
+        address: formData.address.trim(),
+        working_hours: formData.workingHours.trim(),
+        logo_url: formData.logoUrl?.trim() || null,
+        layout_style: currentLayout,
+        theme_layout: currentLayout,
+        primary_color: currentPrimary,
+        color_palette: currentPalette,
+        theme_settings: {
+          ...(currentStore?.theme_settings || {}),
+          layout_style: currentLayout,
+          theme_layout: currentLayout,
+          primary_color: currentPrimary,
+          color_palette: currentPalette,
+          logo_url: formData.logoUrl?.trim() || null,
+          whatsapp_default_message: defaultMsg,
+          benefit_cards: formData.benefitCards,
+        }
+      });
+    }
+    if (refreshTenant) {
+      await refreshTenant(true);
+    }
   };
 
   const handleResetDefaults = () => {

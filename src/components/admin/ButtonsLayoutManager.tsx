@@ -33,16 +33,16 @@ import { COLOR_PALETTES, THEME_LAYOUTS, applyThemeToDocument } from '../../utils
 
 const AVAILABLE_BENEFIT_ICONS = [
   { value: 'heart', label: 'Coração (Arquivos Digitais / Mimo)', icon: Heart, color: 'text-theme-primary' },
-  { value: 'shield', label: 'Escudo (Compra Segura / Confiança)', icon: ShieldCheck, color: 'text-[#00a8e8]' },
-  { value: 'truck', label: 'Caminhão (Envio / Entrega)', icon: Truck, color: 'text-[#00a8e8]' },
-  { value: 'download', label: 'Download (Link Imediato / Baixar)', icon: Download, color: 'text-[#00a8e8]' },
+  { value: 'shield', label: 'Escudo (Compra Segura / Confiança)', icon: ShieldCheck, color: 'text-theme-primary' },
+  { value: 'truck', label: 'Caminhão (Envio / Entrega)', icon: Truck, color: 'text-theme-primary' },
+  { value: 'download', label: 'Download (Link Imediato / Baixar)', icon: Download, color: 'text-theme-primary' },
   { value: 'zap', label: 'Raio (Liberação Rápida / Automático)', icon: Zap, color: 'text-[#eab308]' },
   { value: 'message', label: 'WhatsApp / Chat (Atendimento)', icon: MessageCircle, color: 'text-[#25D366]' },
   { value: 'star', label: 'Estrela (Destaque / Qualidade)', icon: Star, color: 'text-[#f59e0b]' },
   { value: 'sparkles', label: 'Brilho / Especial', icon: Sparkles, color: 'text-[#a855f7]' },
   { value: 'check', label: 'Selo Verificado', icon: CheckCircle2, color: 'text-[#10b981]' },
   { value: 'clock', label: 'Relógio / Sempre Aberto', icon: Clock, color: 'text-[#3b82f6]' },
-  { value: 'gift', label: 'Presente / Brinde', icon: Gift, color: 'text-[#ec4899]' },
+  { value: 'gift', label: 'Presente / Brinde', icon: Gift, color: 'text-theme-primary' },
   { value: 'award', label: 'Troféu / Garantia', icon: Award, color: 'text-[#eab308]' },
 ];
 
@@ -50,76 +50,156 @@ export const ButtonsLayoutManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
   const { currentStore, updateCurrentStore, refreshTenant } = useTenant();
 
-  const [themeLayout, setThemeLayout] = useState<ThemeLayoutType>(
-    storeConfig.themeLayout || currentStore?.theme_settings?.theme_layout || 'classic'
-  );
+  const getInitialLayout = (): ThemeLayoutType => {
+    const dbLayout = 
+      (currentStore?.layout_style as ThemeLayoutType) ||
+      currentStore?.theme_settings?.theme_layout ||
+      (currentStore?.theme_settings?.layout_style as ThemeLayoutType) ||
+      storeConfig.themeLayout;
+    if (dbLayout && ['classic', 'modern', 'minimal', 'featured_grid'].includes(dbLayout)) {
+      return dbLayout;
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem(`store_${currentStore?.id}_theme_layout`);
+        if (cached && ['classic', 'modern', 'minimal', 'featured_grid'].includes(cached)) {
+          return cached as ThemeLayoutType;
+        }
+      }
+    } catch {}
+    return 'classic';
+  };
+
+  const [themeLayout, setThemeLayout] = useState<ThemeLayoutType>(getInitialLayout);
 
   const [colorPalette, setColorPalette] = useState<ColorPaletteType>(
-    storeConfig.colorPalette || currentStore?.theme_settings?.color_palette || 'pink_pastel'
+    currentStore?.color_palette || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel'
   );
 
   const [primaryColor, setPrimaryColor] = useState(
-    storeConfig.primaryColor || currentStore?.theme_settings?.primary_color || COLOR_PALETTES.pink_pastel.primary
+    currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || COLOR_PALETTES.pink_pastel.primary
   );
 
   const [whatsappDefaultMessage, setWhatsappDefaultMessage] = useState(
-    storeConfig.whatsappDefaultMessage || 'Olá! Gostaria de mais informações sobre os produtos da loja.'
+    storeConfig.whatsappDefaultMessage || currentStore?.theme_settings?.whatsapp_default_message || 'Olá! Gostaria de mais informações sobre os produtos da loja.'
   );
 
   const [benefitCards, setBenefitCards] = useState<BenefitCard[]>(
     storeConfig.benefitCards && storeConfig.benefitCards.length > 0 
       ? storeConfig.benefitCards 
-      : DEFAULT_BENEFIT_CARDS
+      : (currentStore?.theme_settings?.benefit_cards || DEFAULT_BENEFIT_CARDS)
   );
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const hasLoadedRef = React.useRef(false);
 
   useEffect(() => {
-    if (storeConfig.themeLayout) {
-      setThemeLayout(storeConfig.themeLayout);
-    }
-    if (storeConfig.colorPalette) {
-      setColorPalette(storeConfig.colorPalette);
-    }
-    if (storeConfig.primaryColor) {
-      setPrimaryColor(storeConfig.primaryColor);
-    }
-    if (storeConfig.whatsappDefaultMessage) {
-      setWhatsappDefaultMessage(storeConfig.whatsappDefaultMessage);
-    }
-    if (storeConfig.benefitCards && storeConfig.benefitCards.length > 0) {
-      setBenefitCards(storeConfig.benefitCards);
-    }
+    // Se o usuário já carregou e está interagindo no painel, evita resets acidentais
+    if (hasLoadedRef.current) return;
 
-    // Leitura direta e imediata da tabela site_settings para garantir dados frescos
-    async function loadFromSiteSettings() {
-      const currentStoreId = currentStore?.id;
-      if (!currentStoreId || currentStoreId === '__resolving_tenant__') return;
+    const currentStoreId = currentStore?.id;
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') return;
 
+    async function loadFreshSettings() {
       try {
-        const { data } = await supabase
-          .from('site_settings')
+        const isEditaveis = 
+          currentStoreId === 'store_editaveisdocanva' || 
+          currentStoreId === 'editaveisdocanva' || 
+          currentStoreId === 'editaveis-do-canva' ||
+          (typeof window !== 'undefined' && window.location.hostname.toLowerCase().includes('editaveisdocanva'));
+
+        // Consulta direta na tabela stores
+        const storeOrFilter = isEditaveis
+          ? 'slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva'
+          : `id.eq.${currentStoreId},slug.eq.${currentStore?.slug || currentStoreId}`;
+
+        const { data: storeRow } = await supabase
+          .from('stores')
           .select('*')
-          .eq('store_id', currentStoreId)
+          .or(storeOrFilter)
+          .limit(1)
           .maybeSingle();
 
-        if (data) {
-          if (data.benefit_cards) {
-            const parsed = typeof data.benefit_cards === 'string' ? JSON.parse(data.benefit_cards) : data.benefit_cards;
-            if (Array.isArray(parsed) && parsed.length > 0) setBenefitCards(parsed);
-          }
-          if (data.theme_layout) setThemeLayout(data.theme_layout);
-          if (data.color_palette) setColorPalette(data.color_palette);
-          if (data.primary_color) setPrimaryColor(data.primary_color);
-          if (data.whatsapp_default_message !== undefined) setWhatsappDefaultMessage(data.whatsapp_default_message || '');
+        // Consulta direta na tabela site_settings
+        const siteFilter = isEditaveis
+          ? `store_id.eq.${currentStoreId},store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva`
+          : `store_id.eq.${currentStoreId}`;
+
+        const { data: siteData } = await supabase
+          .from('site_settings')
+          .select('*')
+          .or(siteFilter)
+          .limit(1)
+          .maybeSingle();
+
+        // 1. Layout
+        const freshLayout = 
+          storeRow?.layout_style || 
+          storeRow?.theme_layout || 
+          storeRow?.theme_settings?.theme_layout || 
+          storeRow?.theme_settings?.layout_style || 
+          siteData?.theme_layout || 
+          storeConfig.themeLayout;
+
+        if (freshLayout && ['classic', 'modern', 'minimal', 'featured_grid'].includes(freshLayout)) {
+          setThemeLayout(freshLayout as ThemeLayoutType);
         }
+
+        // 2. Paleta
+        const freshPalette = 
+          storeRow?.color_palette || 
+          storeRow?.theme_settings?.color_palette || 
+          siteData?.color_palette || 
+          storeConfig.colorPalette;
+
+        if (freshPalette && COLOR_PALETTES[freshPalette as ColorPaletteType]) {
+          setColorPalette(freshPalette as ColorPaletteType);
+        }
+
+        // 3. Cor Primária
+        const freshPrimary = 
+          storeRow?.primary_color || 
+          storeRow?.theme_settings?.primary_color || 
+          siteData?.primary_color || 
+          storeConfig.primaryColor;
+
+        if (freshPrimary && freshPrimary.startsWith('#')) {
+          setPrimaryColor(freshPrimary);
+        }
+
+        // 4. Mensagem WhatsApp
+        const freshMsg = 
+          storeRow?.theme_settings?.whatsapp_default_message || 
+          siteData?.whatsapp_default_message || 
+          storeConfig.whatsappDefaultMessage;
+
+        if (freshMsg) {
+          setWhatsappDefaultMessage(freshMsg);
+        }
+
+        // 5. Benefit Cards
+        const freshCards = 
+          siteData?.benefit_cards || 
+          storeRow?.theme_settings?.benefit_cards || 
+          storeConfig.benefitCards;
+
+        if (freshCards) {
+          const parsed = typeof freshCards === 'string' ? JSON.parse(freshCards) : freshCards;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setBenefitCards(parsed);
+          }
+        }
+
+        hasLoadedRef.current = true;
       } catch (err) {
-        console.warn('[ButtonsLayoutManager] Aviso ao carregar site_settings:', err);
+        console.warn('[ButtonsLayoutManager] Aviso ao carregar configurações frescas:', err);
+        hasLoadedRef.current = true;
       }
     }
-    loadFromSiteSettings();
-  }, [storeConfig, currentStore?.id]);
+
+    loadFreshSettings();
+  }, [currentStore?.id]);
 
   const handlePaletteSelect = (paletteId: ColorPaletteType) => {
     setColorPalette(paletteId);
@@ -190,65 +270,116 @@ export const ButtonsLayoutManager: React.FC = () => {
         updated_at: new Date().toISOString(),
       };
 
-      // Salva por ID com loop adaptativo
+      if (storeConfig.whatsappNumber) {
+        storePayload.whatsapp_number = storeConfig.whatsappNumber;
+      }
+      if (storeConfig.whatsappDisplay) {
+        storePayload.whatsapp_display = storeConfig.whatsappDisplay;
+      }
+
+      let storeUpdated = false;
+
+      // Salva por ID com loop adaptativo e verificação .select()
       let idPayload = { ...storePayload };
       for (let attempt = 0; attempt < 8; attempt++) {
-        const { error: errId } = await supabase
+        const { data: idRows, error: errId } = await supabase
           .from('stores')
           .update(idPayload)
-          .eq('id', currentStoreId);
+          .eq('id', currentStoreId)
+          .select();
 
-        if (!errId) {
-          console.log('[ButtonsLayoutManager] ✅ Tabela stores atualizada por ID com sucesso!');
+        if (!errId && idRows && idRows.length > 0) {
+          storeUpdated = true;
+          console.log('[ButtonsLayoutManager] ✅ Tabela stores atualizada por ID com sucesso!', idRows[0]);
           break;
         }
-        const colMatch = errId.message?.match(/Could not find the '([^']+)' column/i);
-        if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
-          delete idPayload[colMatch[1]];
-          continue;
+
+        if (errId) {
+          console.warn(`[ButtonsLayoutManager] Tentativa ${attempt + 1} em stores por ID:`, errId.message);
+          const colMatch = errId.message?.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+            delete idPayload[colMatch[1]];
+            continue;
+          }
         }
         break;
       }
 
-      // Salva por slug se disponível
-      if (currentStore?.slug) {
+      // Salva por slug se disponível e se o ID não atualizou linhas
+      if (!storeUpdated && currentStore?.slug) {
         let slugPayload = { ...storePayload };
         for (let attempt = 0; attempt < 8; attempt++) {
-          const { error: errSlug } = await supabase
+          const { data: slugRows, error: errSlug } = await supabase
             .from('stores')
             .update(slugPayload)
-            .eq('slug', currentStore.slug);
+            .eq('slug', currentStore.slug)
+            .select();
 
-          if (!errSlug) {
-            console.log('[ButtonsLayoutManager] ✅ Tabela stores atualizada por slug com sucesso!');
+          if (!errSlug && slugRows && slugRows.length > 0) {
+            storeUpdated = true;
+            console.log('[ButtonsLayoutManager] ✅ Tabela stores atualizada por slug com sucesso!', slugRows[0]);
             break;
           }
-          const colMatch = errSlug.message?.match(/Could not find the '([^']+)' column/i);
-          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
-            delete slugPayload[colMatch[1]];
-            continue;
+
+          if (errSlug) {
+            const colMatch = errSlug.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete slugPayload[colMatch[1]];
+              continue;
+            }
+          }
+          break;
+        }
+      }
+
+      // Fallback Matriz AJPSTORE caso nem ID nem Slug tenham casado individualmente
+      if (!storeUpdated && (currentStoreId.includes('ajp') || currentStore?.slug === 'ajpstore' || currentStore?.is_matriz)) {
+        let matrizPayload = { ...storePayload };
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const { data: mRows, error: errM } = await supabase
+            .from('stores')
+            .update(matrizPayload)
+            .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true')
+            .select();
+
+          if (!errM && mRows && mRows.length > 0) {
+            storeUpdated = true;
+            console.log('[ButtonsLayoutManager] ✅ Tabela stores atualizada via Matriz AJPSTORE!');
+            break;
+          }
+
+          if (errM) {
+            const colMatch = errM.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete matrizPayload[colMatch[1]];
+              continue;
+            }
           }
           break;
         }
       }
 
       // Salva por variantes de Editáveis se aplicável
-      if (isEditaveis) {
+      if (!storeUpdated && isEditaveis) {
         let editPayload = { ...storePayload };
         for (let attempt = 0; attempt < 8; attempt++) {
-          const { error: errEdit } = await supabase
+          const { data: eRows, error: errEdit } = await supabase
             .from('stores')
             .update(editPayload)
-            .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva');
+            .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%,slug.eq.editaveis-do-canva')
+            .select();
 
-          if (!errEdit) {
+          if (!errEdit && eRows && eRows.length > 0) {
+            storeUpdated = true;
             console.log('[ButtonsLayoutManager] ✅ Tabela stores atualizada via variantes Editáveis!');
             break;
           }
-          const colMatch = errEdit.message?.match(/Could not find the '([^']+)' column/i);
-          if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
-            delete editPayload[colMatch[1]];
-            continue;
+          if (errEdit) {
+            const colMatch = errEdit.message?.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
+              delete editPayload[colMatch[1]];
+              continue;
+            }
           }
           break;
         }
@@ -282,7 +413,38 @@ export const ButtonsLayoutManager: React.FC = () => {
         }
       }
 
-      // 3. Atualiza storeConfig no contexto (persiste em store_config)
+      if (isEditaveis) {
+        for (const aliasId of ['store_editaveisdocanva', 'editaveisdocanva']) {
+          if (aliasId !== currentStoreId) {
+            await supabase
+              .from('site_settings')
+              .update({ ...siteSettingsPayload, store_id: aliasId })
+              .eq('store_id', aliasId);
+          }
+        }
+      }
+
+      // 3. Persistência imediata no LocalStorage para resposta instantânea
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`store_${currentStoreId}_theme_layout`, themeLayout);
+          localStorage.setItem('soumbolinho_theme_layout', themeLayout);
+          localStorage.setItem(`store_${currentStoreId}_color_palette`, colorPalette);
+          localStorage.setItem('soumbolinho_color_palette', colorPalette);
+          localStorage.setItem(`store_${currentStoreId}_primary_color`, primaryColor);
+          localStorage.setItem('soumbolinho_primary_color', primaryColor);
+          if (isEditaveis) {
+            localStorage.setItem('store_store_editaveisdocanva_theme_layout', themeLayout);
+            localStorage.setItem('store_editaveisdocanva_theme_layout', themeLayout);
+            localStorage.setItem('store_store_editaveisdocanva_color_palette', colorPalette);
+            localStorage.setItem('store_editaveisdocanva_color_palette', colorPalette);
+            localStorage.setItem('store_store_editaveisdocanva_primary_color', primaryColor);
+            localStorage.setItem('store_editaveisdocanva_primary_color', primaryColor);
+          }
+        }
+      } catch (e) {}
+
+      // 4. Atualiza storeConfig no contexto (persiste em store_config)
       await updateStoreConfig({
         themeLayout,
         colorPalette,
@@ -291,9 +453,13 @@ export const ButtonsLayoutManager: React.FC = () => {
         benefitCards,
       });
 
-      // 4. Atualiza TenantContext em memória sem recarregar a tela
+      // 5. Atualiza TenantContext em memória sem recarregar a tela
       if (updateCurrentStore) {
         updateCurrentStore({
+          layout_style: themeLayout,
+          theme_layout: themeLayout,
+          primary_color: primaryColor,
+          color_palette: colorPalette,
           theme_settings: {
             ...(currentStore?.theme_settings || {}),
             primary_color: primaryColor,
@@ -309,9 +475,10 @@ export const ButtonsLayoutManager: React.FC = () => {
         await refreshTenant(true); // silent refresh
       }
 
-      // 5. Aplica no DOM em tempo real
+      // 6. Aplica no DOM em tempo real
       applyThemeToDocument(colorPalette, primaryColor, themeLayout);
 
+      hasLoadedRef.current = true;
       setIsSaving(false);
       setSaveSuccess(true);
       showNotification('Botões, Layout e Cores salvos com sucesso no Supabase!', 'success');

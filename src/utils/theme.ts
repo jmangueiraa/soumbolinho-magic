@@ -139,4 +139,8 @@ export function applyThemeToDocument(
 
   root.setAttribute('data-theme', colorPaletteId);
   root.setAttribute('data-layout', themeLayout);
+  if (document.body) {
+    document.body.setAttribute('data-theme', colorPaletteId);
+    document.body.setAttribute('data-layout', themeLayout);
+  }
 }

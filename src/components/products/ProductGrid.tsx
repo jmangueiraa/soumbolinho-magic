@@ -6,6 +6,7 @@ import { SortDropdown } from './SortDropdown';
 import { Breadcrumbs } from './Breadcrumbs';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 
 interface ProductGridProps {
   onSelectProduct: (product: Product) => void;
@@ -14,6 +15,7 @@ interface ProductGridProps {
 
 export const ProductGrid: React.FC<ProductGridProps> = ({ onSelectProduct, isFullWidth }) => {
   const { categories, storeConfig } = useStoreData();
+  const { currentStore } = useTenant();
   const { 
     filteredProducts, 
     resetFilters, 
@@ -21,7 +23,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({ onSelectProduct, isFul
     filters 
   } = useFilter();
 
-  const isWide = isFullWidth || storeConfig.themeLayout === 'featured_grid';
+  const currentLayout = (currentStore?.layout_style as string) || currentStore?.theme_settings?.theme_layout || storeConfig.themeLayout || 'classic';
+  const isWide = isFullWidth || currentLayout === 'featured_grid' || currentLayout === 'modern' || currentLayout === 'minimal';
 
   const currentCategory = categories.find((c) => c.id === filters.selectedCategory);
   const activeTitle = filters.selectedSubcategory 

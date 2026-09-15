@@ -50,6 +50,9 @@ ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS mp_access_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS is_matriz BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS layout_style TEXT DEFAULT 'classic';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#FF1493';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS color_palette TEXT DEFAULT 'pink_pastel';
 
 -- Garantir que colunas não causem erro de NOT NULL caso a tabela já existisse
 ALTER TABLE public.stores ALTER COLUMN admin_password DROP NOT NULL;

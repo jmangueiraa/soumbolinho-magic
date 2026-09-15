@@ -59,7 +59,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
   return (
     <div
       onClick={handleCardClick}
-      className="group bg-white rounded-md sm:rounded-lg border border-slate-200 p-2.5 sm:p-3.5 flex flex-col justify-between h-full shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer relative"
+      className="product-card group bg-white rounded-md sm:rounded-lg border border-slate-200 p-2.5 sm:p-3.5 flex flex-col justify-between h-full shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer relative"
     >
       {/* 1. Mídia de Destaque no Topo do Card (Exibição completa sem cortes e sem bordas) */}
       <div className="relative w-full rounded-sm overflow-hidden mb-2.5 sm:mb-3 flex items-center justify-center bg-white">
@@ -148,7 +148,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelectProdu
         <button
           type="button"
           onClick={handleAddToCartClick}
-          className="w-full py-2 sm:py-2.5 px-2 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-[11px] sm:text-xs rounded-sm transition-all duration-150 flex items-center justify-center gap-1.5 shadow-xs active:scale-97 cursor-pointer"
+          className="btn-add-cart w-full py-2 sm:py-2.5 px-2 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-[11px] sm:text-xs rounded-sm transition-all duration-150 flex items-center justify-center gap-1.5 shadow-xs active:scale-97 cursor-pointer"
         >
           <ShoppingBag className="w-3.5 h-3.5" />
           <span>{isAdding ? 'Adicionado!' : 'Adicionar ao carrinho'}</span>

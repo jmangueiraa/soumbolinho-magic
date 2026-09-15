@@ -4,6 +4,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { applyThemeToDocument } from '../../utils/theme';
+import { ColorPaletteType, ThemeLayoutType } from '../../types';
 
 interface AdminLoginProps {
   onBackToStore: () => void;
