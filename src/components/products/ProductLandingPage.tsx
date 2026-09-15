@@ -28,7 +28,7 @@ import {
   ZoomIn,
   Truck
 } from 'lucide-react';
-import { Product } from '../../types';
+import { ColorPaletteType, Product, ThemeLayoutType } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
 import { useStoreData } from '../../context/StoreDataContext';

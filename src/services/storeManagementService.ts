@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Store, StoreUser, DomainStatus } from '../types';
+import { Store, StoreUser, DomainStatus, SubscriptionStatus } from '../types';
 import { slugify } from '../utils/slug';
 import { cloneStoreTemplate } from './storeCloneService';
 import { saveStoreConfigInSupabase } from './storeConfigService';

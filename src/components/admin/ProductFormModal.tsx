@@ -129,14 +129,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     try {
       const currentCatName = categories.find((c) => c.id === formData.category)?.name || '';
       const response = await generateProductWithAi({
-        product_name: rawInput,
+        productName: rawInput,
         category: currentCatName,
-        is_digital: formData.is_digital,
-        extra_context: formData.description ? `Descrição atual: ${formData.description}` : undefined,
+        isDigital: formData.is_digital,
+        extraContext: formData.description ? `Descrição atual: ${formData.description}` : undefined,
       });
 
-      if (response && response.data) {
-        setAiPreviewData(response.data);
+      if (response.success) {
+        setAiPreviewData(response);
         setIsAiModalOpen(true);
       } else {
         showNotification('Não foi possível obter sugestões da IA no momento.', 'error');
