@@ -35,9 +35,21 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   } catch {}
 
   const isLight = variant === 'light';
-  const isBaseStore = currentStore?.id === 'suamarcaaqui' || currentStore?.id === 'store_default' || currentStore?.slug === 'suamarcaaqui';
 
-  const customLogoUrl = (
+  // Identifica se estamos no contexto da plataforma oficial / matriz AJPSTORE
+  const storeSlug = (currentStore?.slug || '').toLowerCase();
+  const storeId = (currentStore?.id || '').toLowerCase();
+  const isAjpStore = 
+    storeSlug === 'ajpstore' || 
+    storeId === 'store_ajpstore' || 
+    Boolean(currentStore?.is_matriz) ||
+    !currentStore ||
+    storeSlug === 'suamarcaaqui';
+
+  // URL da Logo Oficial da AJPSTORE como padrão inicial
+  const defaultAjpLogo = '/ajpstore-logo.svg';
+
+  const rawLogo = (
     propLogoUrl ||
     storeConfig?.logoUrl ||
     currentStore?.logo_url ||
@@ -45,18 +57,25 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     ''
   ).trim();
 
-  // Nome da loja individual da foto da logo
+  // Se não houver logo customizada ou se for o contexto da AJPSTORE, usa a logo oficial AJPSTORE
+  const customLogoUrl = rawLogo || (isAjpStore ? defaultAjpLogo : '');
+
+  // Nome da loja
   const rawName = propStoreName !== undefined
     ? propStoreName
     : (storeConfig?.storeName !== undefined ? storeConfig.storeName : (currentStore?.name || currentStore?.store_name || ''));
 
-  const resolvedName = (rawName || (customLogoUrl ? '' : (isBaseStore ? 'SOUMBOLINHO' : 'SUAMARCAAQUI'))).trim();
+  // Sanitiza caso ainda venha texto de templates antigos
+  const isLegacyTemplate = (rawName || '').toLowerCase().includes('encantando festa') || (rawName || '').toLowerCase().includes('soumbolinho');
+  const resolvedName = (isLegacyTemplate || !rawName ? (isAjpStore ? 'AJPSTORE' : 'SUAMARCAAQUI') : rawName).trim();
 
+  // Slogan da loja
   const rawSlogan = propSlogan !== undefined
     ? propSlogan
     : (storeConfig?.slogan !== undefined ? storeConfig.slogan : (currentStore?.slogan || ''));
 
-  const resolvedSlogan = (rawSlogan || (customLogoUrl ? '' : (isBaseStore ? 'Papelaria & Festas Digitais' : 'PAPELARIA & FESTAS DIGITAIS'))).trim();
+  const isLegacySlogan = (rawSlogan || '').toLowerCase().includes('transformando momentos');
+  const resolvedSlogan = (isLegacySlogan || !rawSlogan ? (isAjpStore ? 'Sua Loja Online em Minutos' : 'SUA LOJA ONLINE EM MINUTOS') : rawSlogan).trim();
 
   const [imageError, setImageError] = useState(false);
 
@@ -101,129 +120,102 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
   return (
     <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
-      {/* Ícone da Marca: Imagem enviada pelo usuário (arredondada / circular) ou SVG Mini Bolo Festivo */}
+      {/* Ícone da Marca: Imagem ou SVG Oficial AJPSTORE */}
       <div className="logo-container relative flex items-center justify-center shrink-0">
         {customLogoUrl && !imageError ? (
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary/60 shadow-lg shadow-theme-primary/25 bg-zinc-900 transition-all duration-300 group-hover:ring-theme-primary group-hover:scale-105`}>
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:ring-emerald-400 group-hover:scale-105`}>
             <img
               src={customLogoUrl}
               alt={resolvedName}
               onError={() => setImageError(true)}
-              className="logo-image w-full h-full object-cover rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
+              className="logo-image w-full h-full object-contain rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
             />
           </div>
         ) : (
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-zinc-900 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary/60 shadow-lg shadow-theme-primary/25 p-1 sm:p-1.5 transition-all duration-300 group-hover:ring-theme-primary group-hover:scale-105`}>
+          /* SVG Oficial Vetorial da Marca AJPSTORE (Sacola Azul + Foguete + Seta Verde) */
+          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 p-1 transition-all duration-300 group-hover:ring-emerald-400 group-hover:scale-105`}>
             <svg
               className="w-full h-full aspect-square drop-shadow-sm"
-              viewBox="0 0 100 100"
+              viewBox="0 0 500 500"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
-          {/* Brilhos / Estrelas Flutuantes */}
-          <path
-            d="M20 28L22 22L28 20L22 18L20 12L18 18L12 20L18 22L20 28Z"
-            fill="#FBBF24"
-            className="animate-pulse"
-          />
-          <path
-            d="M82 32L83.5 27.5L88 26L83.5 24.5L82 20L80.5 24.5L76 26L80.5 27.5L82 32Z"
-            fill="#F472B6"
-          />
-          <circle cx="28" cy="40" r="2" fill="#38BDF8" />
-          <circle cx="75" cy="46" r="2.5" fill="#34D399" />
+              <defs>
+                <linearGradient id="logoRingGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+                  <stop offset="0%" stopColor="#0062FF" />
+                  <stop offset="50%" stopColor="#00A3FF" />
+                  <stop offset="100%" stopColor="#00C853" />
+                </linearGradient>
+                <linearGradient id="logoBagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#0072FF" />
+                  <stop offset="100%" stopColor="#0052D4" />
+                </linearGradient>
+              </defs>
 
-          {/* Chama da Vela Dourada */}
-          <path
-            d="M50 14C50 14 55 22 55 27C55 29.7614 52.7614 32 50 32C47.2386 32 45 29.7614 45 27C45 22 50 14 50 14Z"
-            fill="url(#candleFlame)"
-          />
-          <circle cx="50" cy="27" r="2.5" fill="#FEF08A" />
+              {/* Anel Externo Degradê */}
+              <circle cx="250" cy="250" r="226" fill="none" stroke="url(#logoRingGrad)" strokeWidth="22" strokeLinecap="round" />
 
-          {/* Vela */}
-          <rect x="47.5" y="32" width="5" height="15" rx="2.5" fill="#E2E8F0" />
-          <path d="M47.5 36L52.5 39" stroke="#F43F5E" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M47.5 41L52.5 44" stroke="#F43F5E" strokeWidth="1.5" strokeLinecap="round" />
+              {/* Alça da Sacola */}
+              <path d="M195 130 C195 85, 305 85, 305 130" fill="none" stroke="url(#logoBagGrad)" strokeWidth="24" strokeLinecap="round" />
 
-          {/* Cobertura Ondulada / Chantilly do Bolinho */}
-          <path
-            d="M26 58C26 50 34 46 50 46C66 46 74 50 74 58C74 62 70 65 66 65C62 65 60 62 56 62C52 62 50 65 46 65C42 65 40 62 36 62C32 62 30 65 26 58Z"
-            fill="url(#frostingGradient)"
-          />
+              {/* Corpo da Sacola de Compras */}
+              <path d="M182 130 L145 305 C142 318 152 328 165 328 L335 328 C348 328 358 318 355 305 L318 130 C315 122 308 118 298 118 L202 118 C192 118 185 122 182 130 Z" fill="url(#logoBagGrad)" />
 
-          {/* Granulados Coloridos */}
-          <rect x="36" y="52" width="4" height="2" rx="1" transform="rotate(25 36 52)" fill="#38BDF8" />
-          <rect x="52" y="50" width="4" height="2" rx="1" transform="rotate(-30 52 50)" fill="#FBBF24" />
-          <rect x="62" y="53" width="4" height="2" rx="1" transform="rotate(45 62 53)" fill="#F43F5E" />
+              {/* Rastro de Fogo do Foguete (Barras Verdes) */}
+              <rect x="220" y="270" width="14" height="40" rx="7" fill="#00C853" />
+              <rect x="243" y="260" width="14" height="60" rx="7" fill="#00C853" />
+              <rect x="266" y="270" width="14" height="40" rx="7" fill="#00C853" />
 
-          {/* Base / Forminha do Bolinho Só Um Bolinho */}
-          <path
-            d="M29 64L35 84C35.5 86 37.5 88 40 88H60C62.5 88 64.5 86 65 84L71 64C68 66 64 66 61 64C58 62 54 62 50 64C46 66 42 66 39 64C36 62 32 62 29 64Z"
-            fill="url(#baseGradient)"
-          />
+              {/* Foguete em Decolagem */}
+              <path d="M250 145 C260 175 272 215 272 258 L228 258 C228 215 240 175 250 145 Z" fill="#FFFFFF" />
+              <path d="M228 215 L204 258 L228 250 Z" fill="#FFFFFF" />
+              <path d="M272 215 L296 258 L272 250 Z" fill="#FFFFFF" />
+              <circle cx="250" cy="182" r="11" fill="#0062FF" />
 
-          {/* Linhas da Forminha */}
-          <path d="M41 66L44 86" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M50 66L50 87" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M59 66L56 86" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeLinecap="round" />
-
-          {/* Definições de Gradientes */}
-          <defs>
-            <linearGradient id="candleFlame" x1="50" y1="14" x2="50" y2="32" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#F59E0B" />
-              <stop offset="1" stopColor="#EF4444" />
-            </linearGradient>
-            <linearGradient id="frostingGradient" x1="26" y1="46" x2="74" y2="65" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#F472B6" />
-              <stop offset="0.5" stopColor="#FB7185" />
-              <stop offset="1" stopColor="#EC4899" />
-            </linearGradient>
-            <linearGradient id="baseGradient" x1="29" y1="64" x2="71" y2="88" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#1E293B" />
-              <stop offset="1" stopColor="#0F172A" />
-            </linearGradient>
-          </defs>
-        </svg>
+              {/* Seta Verde Curva em Órbita */}
+              <path d="M115 255 C110 300 165 315 235 285 C295 258 360 195 385 140" fill="none" stroke="#00C853" strokeWidth="22" strokeLinecap="round" />
+              <path d="M362 138 L398 130 L390 168 L376 150 Z" fill="#00C853" />
+            </svg>
           </div>
         )}
       </div>
 
-      {/* Tipografia da Marca com Subtítulo Festivo (Alinhamento perfeito sem quebras ou distorções) */}
+      {/* Tipografia da Marca com Subtítulo AJPSTORE */}
       {!onlyLogo && !storeConfig?.onlyLogo && resolvedName && (
         <div className="flex flex-col text-left leading-none min-w-0">
           <div className="flex items-center tracking-tight whitespace-nowrap">
             {(() => {
-              const upper = resolvedName.toUpperCase().replace(/\s+/g, ' ').trim();
+              const clean = resolvedName.replace(/\s+/g, '').toUpperCase();
 
-              // 1. Caso Base Oficial: SOUMBOLINHO
-              if (upper === 'SOUMBOLINHO' || upper === 'SOUM BOLINHO') {
+              // 1. Caso AJPSTORE Oficial
+              if (clean === 'AJPSTORE') {
                 return (
                   <div className="flex items-center tracking-tight whitespace-nowrap">
-                    <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
-                      SOUM
+                    <span className={`font-sans ${titleClasses} text-[#0062FF] font-black`}>
+                      AJP
                     </span>
-                    <span className={`font-sans ${titleClasses} text-theme-primary ml-0.5 sm:ml-1`}>
-                      BOLINHO
+                    <span className={`font-sans ${titleClasses} text-[#00C853] font-black ml-0.5`}>
+                      STORE
                     </span>
                   </div>
                 );
               }
 
-              // 2. Caso Nova Loja: SUAMARCAAQUI ou SUA MARCA AQUI
-              if (upper.replace(/\s+/g, '') === 'SUAMARCAAQUI') {
+              // 2. Caso Nova Loja: SUAMARCAAQUI
+              if (clean === 'SUAMARCAAQUI') {
                 return (
                   <div className="flex items-center tracking-tight whitespace-nowrap">
                     <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       SUAMARCA
                     </span>
-                    <span className={`font-sans ${titleClasses} text-theme-primary`}>
+                    <span className={`font-sans ${titleClasses} text-[#00C853] ml-0.5`}>
                       AQUI
                     </span>
                   </div>
                 );
               }
 
-              // 3. Caso Nome com mais de uma palavra (ex: "EDITÁVEIS DO CANVA")
+              // 3. Caso Nome com mais de uma palavra
               const words = resolvedName.split(' ').filter(Boolean);
               if (words.length > 1) {
                 const firstPart = words.slice(0, -1).join(' ').toUpperCase();
@@ -233,7 +225,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
                     <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       {firstPart}
                     </span>
-                    <span className={`font-sans ${titleClasses} text-theme-primary ml-1`}>
+                    <span className={`font-sans ${titleClasses} text-[#00C853] ml-1`}>
                       {lastPart}
                     </span>
                   </div>
@@ -242,7 +234,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
               // 4. Caso Nome de Palavra Única
               return (
-                <span className={`font-sans ${titleClasses} text-theme-primary whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]`}>
+                <span className={`font-sans ${titleClasses} text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]`}>
                   {resolvedName.toUpperCase()}
                 </span>
               );
@@ -250,7 +242,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
           </div>
           {resolvedSlogan && (
             <span className={`${sloganClasses} uppercase mt-1 sm:mt-1.5 whitespace-nowrap truncate ${sloganMaxWClasses} ${
-              isLight ? 'text-zinc-300' : 'text-slate-600'
+              isLight ? 'text-emerald-400' : 'text-emerald-600'
             }`}>
               {resolvedSlogan}
             </span>

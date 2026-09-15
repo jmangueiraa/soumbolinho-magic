@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente do anel externo: Azul para Verde -->
+    <linearGradient id="ajpRingGradient" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#0062FF" />
+      <stop offset="50%" stop-color="#00A3FF" />
+      <stop offset="100%" stop-color="#00C853" />
+    </linearGradient>
+
+    <!-- Gradiente da Sacola Azul -->
+    <linearGradient id="ajpBagGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0072FF" />
+      <stop offset="100%" stop-color="#0052D4" />
+    </linearGradient>
+
+    <!-- Gradiente da Seta Verde -->
+    <linearGradient id="ajpArrowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00E676" />
+      <stop offset="100%" stop-color="#00C853" />
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo Circular Branco -->
+  <circle cx="250" cy="250" r="240" fill="#FFFFFF" />
+
+  <!-- Anel Circular Externo Degradê -->
+  <circle cx="250" cy="250" r="224" fill="none" stroke="url(#ajpRingGradient)" stroke-width="20" stroke-linecap="round" />
+
+  <!-- ÍCONE CENTRAL (Sacola + Foguete + Seta) -->
+  <g id="ajp-icon-group" transform="translate(0, -15)">
+    <!-- Alça da Sacola de Compras -->
+    <path d="M205 135 C205 100, 295 100, 295 135" fill="none" stroke="url(#ajpBagGradient)" stroke-width="18" stroke-linecap="round" />
+
+    <!-- Corpo da Sacola de Compras -->
+    <path d="M192 135 L162 270 C160 280 168 288 178 288 L322 288 C332 288 340 280 338 270 L308 135 C306 128 300 125 292 125 L208 125 C200 125 194 128 192 135 Z" fill="url(#ajpBagGradient)" />
+
+    <!-- Dobra / Profundidade da Sacola (Lado Direito) -->
+    <path d="M308 135 L338 270 C340 280 332 288 322 288 L312 288 L286 125 L292 125 C300 125 306 128 308 135 Z" fill="#0046BA" opacity="0.4" />
+
+    <!-- Rastro de Fogo do Foguete (Barras Verdes Verticais) -->
+    <rect x="226" y="240" width="10" height="32" rx="5" fill="#00C853" />
+    <rect x="245" y="232" width="10" height="48" rx="5" fill="#00C853" />
+    <rect x="264" y="240" width="10" height="32" rx="5" fill="#00C853" />
+
+    <!-- Foguete em Decolagem (Branco) -->
+    <!-- Corpo Principal -->
+    <path d="M250 142 C258 165 268 195 268 232 L232 232 C232 195 242 165 250 142 Z" fill="#FFFFFF" />
+    <!-- Asa Esquerda -->
+    <path d="M232 195 L214 232 L232 226 Z" fill="#FFFFFF" />
+    <!-- Asa Direita -->
+    <path d="M268 195 L286 232 L268 226 Z" fill="#FFFFFF" />
+    <!-- Janela do Foguete (Azul) -->
+    <circle cx="250" cy="172" r="8.5" fill="#0062FF" />
+
+    <!-- Seta Curva Verde em Órbita -->
+    <!-- Corpo da curva -->
+    <path d="M135 235 C132 265 175 272 230 252 C285 232 342 185 365 140" fill="none" stroke="#00C853" stroke-width="16" stroke-linecap="round" />
+    <!-- Ponta da Seta -->
+    <path d="M346 138 L375 132 L369 162 L358 148 Z" fill="#00C853" />
+  </g>
+
+  <!-- TIPOGRAFIA: AJPSTORE -->
+  <g transform="translate(250, 352)" text-anchor="middle">
+    <text font-family="'Plus Jakarta Sans', 'Fredoka', system-ui, -apple-system, sans-serif" font-weight="900" font-size="54" letter-spacing="-1">
+      <tspan fill="#0B3C85">AJP</tspan><tspan fill="#00C853">STORE</tspan>
+    </text>
+  </g>
+
+  <!-- SUBTÍTULO: SUA LOJA ONLINE EM MINUTOS -->
+  <g transform="translate(250, 376)" text-anchor="middle">
+    <text fill="#0B3C85" font-family="'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif" font-weight="700" font-size="14" letter-spacing="3.5">
+      SUA LOJA ONLINE EM MINUTOS
+    </text>
+  </g>
+</svg>

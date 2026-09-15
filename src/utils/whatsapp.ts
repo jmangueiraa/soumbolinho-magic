@@ -2,7 +2,7 @@ import { CartItem, OrderCustomerInfo, StoreConfig } from '../types';
 import { formatCurrency, formatDate } from './formatters';
 
 /**
- * Gera o texto formatado do pedido para envio via WhatsApp para a Encantando Festa
+ * Gera o texto formatado do pedido para envio via WhatsApp para a AJPSTORE
  */
 export function buildWhatsAppOrderMessage(
   items: CartItem[],
@@ -37,9 +37,11 @@ export function buildWhatsAppOrderMessage(
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  const message = `✨ *NOVO PEDIDO - ENCANTANDO FESTA* ✨
-*Papelaria Personalizada*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const storeDisplayName = (storeConfig?.storeName || 'AJPSTORE').toUpperCase();
+  const sloganText = storeConfig?.slogan ? `*${storeConfig.slogan}*\n` : '';
+
+  const message = `✨ *NOVO PEDIDO - ${storeDisplayName}* ✨
+${sloganText}━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 *DADOS DO CLIENTE:*
 • *Nome:* ${customerInfo.name || 'Cliente'}
 • *E-mail:* ${customerInfo.email || 'Não informado'}${customerInfo.eventDate ? `\n• *Data da Festa/Evento:* ${formatDate(customerInfo.eventDate)}` : ''}

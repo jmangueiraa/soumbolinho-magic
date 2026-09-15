@@ -407,16 +407,16 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
     resetToDefaults();
     setIsResetModalOpen(false);
     // Sync local state mantendo isolamento da loja
-    const isBase = currentStore?.id === 'store_default' || currentStore?.id === 'suamarcaaqui' || currentStore?.slug === 'suamarcaaqui';
+    const isBase = currentStore?.id === 'store_default' || currentStore?.id === 'suamarcaaqui' || currentStore?.slug === 'suamarcaaqui' || currentStore?.slug === 'ajpstore' || currentStore?.id === 'store_ajpstore';
     setFormData({
-      storeName: isBase ? 'Encantando Festa - Papelaria Personalizada' : (currentStore?.store_name || currentStore?.name || 'suamarcaaqui'),
-      slogan: isBase ? 'Transformando momentos especiais em memórias inesquecíveis' : (currentStore?.slogan || 'subtitulo da sua loja'),
-      logoUrl: isBase ? '' : (currentStore?.logo_url || currentStore?.theme_settings?.logo_url || ''),
-      whatsappNumber: isBase ? '5521974975884' : (currentStore?.whatsapp_number || 'SeuWhatsApp'),
-      whatsappDisplay: isBase ? '(21) 97497-5884' : (currentStore?.whatsapp_display || 'SeuWhatsAppWhatsApp'),
-      instagram: isBase ? '@encantandofesta.papelaria' : (currentStore?.instagram || 'suamarcaaqui'),
-      address: isBase ? 'Ateliê Criativo - Rio de Janeiro / RJ' : (currentStore?.address || 'seuendereço'),
-      city: isBase ? 'Rio de Janeiro - RJ' : 'Brasil',
+      storeName: isBase ? 'AJPSTORE' : (currentStore?.store_name || currentStore?.name || 'suamarcaaqui'),
+      slogan: isBase ? 'Sua Loja Online em Minutos' : (currentStore?.slogan || 'subtitulo da sua loja'),
+      logoUrl: isBase ? '/ajpstore-logo.svg' : (currentStore?.logo_url || currentStore?.theme_settings?.logo_url || ''),
+      whatsappNumber: isBase ? '5511999999999' : (currentStore?.whatsapp_number || 'SeuWhatsApp'),
+      whatsappDisplay: isBase ? '(11) 99999-9999' : (currentStore?.whatsapp_display || 'SeuWhatsAppWhatsApp'),
+      instagram: isBase ? '@ajpstore' : (currentStore?.instagram || 'suamarcaaqui'),
+      address: isBase ? 'São Paulo - SP' : (currentStore?.address || 'seuendereço'),
+      city: isBase ? 'São Paulo - SP' : 'Brasil',
       workingHours: isBase ? 'Segunda a Sábado das 09h às 18h' : (currentStore?.working_hours || 'SEMPRE ABERTO'),
       minOrderValue: '0,00',
       whatsappDefaultMessage: '',
@@ -632,7 +632,7 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                   type="text"
                   value={formData.instagram}
                   onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                  placeholder="@encantandofesta.papelaria"
+                  placeholder="@ajpstore"
                   className="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
                 />
               </div>

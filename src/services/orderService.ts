@@ -42,7 +42,7 @@ export async function createOrderInSupabase(
       customer_email: payload.customerEmail.trim(),
       customer_phone: payload.customerPhone ? payload.customerPhone.trim() : null,
       product_id: primaryItem?.product?.id || null,
-      product_name: productNames || 'Produtos Encantando Festa',
+      product_name: productNames || 'Produtos AJPSTORE',
       delivery_url: deliveryUrls || null,
       amount: payload.totalAmount,
       shipping_cost: payload.shippingCost || 0,

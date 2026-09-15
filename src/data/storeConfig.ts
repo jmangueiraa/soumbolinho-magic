@@ -28,19 +28,19 @@ export const DEFAULT_BENEFIT_CARDS: BenefitCard[] = [
 ];
 
 export const STORE_CONFIG: StoreConfig = {
-  storeName: 'Encantando Festa - Papelaria Personalizada',
-  slogan: 'Transformando momentos especiais em memórias inesquecíveis',
-  whatsappNumber: '5521974975884', // 55 21 97497-5884
-  whatsappDisplay: '(21) 97497-5884',
-  instagram: '@encantandofesta.papelaria',
-  address: 'Ateliê Criativo - Rio de Janeiro / RJ',
-  city: 'Rio de Janeiro - RJ',
+  storeName: 'AJPSTORE',
+  slogan: 'Sua Loja Online em Minutos',
+  whatsappNumber: '5511999999999',
+  whatsappDisplay: '(11) 99999-9999',
+  instagram: '@ajpstore',
+  address: 'São Paulo - SP',
+  city: 'São Paulo - SP',
   workingHours: 'Segunda a Sábado das 09h às 18h',
-  minOrderValue: 20.00,
+  minOrderValue: 0.00,
   benefitCards: DEFAULT_BENEFIT_CARDS,
   themeLayout: 'classic',
-  colorPalette: 'pink_pastel',
-  primaryColor: '#FF1493',
-  logoUrl: '',
+  colorPalette: 'blue_cyan',
+  primaryColor: '#0062FF',
+  logoUrl: '/ajpstore-logo.svg',
 };
 

@@ -222,7 +222,7 @@ export const BannerFormModal: React.FC<BannerFormModalProps> = ({
                     type="text"
                     value={formData.tag}
                     onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
-                    placeholder="Ex: 🎀 Ateliê Encantando Festa"
+                    placeholder="Ex: 🚀 AJPSTORE Oficial"
                     className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-theme-primary"
                   />
                 </div>

@@ -13,8 +13,7 @@ export const PixPaymentBox: React.FC<PixPaymentBoxProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  // Gera uma string simulada de Pix Copia e Cola padrão BR Code compatível
-  const pixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${totalAmount.toFixed(2)}5802BR5925ENCANTANDO FESTA ATELIE6009RIO DE JANEIRO62070503***6304`;
+  const pixCode = `00020126580014br.gov.bcb.pix0136${pixKey}520400005303986540${totalAmount.toFixed(2)}5802BR5908AJPSTORE6009SAO PAULO62070503***6304`;
 
   const handleCopyPix = () => {
     if (navigator.clipboard) {
