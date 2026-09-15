@@ -136,7 +136,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       });
 
       if (response.success) {
-        setAiPreviewData(response);
+        setAiPreviewData({
+          ...response,
+          urgency_hook: response.urgency_hook || '',
+          call_to_action: response.call_to_action || '',
+        });
         setIsAiModalOpen(true);
       } else {
         showNotification('Não foi possível obter sugestões da IA no momento.', 'error');
