@@ -278,13 +278,24 @@ export const ApiDomainManager: React.FC = () => {
       setCustomDomainInput(clean);
     }
 
-    const { success, error } = await updateStoreDomain(currentStore.id, clean || null);
+    const { success, error, vercelResult } = await updateStoreDomain(currentStore.id, clean || null);
     setDomainUpdating(false);
 
     if (success) {
+      let feedbackMsg = 'Domínio salvo com sucesso! Configure as entradas de DNS abaixo.';
+      if (vercelResult?.success) {
+        feedbackMsg = vercelResult.alreadyExists
+          ? `Domínio salvo e já confirmado no seu projeto da Vercel! Configure as entradas de DNS abaixo.`
+          : `Domínio salvo e adicionado automaticamente ao seu projeto na Vercel! Configure as entradas de DNS abaixo.`;
+      } else if (vercelResult?.notConfigured) {
+        feedbackMsg = `Domínio salvo no banco de dados! (Aviso: configure VERCEL_AUTH_TOKEN e PROJECT_ID na Vercel para automação completa).`;
+      } else if (vercelResult?.error) {
+        feedbackMsg = `Domínio salvo no banco! Aviso Vercel: ${vercelResult.error}`;
+      }
+
       setDomainStatusMsg({
         success: true,
-        message: 'Domínio salvo com sucesso! Configure as entradas de DNS abaixo.',
+        message: feedbackMsg,
       });
       showNotification('Domínio da loja atualizado com sucesso!', 'success');
     } else {

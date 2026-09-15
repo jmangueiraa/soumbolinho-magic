@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Store, StoreUser, DomainStatus } from '../types';
+import { Store, StoreUser, DomainStatus, SubscriptionStatus } from '../types';
 import { slugify } from '../utils/slug';
 import { cloneStoreTemplate } from './storeCloneService';
 import { saveStoreConfigInSupabase } from './storeConfigService';
@@ -810,19 +810,21 @@ export async function createStoreWithClient(
 }
 
 /**
- * 3. Atualiza domínio personalizado ou status de DNS da loja
+ * 3. Atualiza domínio personalizado ou status de DNS da loja no Supabase
+ * e adiciona o domínio automaticamente ao projeto na Vercel API via backend.
  */
 export async function updateStoreDomain(
   storeId: string,
   customDomain?: string | null,
   domainStatus: DomainStatus = 'pending_dns'
-): Promise<{ success: boolean; error: string | null }> {
+): Promise<{ success: boolean; error: string | null; vercelResult?: any }> {
   try {
     const cleanDomain = customDomain 
       ? customDomain.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/+$/, '')
       : null;
     
-    const { error } = await supabase
+    // 1. Salva o domínio na coluna correspondente da tabela stores no Supabase
+    const { error: dbError } = await supabase
       .from('stores')
       .update({
         custom_domain: cleanDomain || null,
@@ -831,9 +833,49 @@ export async function updateStoreDomain(
       })
       .eq('id', storeId);
 
-    if (error) return { success: false, error: error.message };
-    return { success: true, error: null };
+    if (dbError) {
+      console.error('[storeManagementService] Erro ao atualizar domínio no Supabase:', dbError);
+      return { success: false, error: dbError.message };
+    }
+
+    // 2. Fazer requisição POST para o backend da Vercel API (/api/add-vercel-domain)
+    let vercelResult = null;
+    const isCustomExternal = Boolean(
+      cleanDomain && 
+      cleanDomain !== 'seudominio' && 
+      !cleanDomain.includes('seudominio') && 
+      !cleanDomain.endsWith('.ajpstore.com.br') &&
+      cleanDomain !== 'ajpstore.com.br' &&
+      !cleanDomain.includes('localhost')
+    );
+
+    if (isCustomExternal) {
+      try {
+        console.log(`[storeManagementService] 🌐 Sincronizando domínio "${cleanDomain}" com a Vercel API...`);
+        const res = await fetch('/api/add-vercel-domain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: cleanDomain, storeId }),
+        });
+
+        vercelResult = await res.json();
+        console.log('[storeManagementService] Resposta da sincronização com a Vercel:', vercelResult);
+      } catch (apiErr: any) {
+        console.warn('[storeManagementService] Aviso ao sincronizar com Vercel:', apiErr);
+        vercelResult = { 
+          success: false, 
+          error: apiErr?.message || 'Não foi possível conectar à API de automação da Vercel.' 
+        };
+      }
+    }
+
+    return { 
+      success: true, 
+      error: null, 
+      vercelResult 
+    };
   } catch (err: any) {
+    console.error('[storeManagementService] Exceção em updateStoreDomain:', err);
     return { success: false, error: err.message };
   }
 }

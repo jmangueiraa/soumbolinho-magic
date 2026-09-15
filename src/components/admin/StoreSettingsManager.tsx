@@ -28,7 +28,7 @@ import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { DEFAULT_BENEFIT_CARDS } from '../../data/storeConfig';
-import { BenefitCard } from '../../types';
+import { BenefitCard, ThemeLayoutType } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { uploadBannerImage } from '../../lib/storage';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
@@ -212,18 +212,18 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
         instagram: formData.instagram.trim(),
         address: formData.address.trim(),
         working_hours: formData.workingHours.trim(),
-        logo_url: formData.logoUrl?.trim() || null,
-        layout_style: currentLayout,
-        theme_layout: currentLayout,
+        logo_url: formData.logoUrl?.trim() || undefined,
+        layout_style: currentLayout as ThemeLayoutType,
+        theme_layout: currentLayout as ThemeLayoutType,
         primary_color: currentPrimary,
         color_palette: currentPalette,
         theme_settings: {
           ...(currentStore?.theme_settings || {}),
-          layout_style: currentLayout,
-          theme_layout: currentLayout,
+          layout_style: currentLayout as ThemeLayoutType,
+          theme_layout: currentLayout as ThemeLayoutType,
           primary_color: currentPrimary,
           color_palette: currentPalette,
-          logo_url: formData.logoUrl?.trim() || null,
+          logo_url: formData.logoUrl?.trim() || undefined,
           whatsapp_default_message: defaultMsg,
           benefit_cards: formData.benefitCards,
         },
@@ -381,18 +381,18 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
         instagram: formData.instagram.trim(),
         address: formData.address.trim(),
         working_hours: formData.workingHours.trim(),
-        logo_url: formData.logoUrl?.trim() || null,
-        layout_style: currentLayout,
-        theme_layout: currentLayout,
+        logo_url: formData.logoUrl?.trim() || undefined,
+        layout_style: currentLayout as ThemeLayoutType,
+        theme_layout: currentLayout as ThemeLayoutType,
         primary_color: currentPrimary,
         color_palette: currentPalette,
         theme_settings: {
           ...(currentStore?.theme_settings || {}),
-          layout_style: currentLayout,
-          theme_layout: currentLayout,
+          layout_style: currentLayout as ThemeLayoutType,
+          theme_layout: currentLayout as ThemeLayoutType,
           primary_color: currentPrimary,
           color_palette: currentPalette,
-          logo_url: formData.logoUrl?.trim() || null,
+          logo_url: formData.logoUrl?.trim() || undefined,
           whatsapp_default_message: defaultMsg,
           benefit_cards: formData.benefitCards,
         }

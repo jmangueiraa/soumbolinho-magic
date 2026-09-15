@@ -173,6 +173,7 @@ export type ColorPaletteType = 'pink_pastel' | 'blue_corporate' | 'purple_elegan
 export interface StoreConfig {
   id?: string;
   store_id?: string;
+  name?: string;
   storeName: string;
   slogan: string;
   logoUrl?: string;
@@ -223,6 +224,11 @@ export interface Store {
     mp_access_token?: string | null;
     telegram_bot_token?: string | null;
     telegram_chat_id?: string | null;
+    whatsapp_api_provider?: 'evolution' | 'zapi' | 'callmebot' | 'meta' | 'webhook' | null;
+    whatsapp_api_url?: string | null;
+    whatsapp_api_token?: string | null;
+    whatsapp_notify_phone?: string | null;
+    shipping_config?: StoreShippingConfig;
   };
   layout_style?: ThemeLayoutType | string;
   theme_layout?: ThemeLayoutType;
