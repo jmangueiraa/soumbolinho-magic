@@ -85,11 +85,11 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   }, [customLogoUrl]);
 
   const sizeClasses = {
-    sm: 'w-8 h-8 sm:w-9 sm:h-9',
-    md: 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14',
-    lg: 'w-12 h-12 sm:w-15 sm:h-15 md:w-18 md:h-18 lg:w-20 lg:h-20',
-    xl: 'w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 lg:w-24 lg:h-24',
-  }[size] || 'w-14 h-14 sm:w-18 sm:h-18 md:w-22 md:h-22 lg:w-24 lg:h-24';
+    sm: 'w-9 h-9 sm:w-11 sm:h-11',
+    md: 'w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16',
+    lg: 'w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20',
+    xl: 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24',
+  }[size] || 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24';
 
   const titleClasses = {
     sm: 'text-xs sm:text-sm font-black tracking-tight',

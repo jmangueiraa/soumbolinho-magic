@@ -209,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
             }}
           >
             {/* Tag <img> para renderizar a logo circular no topo da página */}
-            <div className="w-10 h-10 sm:w-13 sm:h-13 aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 group-hover:ring-emerald-400">
+            <div className={`${isOnlyLogo ? 'w-16 h-16 sm:w-20 md:w-24' : 'w-13 h-13 sm:w-16 md:w-18'} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 group-hover:ring-emerald-400`}>
               <img
                 src={finalLogoUrl}
                 alt={storeDisplayName}
