@@ -207,6 +207,7 @@ export const Footer: React.FC = () => {
     currentStore?.logo_url ||
     currentStore?.theme_settings?.logo_url ||
     storeConfig?.logoUrl ||
+    '/ajpstore-logo.png' ||
     AJP_OFFICIAL_LOGO_BASE64
   ).trim();
 

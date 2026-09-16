@@ -243,6 +243,7 @@ export const MarketingLandingPage: React.FC = () => {
       const resolvedSecondaryColor = matrizStore?.secondary_color || matrizTheme?.secondary_color || '#00a8e8';
       const resolvedColorPalette = matrizStore?.color_palette || matrizTheme?.color_palette || 'pink_pastel';
       const resolvedLayoutStyle = matrizStore?.layout_style || matrizTheme?.theme_layout || 'classic';
+      const resolvedLogoUrl = matrizStore?.logo_url || matrizTheme?.logo_url || '/ajpstore-logo.png';
 
       // 4. Inserção na tabela stores contendo apenas as colunas corretas
       const now = new Date();
@@ -269,7 +270,9 @@ export const MarketingLandingPage: React.FC = () => {
         layout_style: resolvedLayoutStyle,
         primary_color: resolvedPrimaryColor,
         color_palette: resolvedColorPalette,
+        logo_url: resolvedLogoUrl,
         theme_settings: {
+          logo_url: resolvedLogoUrl,
           primary_color: resolvedPrimaryColor,
           secondary_color: resolvedSecondaryColor,
           color_palette: resolvedColorPalette,

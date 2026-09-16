@@ -94,7 +94,7 @@ export async function cloneStoreTemplate(
     const resolvedSecondaryColor = matrizStore?.secondary_color || matrizThemeSettings?.secondary_color || matrizSiteSettings?.secondary_color || '#00a8e8';
     const resolvedColorPalette = matrizStore?.color_palette || matrizThemeSettings?.color_palette || matrizSiteSettings?.color_palette || 'pink_pastel';
     const resolvedLayoutStyle = matrizStore?.layout_style || matrizThemeSettings?.theme_layout || matrizSiteSettings?.theme_layout || 'classic';
-    const resolvedLogoUrl = matrizStore?.logo_url || matrizSiteSettings?.logo_url || null;
+    const resolvedLogoUrl = matrizStore?.logo_url || matrizSiteSettings?.logo_url || '/ajpstore-logo.png';
     const resolvedBannerUrl = matrizStore?.banner_url || matrizSiteSettings?.banner_url || null;
     const resolvedBannerDesktop = matrizStore?.banner_desktop || null;
     const resolvedBannerMobile = matrizStore?.banner_mobile || null;
@@ -107,6 +107,7 @@ export async function cloneStoreTemplate(
 
     const mergedThemeSettings = {
       ...(matrizThemeSettings || {}),
+      logo_url: resolvedLogoUrl,
       primary_color: resolvedPrimaryColor,
       secondary_color: resolvedSecondaryColor,
       color_palette: resolvedColorPalette,

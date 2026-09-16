@@ -55,7 +55,9 @@ export const MATRIZ_DEFAULT_STORE_DATA: Partial<Store> = {
   slogan: 'Sua Loja Oficial',
   address: 'São Paulo, SP',
   working_hours: 'Segunda a Sábado, 09h às 18h',
+  logo_url: '/ajpstore-logo.png',
   theme_settings: {
+    logo_url: '/ajpstore-logo.png',
     primary_color: '#FF1493',
     secondary_color: '#00a8e8',
     color_palette: 'pink_pastel',
@@ -628,7 +630,7 @@ export async function createStoreWithClient(
     const resolvedSecondaryColor = matriz?.secondary_color || matrizTheme?.secondary_color || '#00a8e8';
     const resolvedColorPalette = matriz?.color_palette || matrizTheme?.color_palette || 'pink_pastel';
     const resolvedLayoutStyle = matriz?.layout_style || matrizTheme?.theme_layout || 'classic';
-    const resolvedLogoUrl = matriz?.logo_url || matrizTheme?.logo_url || null;
+    const resolvedLogoUrl = matriz?.logo_url || matrizTheme?.logo_url || '/ajpstore-logo.png';
     const resolvedBannerUrl = matriz?.banner_url || matrizTheme?.banner_url || null;
     const resolvedBannerDesktop = matriz?.banner_desktop || null;
     const resolvedBannerMobile = matriz?.banner_mobile || null;
@@ -667,6 +669,7 @@ export async function createStoreWithClient(
       color_palette: resolvedColorPalette,
       theme_settings: {
         ...(matrizTheme || {}),
+        logo_url: resolvedLogoUrl,
         primary_color: resolvedPrimaryColor,
         secondary_color: resolvedSecondaryColor,
         color_palette: resolvedColorPalette,

@@ -4,18 +4,27 @@ import fs from 'fs';
 import path from 'path';
 
 // Cópia automática da Logo oficial AJPSTORE enviada pelo usuário
-const logoSource = 'C:/Users/USER/.gemini/antigravity/brain/2062ca2e-76ac-448d-81a6-b5bfa0439549/.user_uploaded/media_1789505400996.png';
+const logoCandidates = [
+  'C:/Users/USER/.gemini/antigravity/brain/2062ca2e-76ac-448d-81a6-b5bfa0439549/.user_uploaded/media_1789524857321.png',
+  'C:/Users/USER/.gemini/antigravity/brain/2062ca2e-76ac-448d-81a6-b5bfa0439549/.user_uploaded/media_1789505400996.png'
+];
+const logoSource = logoCandidates.find(p => fs.existsSync(p));
 const publicDir = path.resolve(__dirname, 'public');
 const targetLogoPng = path.join(publicDir, 'ajpstore-logo.png');
 const targetLogoAlt = path.join(publicDir, 'logo.png');
 const targetLogoJpg = path.join(publicDir, 'logo.jpg');
+const targetDefaultLogo = path.join(publicDir, 'default-logo.png');
 
 try {
-  if (fs.existsSync(logoSource)) {
+  if (logoSource && fs.existsSync(logoSource)) {
     fs.copyFileSync(logoSource, targetLogoPng);
     fs.copyFileSync(logoSource, targetLogoAlt);
     fs.copyFileSync(logoSource, targetLogoJpg);
-    console.log('[Vite] ✅ Logo AJPSTORE copiada com sucesso para public/ajpstore-logo.png, public/logo.png e public/logo.jpg');
+    fs.copyFileSync(logoSource, targetDefaultLogo);
+    const base64Data = fs.readFileSync(logoSource).toString('base64');
+    const officialLogoTs = path.resolve(__dirname, 'src/assets/officialLogo.ts');
+    fs.writeFileSync(officialLogoTs, `export const AJP_OFFICIAL_LOGO_BASE64 = 'data:image/png;base64,${base64Data}';\n`);
+    console.log('[Vite] ✅ Logo oficial AJPSTORE copiada para public e src/assets/officialLogo.ts');
   }
 } catch (e) {
   console.warn('[Vite] Aviso ao copiar logo:', e);
