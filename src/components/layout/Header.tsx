@@ -138,14 +138,23 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
   }, [currentStoreId, currentStore?.logo_url, storeConfig?.logoUrl, storeConfig?.onlyLogo]);
 
   // Resolução final da imagem da logo (prioriza o upload da loja, com fallback seguro para a logo oficial)
-  const finalLogoUrl = (
+  const rawLogo = (
     storeLogoUrl || 
     currentStore?.logo_url || 
     currentStore?.theme_settings?.logo_url || 
     storeConfig?.logoUrl || 
-    '/ajpstore-logo.png' ||
-    AJP_OFFICIAL_LOGO_BASE64
+    ''
   ).trim();
+
+  const isDefaultOrPlaceholder = 
+    !rawLogo || 
+    rawLogo === '/ajpstore-logo.png' || 
+    rawLogo === '/ajpstore-logo.svg' || 
+    rawLogo === '/logo.png' || 
+    rawLogo === 'undefined' || 
+    rawLogo === 'null';
+
+  const finalLogoUrl = isDefaultOrPlaceholder ? AJP_OFFICIAL_LOGO_BASE64 : rawLogo;
 
   // Status do campo 'Exibir apenas a logo circular'
   const isOnlyLogo = Boolean(
@@ -221,7 +230,9 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
                 src={finalLogoUrl}
                 alt={storeDisplayName}
                 onError={(e) => {
-                  e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
+                  if (e.currentTarget.src !== AJP_OFFICIAL_LOGO_BASE64) {
+                    e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
+                  }
                 }}
                 className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 group-hover:scale-110 pointer-events-none"
                 style={{ maxWidth: '100%', maxHeight: '100%' }}

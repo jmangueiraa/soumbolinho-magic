@@ -47,7 +47,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     !currentStore ||
     storeSlug === 'suamarcaaqui';
 
-  // Logo Oficial AJPSTORE: usa o Base64 embutido para carregamento instantâneo sem depender de rede
+  // Logo Oficial AJPSTORE: usa o SVG Data URI embutido para carregamento instantâneo sem depender de rede
   const defaultAjpLogo = AJP_OFFICIAL_LOGO_BASE64;
 
   const rawLogo = (
@@ -58,8 +58,16 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     ''
   ).trim();
 
-  // Prioriza a logo personalizada enviada pelo cliente (URL do Supabase); caso não haja, usa a logo oficial AJPSTORE em Base64
-  const customLogoUrl = rawLogo || AJP_OFFICIAL_LOGO_BASE64;
+  // Se a URL for vazia, indefinida ou apontar para arquivos genéricos relativos, usa a logo oficial embutida
+  const isDefaultOrPlaceholder = 
+    !rawLogo || 
+    rawLogo === '/ajpstore-logo.png' || 
+    rawLogo === '/ajpstore-logo.svg' || 
+    rawLogo === '/logo.png' || 
+    rawLogo === 'undefined' || 
+    rawLogo === 'null';
+
+  const customLogoUrl = isDefaultOrPlaceholder ? AJP_OFFICIAL_LOGO_BASE64 : rawLogo;
 
   // Nome da loja
   const rawName = propStoreName !== undefined
@@ -132,30 +140,18 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
       {/* Ícone da Marca: Imagem ou SVG Oficial AJPSTORE */}
       <div className="logo-container relative flex items-center justify-center shrink-0">
-        {customLogoUrl && !imageError ? (
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:ring-emerald-400 group-hover:scale-105`}>
-            <img
-              src={customLogoUrl}
-              alt={resolvedName}
-              onError={(e) => {
-                if (e.currentTarget.src !== AJP_OFFICIAL_LOGO_BASE64) {
-                  e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
-                } else {
-                  setImageError(true);
-                }
-              }}
-              className="logo-image w-full h-full object-contain rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
-            />
-          </div>
-        ) : (
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white`}>
-            <img
-              src={AJP_OFFICIAL_LOGO_BASE64}
-              alt={resolvedName}
-              className="logo-image w-full h-full object-contain rounded-full"
-            />
-          </div>
-        )}
+        <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:ring-emerald-400 group-hover:scale-105`}>
+          <img
+            src={imageError ? AJP_OFFICIAL_LOGO_BASE64 : customLogoUrl}
+            alt={resolvedName}
+            onError={() => {
+              if (!imageError) {
+                setImageError(true);
+              }
+            }}
+            className="logo-image w-full h-full object-contain rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110 pointer-events-none"
+          />
+        </div>
       </div>
 
       {/* Tipografia da Marca com Subtítulo AJPSTORE */}
@@ -212,7 +208,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
               // 4. Caso Nome de Palavra Única
               return (
-                <span className={`font-sans ${titleClasses} text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]`}>
+                <span className={`font-sans ${titleClasses} ${isLight ? 'text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]' : 'text-slate-900'} whitespace-nowrap`}>
                   {resolvedName.toUpperCase()}
                 </span>
               );

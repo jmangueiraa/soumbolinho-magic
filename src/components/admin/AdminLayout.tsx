@@ -175,16 +175,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {(currentStore?.slug === 'ajpstore' || currentStore?.id === 'store_ajpstore' || currentStore?.id === 'suamarcaaqui' || currentStore?.id === 'store_default' || storeConfig.logoUrl || currentStore?.logo_url || !currentStore) ? (
-              <SoumbolinhoLogo variant="dark" size="sm" />
-            ) : (
-              <div className="font-festive font-black text-lg text-slate-900 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-theme-light text-theme-primary flex items-center justify-center font-sans font-black text-sm border border-theme-primary/20">
-                  {storeDisplayName.charAt(0).toUpperCase()}
-                </span>
-                <span className="truncate max-w-[160px] sm:max-w-[220px]">{storeDisplayName}</span>
-              </div>
-            )}
+            <SoumbolinhoLogo 
+              variant="dark" 
+              size="sm"
+              storeName={storeDisplayName}
+              slogan={currentStore?.slogan || storeConfig.slogan || ''}
+              logoUrl={currentStore?.logo_url || currentStore?.theme_settings?.logo_url || storeConfig.logoUrl}
+              onlyLogo={Boolean(currentStore?.only_logo || currentStore?.theme_settings?.only_logo || storeConfig.onlyLogo)}
+            />
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-black text-white hidden sm:inline-block">
               Painel Admin
             </span>

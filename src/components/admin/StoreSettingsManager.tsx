@@ -233,6 +233,9 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
         setLogoUploadError(`Erro no upload: ${error || 'Falha ao salvar a imagem'}`);
       } else {
         setFormData((prev) => ({ ...prev, logoUrl: url }));
+        if (updateCurrentStore) {
+          updateCurrentStore({ logo_url: url });
+        }
       }
     } catch (err: any) {
       setLogoUploadError(`Falha inesperada no upload: ${err.message || err}`);
@@ -629,7 +632,12 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                     {formData.logoUrl && (
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, logoUrl: '' })}
+                        onClick={() => {
+                          setFormData({ ...formData, logoUrl: '' });
+                          if (updateCurrentStore) {
+                            updateCurrentStore({ logo_url: '' });
+                          }
+                        }}
                         className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
                         title="Remover logo"
                       >
