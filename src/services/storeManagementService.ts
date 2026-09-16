@@ -696,8 +696,11 @@ export async function createStoreWithClient(
       storeError = res.error;
       console.warn(`[storeManagementService] Tentativa ${attempt + 1} de insert falhou:`, res.error.message);
 
-      // Detecta se o erro foi coluna ausente no cache de schema do Supabase
-      const colMatch = res.error.message?.match(/Could not find the '([^']+)' column/i);
+      // Detecta se o erro foi coluna ausente no cache de schema do Supabase ou banco
+      const colMatch = 
+        res.error.message?.match(/Could not find the '([^']+)' column/i) ||
+        res.error.message?.match(/column "([^"]+)" of relation "stores" does not exist/i) ||
+        res.error.message?.match(/column "([^"]+)" does not exist/i);
       if (colMatch && colMatch[1]) {
         const missingCol = colMatch[1];
         console.warn(`[storeManagementService] Coluna "${missingCol}" ausente em stores, adaptando payload...`);

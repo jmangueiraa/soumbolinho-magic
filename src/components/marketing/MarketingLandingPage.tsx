@@ -180,22 +180,54 @@ export const MarketingLandingPage: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log(`[Cadastro Loja] 🚀 Iniciando processo de criação da loja "${cleanSlug}"...`);
+
       // 1. Verifica se já existe uma loja com este slug no Supabase
       const { data: existingStore, error: checkError } = await supabase
         .from('stores')
         .select('id, slug, name')
-        .eq('slug', cleanSlug)
+        .or(`slug.eq.${cleanSlug},id.eq.store_${cleanSlug}`)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.warn('Erro ao checar duplicidade de slug:', checkError);
+        console.warn('Aviso ao checar duplicidade de slug:', checkError);
       }
 
       if (existingStore) {
-        throw new Error(`O endereço "ajpstore.com.br/loja/${cleanSlug}" já está sendo usado por outro lojista. Por favor, escolha outro nome para sua loja.`);
+        throw new Error(`O subdomínio "${cleanSlug}.ajpstore.com.br" já está sendo usado por outro lojista. Por favor, escolha outro nome para sua loja.`);
       }
 
-      // 2. Consultar a loja matriz no Supabase (slug === 'ajpstore')
+      // 2. Separação de Autenticação: Criação do usuário no Supabase Auth (se aplicável)
+      const cleanEmail = formData.clientEmail.toLowerCase().trim();
+      const cleanPassword = formData.password.trim();
+      let authUserId: string | null = null;
+
+      try {
+        console.log(`[Cadastro Loja] 🔑 Criando usuário no Supabase Auth para "${cleanEmail}"...`);
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: cleanPassword,
+          options: {
+            data: {
+              client_name: formData.clientName.trim(),
+              store_name: formData.storeName.trim(),
+              slug: cleanSlug,
+              whatsapp_number: formData.clientPhone.trim() || ''
+            }
+          }
+        });
+
+        if (authError) {
+          console.log('[Cadastro Loja] Aviso no Supabase Auth:', authError.message);
+        } else if (authData?.user?.id) {
+          authUserId = authData.user.id;
+          console.log('[Cadastro Loja] ✅ Usuário registrado no Supabase Auth com ID:', authUserId);
+        }
+      } catch (authEx: any) {
+        console.log('[Cadastro Loja] Exceção tratada no Supabase Auth:', authEx);
+      }
+
+      // 3. Consultar a loja matriz no Supabase (slug === 'ajpstore') para obter configurações de layout
       const { data: matrizStore } = await supabase
         .from('stores')
         .select('*')
@@ -211,15 +243,8 @@ export const MarketingLandingPage: React.FC = () => {
       const resolvedSecondaryColor = matrizStore?.secondary_color || matrizTheme?.secondary_color || '#00a8e8';
       const resolvedColorPalette = matrizStore?.color_palette || matrizTheme?.color_palette || 'pink_pastel';
       const resolvedLayoutStyle = matrizStore?.layout_style || matrizTheme?.theme_layout || 'classic';
-      const resolvedLogoUrl = matrizStore?.logo_url || matrizTheme?.logo_url || null;
-      const resolvedBannerUrl = matrizStore?.banner_url || matrizTheme?.banner_url || null;
-      const resolvedBannerDesktop = matrizStore?.banner_desktop || null;
-      const resolvedBannerMobile = matrizStore?.banner_mobile || null;
-      const resolvedBannersConfig = matrizStore?.banners_config || matrizTheme?.banners_config || null;
-      const resolvedButtonsConfig = matrizStore?.buttons_config || matrizTheme?.buttons_config || null;
-      const resolvedBenefitCards = matrizStore?.benefit_cards || matrizTheme?.benefit_cards || null;
 
-      // 3. Monta payload resiliente para inserção na tabela stores copiando configurações da matriz AJPSTORE
+      // 4. Inserção na tabela stores contendo apenas as colunas corretas
       const now = new Date();
       const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const newStoreId = `store_${cleanSlug}`;
@@ -230,57 +255,32 @@ export const MarketingLandingPage: React.FC = () => {
         store_name: formData.storeName.trim(),
         slug: cleanSlug,
         client_name: formData.clientName.trim(),
-        owner_name: formData.clientName.trim(),
-        client_email: formData.clientEmail.toLowerCase().trim(),
-        owner_email: formData.clientEmail.toLowerCase().trim(),
-        owner_phone: formData.clientPhone.trim() || 'WhatsApp não informado',
-        whatsapp_number: formData.clientPhone.trim() || '5511999999999',
-        whatsapp_display: formData.clientPhone.trim() || '(11) 99999-9999',
-        admin_password: formData.password.trim(),
-        // Status do Trial de 7 Dias
-        status: 'trial',
+        client_email: cleanEmail,
+        whatsapp_number: formData.clientPhone.trim() || '',
+        whatsapp_display: formData.clientPhone.trim() || '',
+        custom_domain: `${cleanSlug}.ajpstore.com.br`,
+        admin_password: cleanPassword,
         subscription_status: 'trial',
-        trial_ends_at: trialEndsAt,
-        expires_at: trialEndsAt,
-        monthly_fee: 50.00,
         is_active: true,
         is_matriz: false,
         domain_status: 'ativo',
-        custom_domain: `${cleanSlug}.ajpstore.com.br`,
-        slogan: 'Sua Loja Virtual Oficial',
-        working_hours: 'Segunda a Sábado, das 09h às 18h',
-        address: 'Atendimento Online e Entregas',
-        // Configurações exatas copiadas da Matriz AJPSTORE:
-        logo_url: resolvedLogoUrl,
-        banner_url: resolvedBannerUrl,
-        banner_desktop: resolvedBannerDesktop,
-        banner_mobile: resolvedBannerMobile,
-        banners_config: resolvedBannersConfig,
-        buttons_config: resolvedButtonsConfig,
-        benefit_cards: resolvedBenefitCards,
+        expires_at: trialEndsAt,
+        monthly_fee: 50.00,
         layout_style: resolvedLayoutStyle,
         primary_color: resolvedPrimaryColor,
-        secondary_color: resolvedSecondaryColor,
         color_palette: resolvedColorPalette,
         theme_settings: {
-          ...(matrizTheme || {}),
           primary_color: resolvedPrimaryColor,
           secondary_color: resolvedSecondaryColor,
           color_palette: resolvedColorPalette,
           theme_layout: resolvedLayoutStyle,
-          layout_style: resolvedLayoutStyle,
-          buttons_config: resolvedButtonsConfig,
-          banners_config: resolvedBannersConfig,
-          benefit_cards: resolvedBenefitCards
-        },
-        created_at: now.toISOString(),
-        criado_em: now.toISOString(),
-        updated_at: now.toISOString()
+          layout_style: resolvedLayoutStyle
+        }
       };
 
-      // 4. Inserção adaptativa para acomodar diferenças de esquema caso existam
+      // Inserção adaptativa e resiliente na tabela stores
       let currentPayload = { ...storePayload };
-      let inserted = null;
+      let insertedStore = null;
 
       for (let attempt = 0; attempt < 8; attempt++) {
         const res = await supabase
@@ -290,47 +290,83 @@ export const MarketingLandingPage: React.FC = () => {
           .single();
 
         if (!res.error) {
-          inserted = res.data;
+          insertedStore = res.data;
+          console.log('[Cadastro Loja] ✅ Loja registrada com sucesso na tabela stores:', insertedStore?.id || newStoreId);
           break;
         }
 
-        console.warn(`Tentativa ${attempt + 1} de criação da loja:`, res.error.message);
-        const colMatch = res.error.message?.match(/Could not find the '([^']+)' column/i);
+        console.log(`[Cadastro Loja] Tentativa ${attempt + 1} de inserção em stores:`, res.error);
+
+        // Se o erro for de coluna inexistente no schema cache do Supabase, remove e tenta novamente
+        const colMatch =
+          res.error.message?.match(/Could not find the '([^']+)' column/i) ||
+          res.error.message?.match(/column "([^"]+)" of relation "stores" does not exist/i) ||
+          res.error.message?.match(/column "([^"]+)" does not exist/i);
+
         if (colMatch && colMatch[1]) {
+          console.log(`[Cadastro Loja] Coluna '${colMatch[1]}' não existe em stores. Removendo do payload...`);
           delete currentPayload[colMatch[1]];
           continue;
         }
 
-        throw new Error(res.error.message);
+        throw new Error(res.error.message || 'Erro ao registrar a loja no Supabase.');
       }
 
-      setSuccessMessage('🎉 Loja criada com sucesso! Seus 7 dias grátis foram ativados. Preparando seu painel...');
+      if (!insertedStore) {
+        throw new Error('Não foi possível registrar a loja no banco de dados. Tente novamente.');
+      }
 
-      // 5. Autenticação imediata na sessão para que o lojista caia logado no painel sem atrito
+      // 5. Vincula usuário na tabela store_users caso exista
+      try {
+        await supabase.from('store_users').insert([{
+          store_id: newStoreId,
+          email: cleanEmail,
+          password_hash: cleanPassword,
+          role: 'owner',
+          ...(authUserId ? { user_id: authUserId } : {})
+        }]);
+      } catch (storeUserErr) {
+        console.log('[Cadastro Loja] Aviso store_users:', storeUserErr);
+      }
+
+      // 6. Sessão administrativa local para entrada imediata
       try {
         sessionStorage.setItem('soumbolinho_admin_auth_session', 'true');
         sessionStorage.setItem('current_store_slug', cleanSlug);
         sessionStorage.setItem('last_created_store_id', newStoreId);
       } catch (err) {
-        console.warn('Erro ao salvar sessão local:', err);
+        console.log('[Cadastro Loja] Aviso sessionStorage:', err);
       }
 
-      // 6. Clona produtos, categorias e banners da matriz AJPSTORE
+      // 7. Proteção da Clonagem: bloco seguro garantindo que a loja principal continue registrada mesmo se a cópia falhar
       try {
+        console.log(`[Cadastro Loja] 📦 Iniciando clonagem da matriz ajpstore para "${newStoreId}"...`);
         await cloneStoreTemplate(matrizStore?.id || 'ajpstore', newStoreId, formData.storeName.trim());
-      } catch (cloneErr) {
-        console.warn('Aviso de clonagem da matriz AJPSTORE:', cloneErr);
+        console.log('[Cadastro Loja] ✅ Clonagem da matriz concluída com sucesso.');
+      } catch (cloneErr: any) {
+        console.log('[Cadastro Loja] Aviso de clonagem (a loja principal foi registrada com sucesso):', cloneErr);
       }
 
-      // 6. Redirecionamento instantâneo para o painel administrativo da nova loja (ex: /[slug]/admin)
-      setTimeout(() => {
-        navigate(`/${cleanSlug}/admin`);
-      }, 1200);
+      setSuccessMessage('🎉 Loja criada com sucesso! Seus 7 dias grátis foram ativados. Redirecionando...');
 
-    } catch (err: any) {
-      console.error('Erro ao criar loja:', err);
-      setErrorMessage(err?.message || 'Erro inesperado ao criar a loja. Tente novamente ou use outro endereço.');
+      // 8. Redirecionamento Correto: envia o usuário exatamente para https://${slug}.ajpstore.com.br/admin
+      const redirectUrl = `https://${cleanSlug}.ajpstore.com.br/admin`;
+      console.log(`[Cadastro Loja] 🚀 Redirecionando para: ${redirectUrl}`);
+
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+      }, 1000);
+
+    } catch (error: any) {
+      console.log('[Cadastro Loja] Erro capturado:', error);
+      console.error('Erro ao criar loja:', error);
+
+      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Erro inesperado ao criar a loja.');
+      setErrorMessage(errorMsg);
       setLoading(false);
+
+      // Exibe alerta na tela para que o erro do Supabase fique visível
+      alert(`Erro ao cadastrar loja: ${errorMsg}`);
     }
   };
 

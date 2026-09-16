@@ -149,29 +149,33 @@ export async function cloneStoreTemplate(
       console.warn('[storeCloneService] Aviso ao atualizar stores com configurações da matriz:', storeUpErr);
     }
 
-    // Salva store_config da nova loja
-    await saveStoreConfigInSupabase({
-      id: `cfg_${targetStoreId}`,
-      store_id: targetStoreId,
-      storeName: initialConfig?.storeName || targetStoreName || 'suamarcaaqui',
-      slogan: initialConfig?.slogan || 'subtitulo da sua loja',
-      whatsappNumber: initialConfig?.whatsappNumber || 'SeuWhatsApp',
-      whatsappDisplay: initialConfig?.whatsappDisplay || 'SeuWhatsAppWhatsApp',
-      instagram: initialConfig?.instagram || 'suamarcaaqui',
-      address: initialConfig?.address || 'seuendereço',
-      city: initialConfig?.city || 'Brasil',
-      workingHours: initialConfig?.workingHours || 'SEMPRE ABERTO',
-      minOrderValue: initialConfig?.minOrderValue ?? 0.00,
-      mpAccessToken: initialConfig?.mpAccessToken || undefined,
-      telegramBotToken: initialConfig?.telegramBotToken || undefined,
-      telegramChatId: initialConfig?.telegramChatId || undefined,
-      primaryColor: resolvedPrimaryColor,
-      colorPalette: resolvedColorPalette,
-      themeLayout: resolvedLayoutStyle,
-      benefitCards: resolvedBenefitCards,
-      logoUrl: resolvedLogoUrl || undefined,
-      bannerUrl: resolvedBannerUrl || undefined
-    }, targetStoreId);
+    // Salva store_config da nova loja de forma protegida
+    try {
+      await saveStoreConfigInSupabase({
+        id: `cfg_${targetStoreId}`,
+        store_id: targetStoreId,
+        storeName: initialConfig?.storeName || targetStoreName || 'suamarcaaqui',
+        slogan: initialConfig?.slogan || 'subtitulo da sua loja',
+        whatsappNumber: initialConfig?.whatsappNumber || 'SeuWhatsApp',
+        whatsappDisplay: initialConfig?.whatsappDisplay || 'SeuWhatsAppWhatsApp',
+        instagram: initialConfig?.instagram || 'suamarcaaqui',
+        address: initialConfig?.address || 'seuendereço',
+        city: initialConfig?.city || 'Brasil',
+        workingHours: initialConfig?.workingHours || 'SEMPRE ABERTO',
+        minOrderValue: initialConfig?.minOrderValue ?? 0.00,
+        mpAccessToken: initialConfig?.mpAccessToken || undefined,
+        telegramBotToken: initialConfig?.telegramBotToken || undefined,
+        telegramChatId: initialConfig?.telegramChatId || undefined,
+        primaryColor: resolvedPrimaryColor,
+        colorPalette: resolvedColorPalette,
+        themeLayout: resolvedLayoutStyle,
+        benefitCards: resolvedBenefitCards,
+        logoUrl: resolvedLogoUrl || undefined,
+        bannerUrl: resolvedBannerUrl || undefined
+      }, targetStoreId);
+    } catch (cfgErr) {
+      console.warn('[storeCloneService] Aviso ao salvar store_config:', cfgErr);
+    }
 
     // Salva na tabela site_settings da nova loja
     try {
@@ -211,27 +215,31 @@ export async function cloneStoreTemplate(
       const seenNames = new Set<string>();
 
       for (let i = 0; i < categoriasMatriz.length; i++) {
-        const cat = categoriasMatriz[i];
-        const cleanName = (cat.name || '').trim().toLowerCase();
-        if (!cleanName) continue;
-        if (seenNames.has(cleanName)) continue;
-        seenNames.add(cleanName);
+        try {
+          const cat = categoriasMatriz[i];
+          const cleanName = (cat.name || '').trim().toLowerCase();
+          if (!cleanName) continue;
+          if (seenNames.has(cleanName)) continue;
+          seenNames.add(cleanName);
 
-        const newCatId = `cat_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`;
-        categoryIdMap.set(String(cat.id), newCatId);
-        const rawSubcats = normalizeSubcategoryArray(cat.subcategories);
+          const newCatId = `cat_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`;
+          categoryIdMap.set(String(cat.id), newCatId);
+          const rawSubcats = normalizeSubcategoryArray(cat.subcategories);
 
-        const { error: catErr } = await supabase.from('categories').insert([{
-          id: newCatId,
-          store_id: targetStoreId,
-          name: cat.name.trim(),
-          icon: cat.icon || 'Gift',
-          subcategories: rawSubcats,
-          created_at: new Date().toISOString()
-        }]);
+          const { error: catErr } = await supabase.from('categories').insert([{
+            id: newCatId,
+            store_id: targetStoreId,
+            name: cat.name.trim(),
+            icon: cat.icon || 'Gift',
+            subcategories: rawSubcats,
+            created_at: new Date().toISOString()
+          }]);
 
-        if (!catErr) {
-          catsCloned++;
+          if (!catErr) {
+            catsCloned++;
+          }
+        } catch (catEx) {
+          console.warn('[storeCloneService] Aviso ao clonar categoria individual:', catEx);
         }
       }
       console.log(`[storeCloneService] ✅ ${catsCloned} categorias clonadas da matriz.`);
@@ -247,21 +255,25 @@ export async function cloneStoreTemplate(
     if (produtosMatriz && produtosMatriz.length > 0) {
       console.log(`[storeCloneService] 📦 Clonando ${produtosMatriz.length} produtos da matriz AJPSTORE...`);
       for (const prod of produtosMatriz) {
-        const { id, ...prodData } = prod;
-        const remappedCatId = prod.category_id && categoryIdMap.has(String(prod.category_id))
-          ? categoryIdMap.get(String(prod.category_id))
-          : undefined;
+        try {
+          const { id, ...prodData } = prod;
+          const remappedCatId = prod.category_id && categoryIdMap.has(String(prod.category_id))
+            ? categoryIdMap.get(String(prod.category_id))
+            : undefined;
 
-        await createProductInSupabase({
-          ...prodData,
-          category: (prod.category || '').trim(),
-          subcategory: prod.subcategory ? prod.subcategory.trim() : undefined,
-          category_id: remappedCatId,
-          slug: `${prod.slug || prod.name}-${Math.random().toString(36).substring(2, 6)}`,
-          store_id: targetStoreId
-        }, targetStoreId);
+          await createProductInSupabase({
+            ...prodData,
+            category: (prod.category || '').trim(),
+            subcategory: prod.subcategory ? prod.subcategory.trim() : undefined,
+            category_id: remappedCatId,
+            slug: `${prod.slug || prod.name}-${Math.random().toString(36).substring(2, 6)}`,
+            store_id: targetStoreId
+          }, targetStoreId);
 
-        prodsCloned++;
+          prodsCloned++;
+        } catch (prodEx) {
+          console.warn('[storeCloneService] Aviso ao clonar produto individual:', prodEx);
+        }
       }
       console.log(`[storeCloneService] ✅ ${prodsCloned} produtos clonados para a nova loja.`);
     }
@@ -276,12 +288,16 @@ export async function cloneStoreTemplate(
     if (bannersMatriz && bannersMatriz.length > 0) {
       console.log(`[storeCloneService] 🖼️ Clonando ${bannersMatriz.length} banners da matriz AJPSTORE...`);
       for (const ban of bannersMatriz) {
-        const { id, ...banData } = ban;
-        await createBannerInSupabase({
-          ...banData,
-          store_id: targetStoreId
-        }, targetStoreId);
-        bannersCloned++;
+        try {
+          const { id, ...banData } = ban;
+          await createBannerInSupabase({
+            ...banData,
+            store_id: targetStoreId
+          }, targetStoreId);
+          bannersCloned++;
+        } catch (banEx) {
+          console.warn('[storeCloneService] Aviso ao clonar banner individual:', banEx);
+        }
       }
       console.log(`[storeCloneService] ✅ ${bannersCloned} banners clonados.`);
     }
