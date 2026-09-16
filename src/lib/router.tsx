@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 
 export const RESERVED_ROUTES = [
   'admin',
+  'orders',
+  'pedidos',
   'master',
   'super-admin',
   'api',
@@ -148,8 +150,8 @@ export function useParams<T extends Record<string, string | undefined> = Record<
       return { storeSlug: decoded, slug: decoded, id: decoded } as unknown as T;
     }
 
-    // 2.6. Rota /:storeSlug/admin direta
-    const rootAdminMatch = path.match(/^\/([^/?#]+)\/admin(?:\/)?$/i) || h.match(/^#?\/?([^/?#]+)\/admin(?:\/)?$/i);
+    // 2.6. Rota /:storeSlug/admin direta (com ou sem subrotas como /orders)
+    const rootAdminMatch = path.match(/^\/([^/?#]+)\/admin(?:\/.*)?$/i) || h.match(/^#?\/?([^/?#]+)\/admin(?:\/.*)?$/i);
     if (rootAdminMatch && rootAdminMatch[1]) {
       const decoded = decodeURIComponent(rootAdminMatch[1]);
       if (!RESERVED_ROUTES.includes(decoded.toLowerCase())) {
@@ -270,13 +272,13 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         continue;
       }
 
-      // 3.6. Rota dinâmica de loja: /loja/:storeSlug ou /loja/:storeSlug/admin
+      // 3.6. Rota dinâmica de loja: /loja/:storeSlug ou /loja/:storeSlug/admin (incluindo subrotas como /orders)
       if (cleanTarget.startsWith('/loja/:')) {
-        const isLojaAdmin = cleanTarget.endsWith('/admin');
+        const isLojaAdmin = cleanTarget.includes('/admin');
         const hasLojaPrefix = cleanPath.startsWith('/loja/') || cleanHash.startsWith('/loja/');
         const isProductSubpath = cleanPath.includes('/produto/') || cleanPath.includes('/p/') || cleanHash.includes('/produto/') || cleanHash.includes('/p/');
         if (hasLojaPrefix && !isProductSubpath) {
-          const currentIsAdmin = cleanPath.endsWith('/admin') || cleanHash.endsWith('/admin');
+          const currentIsAdmin = cleanPath.includes('/admin') || cleanHash.includes('/admin');
           if (isLojaAdmin === currentIsAdmin) {
             return element;
           }
@@ -284,12 +286,12 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         continue;
       }
 
-      // 3.7. Rota dinâmica direta de admin da loja: /:slug/admin
-      if (cleanTarget === '/:slug/admin' || cleanTarget.endsWith('/:slug/admin')) {
-        const adminMatch = cleanPath.match(/^\/([^/?#]+)\/admin(?:\/)?$/i) || cleanHash.match(/^#?\/?([^/?#]+)\/admin(?:\/)?$/i);
+      // 3.7. Rota dinâmica direta de admin da loja: /:slug/admin (incluindo subrotas como /orders)
+      if (cleanTarget === '/:slug/admin' || cleanTarget.includes('/:slug/admin')) {
+        const adminMatch = cleanPath.match(/^\/([^/?#]+)\/admin(?:\/.*)?$/i) || cleanHash.match(/^#?\/?([^/?#]+)\/admin(?:\/.*)?$/i);
         if (adminMatch && adminMatch[1]) {
           const seg = adminMatch[1].toLowerCase().trim();
-          if (seg && !RESERVED_ROUTES.includes(seg)) {
+          if (!RESERVED_ROUTES.includes(seg)) {
             return element;
           }
         }

@@ -440,6 +440,136 @@ const NavigationRouter: React.FC = () => {
             )
           }
         />
+        <Route
+          path="/admin/orders"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="orders" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/pedidos"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="orders" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/coupons"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="coupons" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/products"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="products" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="categories" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/banners"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="banners" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="settings" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/layout"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="layout" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/admin/api-domain"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="api-domain" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/editaveisdocanva/admin/orders"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="orders" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/editaveis-do-canva/admin/orders"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="orders" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/loja/:slug/admin/orders"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="orders" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/loja/:storeSlug/admin/orders"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} initialTab="orders" />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
 
       {/* 2.1. Painel Mestre de Vendas (SaaS Multi-Tenant) */}
       <Route path="/master" element={<MasterLayout />} />
