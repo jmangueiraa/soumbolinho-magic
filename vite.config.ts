@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
 // Cópia automática da Logo oficial AJPSTORE enviada pelo usuário
 const logoCandidates = [
@@ -43,6 +44,20 @@ try {
   }
 } catch (e) {
   console.warn('[Vite] Aviso ao copiar imagem padrão do produto:', e);
+}
+
+// Cópia e recorte automático do Banner Padrão Oficial ("SEU BANNER AQUI AJPSTORE")
+const bannerScriptPath = path.join(__dirname, 'scripts', 'crop-banner.ps1');
+const bannerSource = 'C:/Users/USER/.gemini/antigravity/brain/2062ca2e-76ac-448d-81a6-b5bfa0439549/.user_uploaded/media_1789525047764.png';
+const targetBannerPng = path.join(publicDir, 'default-banner.png');
+
+try {
+  if (fs.existsSync(bannerScriptPath) && fs.existsSync(bannerSource) && !fs.existsSync(targetBannerPng)) {
+    execSync(`powershell -ExecutionPolicy Bypass -File "${bannerScriptPath}"`, { stdio: 'inherit' });
+    console.log('[Vite] ✅ Banner oficial AJPSTORE recortado com sucesso para public/default-banner.png');
+  }
+} catch (e) {
+  console.warn('[Vite] Aviso ao recortar banner:', e);
 }
 
 // https://vitejs.dev/config/

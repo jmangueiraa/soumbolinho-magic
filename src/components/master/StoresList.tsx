@@ -4,27 +4,25 @@ import {
   Globe, 
   ExternalLink, 
   Settings, 
-  FileText, 
   Power, 
   Trash2, 
   Search, 
-  CheckCircle2, 
+  CheckCircle, 
   Clock, 
-  AlertTriangle,
-  AlertOctagon,
-  Crown,
-  Edit2,
-  Check,
-  X,
-  CreditCard,
-  CalendarPlus,
-  Loader2,
-  User,
-  Mail,
-  KeyRound,
-  Gift,
-  Sparkles,
-  Calendar
+  Crown, 
+  Edit2, 
+  Check, 
+  X, 
+  CreditCard, 
+  CalendarPlus, 
+  Loader2, 
+  User, 
+  Mail, 
+  KeyRound, 
+  Gift, 
+  Calendar,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { Store } from '../../types';
 import { 
@@ -32,10 +30,9 @@ import {
   deleteStore, 
   updateStoreDomain, 
   renewStoreSubscription, 
-  toggleStoreSubscription,
-  extendStoreTrial,
-  activatePaidSubscription,
-  setStoreExpirationDays
+  extendStoreTrial, 
+  activatePaidSubscription, 
+  setStoreExpirationDays 
 } from '../../services/storeManagementService';
 
 interface StoresListProps {
@@ -88,12 +85,10 @@ export const StoresList: React.FC<StoresListProps> = ({
 
   // Filtragem defensiva e null-safe
   const filteredStores = safeList.filter((s) => {
-    // Filtro por Tab de Status
     if (filterTab === 'trial' && !(s.subscription_status === 'trial' || s.isTrial)) return false;
     if (filterTab === 'active' && (s.subscription_status !== 'active' || s.isExpired)) return false;
     if (filterTab === 'expired' && !s.isExpired) return false;
 
-    // Filtro de busca textual
     const term = (searchTerm || '').toLowerCase().trim();
     if (!term) return true;
 
@@ -152,70 +147,54 @@ export const StoresList: React.FC<StoresListProps> = ({
   };
 
   const handleActivatePaid = async (store: Store) => {
-    const fee = store.monthly_fee !== undefined && store.monthly_fee !== null 
-      ? `R$ ${store.monthly_fee.toFixed(2).replace('.', ',')}` 
-      : 'R$ 50,00';
     const confirmed = window.confirm(
-      `Confirmar recebimento do Pix de (${fee}) da loja "${store.name}" e ATIVAR a assinatura oficial por 30 dias?`
+      `Confirmar pagamento do Pix (R$ 50) e ativar assinatura oficial de 30 dias para a loja "${store.name}"?`
     );
     if (!confirmed) return;
 
     setActivatingId(store.id);
-    const { success, error, newExpiresAt } = await activatePaidSubscription(store.id, 30);
+    const { success, error, newExpiresAt } = await activatePaidSubscription(store.id);
     setActivatingId(null);
 
     if (success) {
-      alert(`💎 Assinatura oficial ativada com sucesso por 30 dias! Vencimento da mensalidade: ${new Date(newExpiresAt!).toLocaleDateString('pt-BR')}`);
+      alert(`⭐ Assinatura ativada com sucesso! Vencimento em: ${new Date(newExpiresAt!).toLocaleDateString('pt-BR')}`);
       onRefresh();
     } else {
       alert(`❌ Erro ao ativar assinatura: ${error}`);
     }
   };
 
-  const handleToggleSubscription = async (store: Store) => {
-    const isSuspended = store.subscription_status === 'suspended' || store.isExpired;
-    const nextStatus: 'active' | 'suspended' = isSuspended ? 'active' : 'suspended';
-    const ok = window.confirm(
-      `Deseja ${nextStatus === 'suspended' ? 'SUSPENDER (bloquear painel)' : 'REATIVAR'} a mensalidade da loja "${store.name}"?`
-    );
-    if (!ok) return;
-
-    await toggleStoreSubscription(store.id, nextStatus);
-    onRefresh();
-  };
-
   const handleToggleStatus = async (store: Store) => {
-    const nextStatus = !store.is_active;
-    const ok = window.confirm(`Deseja realmente ${nextStatus ? 'ativar' : 'pausar'} a loja "${store.name}"?`);
-    if (!ok) return;
+    const newStatus = !store.is_active;
+    const action = newStatus ? 'ativar' : 'pausar';
+    if (!window.confirm(`Deseja realmente ${action} a loja "${store.name}"?`)) return;
 
-    await toggleStoreActive(store.id, nextStatus);
-    onRefresh();
+    const { success, error } = await toggleStoreActive(store.id, newStatus);
+    if (success) {
+      onRefresh();
+    } else {
+      alert(`❌ Erro ao ${action} loja: ${error}`);
+    }
   };
 
   const handleDelete = async (store: Store) => {
-    const storeName = store.name || store.store_name || store.slug || 'esta loja';
-    const isMatriz = Boolean(store.is_matriz) || store.slug === 'ajpstore' || store.id === 'store_ajpstore';
-    if (isMatriz) {
-      alert('A loja AJPSTORE é a Matriz fixa e vitalícia do sistema e não pode ser excluída.');
+    const input = window.prompt(
+      `⚠️ ATENÇÃO: Esta ação é irreversível!\n\nPara confirmar a exclusão da loja "${store.name}", digite o slug da loja abaixo:`
+    );
+    if (input !== store.slug) {
+      if (input !== null) alert('❌ Confirmação incorreta. A loja NÃO foi excluída.');
       return;
     }
-    const confirmMsg = `ATENÇÃO: Deseja realmente excluir permanentemente a loja "${storeName}"?\n\nTodos os produtos e dados vinculados serão removidos do banco de dados.`;
-
-    const ok = window.confirm(confirmMsg);
-    if (!ok) return;
 
     setDeletingId(store.id);
-    try {
-      const res = await deleteStore(store.id, store.slug);
-      if (!res.success) {
-        alert(`❌ Erro ao excluir conta: ${res.error}`);
-      } else {
-        alert(`✅ Conta / Loja "${storeName}" excluída com sucesso!`);
-        onRefresh();
-      }
-    } finally {
-      setDeletingId(null);
+    const { success, error } = await deleteStore(store.id);
+    setDeletingId(null);
+
+    if (success) {
+      alert(`✅ Loja "${store.name}" excluída permanentemente.`);
+      onRefresh();
+    } else {
+      alert(`❌ Erro ao excluir loja: ${error}`);
     }
   };
 
@@ -295,512 +274,407 @@ export const StoresList: React.FC<StoresListProps> = ({
     if (isBaseStore && isLocal) {
       return admin ? '/admin' : '/';
     }
-    // Formato amigável e direto via slug: /loja/:slug
     return `/loja/${store.slug || 'ajpstore'}${admin ? '/admin' : ''}`;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       
-      {/* Search Header */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nome, slug ou domínio..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#FF1493]"
-            />
-          </div>
-
-          <div className="text-xs text-slate-500 font-medium">
-            Total de lojas cadastradas: <strong className="text-slate-900">{safeList.length}</strong>
-          </div>
+      {/* 2. ÁREA DE BUSCA E ABAS */}
+      <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full sm:w-auto">
+          <Tab active={filterTab === 'all'} onClick={() => setFilterTab('all')}>
+            Todas ({safeList.length})
+          </Tab>
+          <Tab active={filterTab === 'trial'} onClick={() => setFilterTab('trial')}>
+            Em Teste ({trialCount})
+          </Tab>
+          <Tab active={filterTab === 'active'} onClick={() => setFilterTab('active')}>
+            Assinantes ({activeCount})
+          </Tab>
+          <Tab active={filterTab === 'expired'} onClick={() => setFilterTab('expired')}>
+            Vencidas ({expiredCount})
+          </Tab>
         </div>
 
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-full sm:w-auto overflow-x-auto text-xs font-semibold">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar loja ou domínio..." 
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all text-sm"
+            />
+          </div>
           <button
-            onClick={() => setFilterTab('all')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-              filterTab === 'all'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+            title="Recarregar lojas"
           >
-            Todas ({safeList.length})
-          </button>
-          <button
-            onClick={() => setFilterTab('trial')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              filterTab === 'trial'
-                ? 'bg-white text-purple-700 shadow-xs'
-                : 'text-slate-600 hover:text-purple-700'
-            }`}
-          >
-            <Gift className="w-3.5 h-3.5 text-purple-600" />
-            <span>Em Teste ({trialCount})</span>
-          </button>
-          <button
-            onClick={() => setFilterTab('active')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              filterTab === 'active'
-                ? 'bg-white text-emerald-700 shadow-xs'
-                : 'text-slate-600 hover:text-emerald-700'
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Assinantes ({activeCount})</span>
-          </button>
-          <button
-            onClick={() => setFilterTab('expired')}
-            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              filterTab === 'expired'
-                ? 'bg-white text-rose-700 shadow-xs'
-                : 'text-slate-600 hover:text-rose-700'
-            }`}
-          >
-            <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
-            <span>Expiradas ({expiredCount})</span>
+            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {/* Stores List */}
-      {isLoading ? (
-        <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 p-8 shadow-xs">
-          <div className="w-8 h-8 border-3 border-[#FF1493] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-slate-500">Carregando lojas da plataforma...</p>
-        </div>
-      ) : filteredStores.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 p-8 shadow-xs">
-          <StoreIcon className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-bold text-slate-800">Nenhuma loja encontrada</p>
-          <p className="text-xs text-slate-400 mt-1">Crie a primeira loja para seu cliente clicando no botão acima.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredStores.map((store) => {
-            const isEditaveis = store.slug === 'editaveisdocanva' || store.id === 'store_editaveisdocanva' || Boolean(store.custom_domain && store.custom_domain.toLowerCase().includes('editaveisdocanva.com.br'));
-            const isBaseStore = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'ajpstore' || store.id === 'store_ajpstore');
-            const isEditingThisDomain = editingDomainId === store.id;
+      {/* 3. LISTA DE LOJAS (Design Limpo em Grid de 2 Colunas) */}
+      <div className="p-4 bg-gray-50/50">
+        {isLoading ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100 p-8 shadow-xs">
+            <div className="w-8 h-8 border-3 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm text-gray-500">Carregando lojas da plataforma...</p>
+          </div>
+        ) : filteredStores.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100 p-8 shadow-xs">
+            <StoreIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-base font-bold text-gray-800">Nenhuma loja encontrada</p>
+            <p className="text-xs text-gray-400 mt-1">Crie a primeira loja clicando no botão "+ Nova Loja" acima.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredStores.map((store) => {
+              const isEditaveis = store.slug === 'editaveisdocanva' || store.id === 'store_editaveisdocanva' || Boolean(store.custom_domain && store.custom_domain.toLowerCase().includes('editaveisdocanva.com.br'));
+              const isMatriz = !isEditaveis && (Boolean(store.is_matriz) || store.slug === 'ajpstore' || store.id === 'store_ajpstore');
+              const isEditingThisDomain = editingDomainId === store.id;
 
-            return (
-              <div
-                key={store.id}
-                className={`bg-white rounded-2xl border p-5 transition-all shadow-xs hover:shadow-md ${
-                  isBaseStore
-                    ? 'border-pink-300 bg-gradient-to-r from-white to-pink-50/30'
-                    : store.is_active
-                    ? 'border-slate-200 hover:border-[#FF1493]/30'
-                    : 'border-slate-200 opacity-60 bg-slate-50'
-                }`}
-              >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  
-                  {/* Store Info */}
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                        {store.name || store.store_name || 'Loja sem nome'}
-                      </h3>
+              const rawDomain = store.custom_domain;
+              const isSeuDominio = rawDomain && rawDomain.startsWith('seudominio');
+              const effectiveDomain = (!rawDomain || isSeuDominio)
+                ? `${store.slug || 'loja'}.ajpstore.com.br`
+                : rawDomain;
 
-                      {isBaseStore && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FF1493] to-pink-500 text-white shadow-xs">
-                          <Crown className="w-3 h-3 text-yellow-300" />
-                          Matriz / Base
-                        </span>
-                      )}
+              const trialDays = store.daysRemaining != null ? Math.max(store.daysRemaining, 0) : 7;
+              const formattedPrice = isMatriz 
+                ? '0,00' 
+                : (store.monthly_fee || 50).toFixed(2).replace('.', ',');
 
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                          store.is_active
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-500 border border-slate-200'
-                        }`}
-                      >
-                        {store.is_active ? 'Ativa' : 'Pausada'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                      <span>Slug: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono text-[11px]">{store.slug || 'loja'}</code></span>
-                      <span>•</span>
-                      <span>ID: <code className="text-slate-400 font-mono text-[10px]">{store.id ? store.id.slice(0, 8) : '--------'}...</code></span>
-                      <span>•</span>
-                      <span className="text-[11px] text-slate-400">
-                        Criada em {store.created_at ? new Date(store.created_at).toLocaleDateString('pt-BR') : 'Recentemente'}
-                      </span>
-                    </div>
-
-                    {/* Domain Box / Edit Domain */}
-                    <div className="pt-2 flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-slate-600 flex items-center gap-1">
-                        <Globe className="w-3.5 h-3.5 text-sky-600" />
-                        Domínio:
-                      </span>
-
-                      {isEditingThisDomain ? (
-                        <div className="flex items-center gap-1.5 animate-in fade-in">
-                          <input
-                            type="text"
-                            value={domainInput}
-                            onChange={(e) => setDomainInput(e.target.value)}
-                            placeholder="www.lojadocliente.com.br"
-                            className="text-xs px-2.5 py-1 bg-slate-50 border border-sky-300 rounded-lg outline-none font-mono focus:bg-white"
-                          />
-                          <button
-                            onClick={() => handleSaveDomain(store.id)}
-                            disabled={isUpdatingDomain}
-                            className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer disabled:opacity-50"
-                            title="Salvar domínio"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingDomainId(null)}
-                            className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 cursor-pointer"
-                            title="Cancelar"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+              return (
+                <div
+                  key={store.id}
+                  className={`bg-white border rounded-xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between ${
+                    isMatriz
+                      ? 'border-pink-300 ring-1 ring-pink-400/20 bg-gradient-to-br from-white via-white to-pink-50/20'
+                      : store.is_active
+                      ? 'border-gray-200 hover:border-pink-500/30'
+                      : 'border-gray-200 opacity-70 bg-gray-50'
+                  }`}
+                >
+                  <div>
+                    {/* Top Header do Card: Nome, Badges e Preço */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm shadow-xs ${
+                          isMatriz 
+                            ? 'bg-gradient-to-tr from-pink-500 to-purple-600 text-white' 
+                            : 'bg-pink-50 text-pink-600'
+                        }`}>
+                          {isMatriz ? <Crown size={20} className="text-yellow-300" /> : <StoreIcon size={20} />}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {(() => {
-                            const rawDomain = store.custom_domain;
-                            const isSeuDominio = rawDomain && rawDomain.startsWith('seudominio');
-                            const effectiveDomain = (!rawDomain || isSeuDominio)
-                              ? `${store.slug}.ajpstore.com.br`
-                              : rawDomain;
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-gray-900 text-base truncate flex items-center gap-1.5" title={store.name || store.store_name}>
+                            {store.name || store.store_name || 'Loja sem nome'}
+                          </h3>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {isMatriz ? (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-900 text-purple-100 flex items-center gap-1">
+                                <Crown size={11} className="text-yellow-400" /> MATRIZ VITALÍCIA
+                              </span>
+                            ) : (
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                store.is_active 
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                  : 'bg-gray-100 text-gray-500 border border-gray-200'
+                              }`}>
+                                {store.is_active ? '● ATIVA' : '○ PAUSADA'}
+                              </span>
+                            )}
 
-                            return (
-                              <a
-                                href={`https://${effectiveDomain.replace(/^https?:\/\//, '')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-bold text-sky-700 hover:underline font-mono"
-                              >
-                                {effectiveDomain}
-                              </a>
-                            );
-                          })()}
+                            {!isMatriz && (store.subscription_status === 'trial' || store.isTrial) && (
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                store.isExpired 
+                                  ? 'bg-red-50 text-red-600 border border-red-200 animate-pulse' 
+                                  : 'bg-purple-50 text-purple-700 border border-purple-200'
+                              }`}>
+                                {store.isExpired ? 'TESTE EXPIRADO' : `TESTE (${trialDays}d)`}
+                              </span>
+                            )}
 
-                              {store.domain_status === 'active' || store.domain_status === 'ativo' ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  DNS Ativo
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => onOpenDns(store)}
-                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full hover:bg-amber-100 cursor-pointer"
-                                  title="Clique para ver instruções de DNS"
-                                >
-                                  <Clock className="w-3 h-3" />
-                                  Aguardando DNS
-                                </button>
-                              )}
+                            {!isMatriz && store.subscription_status === 'active' && !store.isTrial && (
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                store.isExpired 
+                                  ? 'bg-red-50 text-red-600 border border-red-200 animate-pulse' 
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}>
+                                {store.isExpired ? 'VENCIDA' : 'ASSINANTE'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Preço / Mensalidade no topo direito */}
+                      <div className="text-right shrink-0">
+                        <span className="text-[11px] text-gray-400 block font-medium">Mensalidade</span>
+                        <span className={`text-base font-black ${isMatriz ? 'text-purple-900' : 'text-gray-900'}`}>
+                          R$ {formattedPrice}
+                          {!isMatriz && <span className="text-[10px] text-gray-400 font-normal">/mês</span>}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Linha do Domínio e DNS */}
+                    <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between gap-2 text-xs mb-3">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Globe size={14} className="text-sky-500 shrink-0" />
+                        {isEditingThisDomain ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={domainInput}
+                              onChange={(e) => setDomainInput(e.target.value)}
+                              className="px-2 py-0.5 bg-white border border-sky-400 rounded text-xs font-mono outline-none"
+                              placeholder="meudominio.com.br"
+                            />
+                            <button 
+                              onClick={() => handleSaveDomain(store.id)} 
+                              disabled={isUpdatingDomain} 
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded cursor-pointer"
+                              title="Salvar"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setEditingDomainId(null)} 
+                              className="p-1 text-gray-400 hover:bg-gray-200 rounded cursor-pointer"
+                              title="Cancelar"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <a
+                            href={`https://${effectiveDomain.replace(/^https?:\/\//, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sky-600 hover:text-sky-800 font-mono font-bold hover:underline truncate"
+                            title="Abrir link do domínio"
+                          >
+                            {effectiveDomain}
+                          </a>
+                        )}
+                      </div>
+
+                      {!isEditingThisDomain && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {store.domain_status === 'active' || store.domain_status === 'ativo' ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              DNS Ativo
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => onOpenDns(store)}
+                              className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full hover:bg-amber-100 cursor-pointer"
+                              title="Clique para ver instruções de DNS"
+                            >
+                              Aguardando DNS
+                            </button>
+                          )}
                           <button
                             onClick={() => handleStartEditDomain(store)}
-                            className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md cursor-pointer transition-colors"
-                            title="Editar Domínio"
+                            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded cursor-pointer"
+                            title="Editar domínio"
                           >
-                            <Edit2 className="w-3 h-3" />
+                            <Edit2 size={12} />
                           </button>
                         </div>
                       )}
                     </div>
 
-                    {/* Subscription & Expiration Status */}
-                    <div className="pt-2 flex items-center gap-2 flex-wrap text-xs">
-                      <span className="font-semibold text-slate-600 flex items-center gap-1">
-                        <CreditCard className="w-3.5 h-3.5 text-purple-600" />
-                        Mensalidade:
-                      </span>
+                    {/* Informações do Cliente, Senha e Vencimento */}
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-4 bg-gray-50/50 p-2 rounded-lg">
+                      <div className="space-y-1">
+                        {(store.owner_name || store.client_name) && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <User size={13} className="text-gray-400 shrink-0" />
+                            <span className="text-gray-700 font-medium truncate">{store.owner_name || store.client_name}</span>
+                          </div>
+                        )}
+                        {(store.owner_email || store.client_email) && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Mail size={13} className="text-gray-400 shrink-0" />
+                            <span className="text-gray-500 font-mono text-[11px] truncate">{store.owner_email || store.client_email}</span>
+                          </div>
+                        )}
+                      </div>
 
-                      {isBaseStore ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
-                          ♾️ Matriz Vitalícia (Sem Expiração)
-                        </span>
-                      ) : (store.subscription_status === 'trial' || store.isTrial) ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {store.isExpired ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-0.5 rounded-full animate-pulse">
-                              <AlertOctagon className="w-3.5 h-3.5 text-purple-600" />
-                              🎁 Teste Grátis Expirado (Bloqueada)
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
-                              <Gift className="w-3.5 h-3.5 text-purple-600" />
-                              🎁 Teste Grátis ({store.daysRemaining != null ? Math.max(store.daysRemaining, 0) : 7}d restantes)
-                            </span>
-                          )}
-
-                          {store.expires_at && (
-                            <span className="text-[11px] text-slate-500 font-mono">
-                              Fim do Teste: <strong>{new Date(store.expires_at).toLocaleDateString('pt-BR')}</strong>
-                            </span>
-                          )}
-
-                          <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                            Mensalidade pós-teste: R$ {(store.monthly_fee || 50).toFixed(2).replace('.', ',')}
+                      <div className="space-y-1">
+                        {store.admin_password && (
+                          <div className="flex items-center gap-1.5">
+                            <KeyRound size={13} className="text-gray-400 shrink-0" />
+                            <span className="text-gray-600">Senha:</span>
+                            <code className="bg-white border border-gray-200 px-1 py-0.5 rounded text-[11px] font-mono font-bold text-gray-800">{store.admin_password}</code>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={13} className="text-gray-400 shrink-0" />
+                          <span className="text-gray-600 truncate">
+                            {isMatriz ? 'Sem expiração' : store.expires_at ? `Vence: ${new Date(store.expires_at).toLocaleDateString('pt-BR')}` : 'Sem vencimento'}
                           </span>
-
-                          {(store.owner_name || store.client_name) && (
-                            <span className="text-[11px] text-slate-600 flex items-center gap-1 font-medium">
-                              • <User className="w-3 h-3 text-[#FF1493]" /> {store.owner_name || store.client_name}
-                            </span>
-                          )}
-
-                          {(store.owner_email || store.client_email) && (
-                            <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                              • <Mail className="w-3 h-3 text-slate-400" /> {store.owner_email || store.client_email}
-                            </span>
-                          )}
-
-                          {store.admin_password && (
-                            <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                              • <KeyRound className="w-3 h-3 text-slate-400" /> Senha: <code className="font-mono text-slate-700 font-bold bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{store.admin_password}</code>
-                            </span>
-                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {store.isExpired ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-0.5 rounded-full animate-pulse">
-                              <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
-                              Vencida / Acesso Bloqueado
-                            </span>
-                          ) : store.isExpiringSoon ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2.5 py-0.5 rounded-full">
-                              <Clock className="w-3.5 h-3.5 text-amber-600" />
-                              Vence em {store.daysRemaining} {store.daysRemaining === 1 ? 'dia' : 'dias'}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              Em dia (Faltam {store.daysRemaining} dias)
-                            </span>
-                          )}
-
-                          {store.expires_at && (
-                            <span className="text-[11px] text-slate-500 font-mono">
-                              Vencimento: <strong>{new Date(store.expires_at).toLocaleDateString('pt-BR')}</strong>
-                            </span>
-                          )}
-
-                          <button
-                            onClick={() => handleOpenEditDays(store)}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md cursor-pointer transition-colors shadow-2xs"
-                            title="Editar dias / validade da loja (ex: 180 dias / 3 meses)"
-                          >
-                            <Edit2 className="w-3 h-3 text-purple-600" />
-                            <span>Editar Dias</span>
-                          </button>
-
-                          <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                            R$ {(store.monthly_fee || 50).toFixed(2).replace('.', ',')}/mês
-                          </span>
-
-                          {(store.owner_name || store.client_name) && (
-                            <span className="text-[11px] text-slate-600 flex items-center gap-1 font-medium">
-                              • <User className="w-3 h-3 text-[#FF1493]" /> {store.owner_name || store.client_name}
-                            </span>
-                          )}
-
-                          {(store.owner_email || store.client_email) && (
-                            <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                              • <Mail className="w-3 h-3 text-slate-400" /> {store.owner_email || store.client_email}
-                            </span>
-                          )}
-
-                          {store.admin_password && (
-                            <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                              • <KeyRound className="w-3 h-3 text-slate-400" /> Senha: <code className="font-mono text-slate-700 font-bold bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{store.admin_password}</code>
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap border-t sm:border-t-0 pt-3 sm:pt-0">
-                    {/* Botões de Ação para Trial vs Assinatura Regular */}
-                    {!isBaseStore && (store.subscription_status === 'trial' || store.isTrial) ? (
-                      <>
+                  {/* Barra de Ações Inferior */}
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+                    {/* Botões Principais: Ver Loja & Admin */}
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        href={getStoreUrl(store, false)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Ver vitrine pública"
+                      >
+                        <ExternalLink size={13} className="text-pink-500" />
+                        <span>Ver Loja</span>
+                      </a>
+
+                      <a
+                        href={getStoreUrl(store, true)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-gray-900 hover:bg-black text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                        title="Abrir Painel Admin do lojista"
+                      >
+                        <Settings size={13} className="text-pink-300" />
+                        <span>Admin</span>
+                      </a>
+                    </div>
+
+                    {/* Botões Administrativos e Assinatura */}
+                    <div className="flex items-center gap-1.5">
+                      {!isMatriz && (store.subscription_status === 'trial' || store.isTrial) ? (
+                        <>
+                          <button
+                            onClick={() => handleActivatePaid(store)}
+                            disabled={activatingId === store.id}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                            title="Confirmar Pix de R$ 50 e ativar assinatura oficial (+30 dias)"
+                          >
+                            {activatingId === store.id ? <Loader2 size={13} className="animate-spin" /> : <CreditCard size={13} />}
+                            <span>Ativar (R$ 50)</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleExtendTrial(store)}
+                            disabled={extendingTrialId === store.id}
+                            className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                            title="Conceder mais 30 dias de prazo"
+                          >
+                            {extendingTrialId === store.id ? <Loader2 size={13} className="animate-spin" /> : <Gift size={13} />}
+                            <span>+30d Prazo</span>
+                          </button>
+                        </>
+                      ) : !isMatriz ? (
                         <button
-                          onClick={() => handleActivatePaid(store)}
-                          disabled={activatingId === store.id}
-                          className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98 disabled:opacity-50"
-                          title="Confirmar recebimento do Pix de R$ 50 e ativar assinatura oficial (+30 dias)"
+                          onClick={() => handleRenew(store)}
+                          disabled={renewingId === store.id}
+                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                          title="Renovar por +30 dias"
                         >
-                          {activatingId === store.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <CreditCard className="w-3.5 h-3.5 text-emerald-100" />
-                          )}
-                          <span>Ativar (R$ 50)</span>
+                          {renewingId === store.id ? <Loader2 size={13} className="animate-spin" /> : <CalendarPlus size={13} />}
+                          <span>Renovar (+30d)</span>
                         </button>
+                      ) : null}
 
+                      {!isMatriz && (
                         <button
-                          onClick={() => handleExtendTrial(store)}
-                          disabled={extendingTrialId === store.id}
-                          className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-purple-200 cursor-pointer active:scale-98 disabled:opacity-50"
-                          title="Conceder mais 30 dias de prazo"
+                          onClick={() => handleOpenEditDays(store)}
+                          className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          title="Editar dias / validade da loja"
                         >
-                          {extendingTrialId === store.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Gift className="w-3.5 h-3.5 text-purple-600" />
-                          )}
-                          <span>+30d Prazo</span>
+                          <Clock size={14} />
                         </button>
-                      </>
-                    ) : !isBaseStore ? (
+                      )}
+
                       <button
-                        onClick={() => handleRenew(store)}
-                        disabled={renewingId === store.id}
-                        className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98 disabled:opacity-50"
-                        title="Renovar assinatura por mais 30 dias após confirmação do Pix de R$ 50"
+                        onClick={() => onOpenDns(store)}
+                        className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                        title="Ver instruções de DNS"
                       >
-                        {renewingId === store.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <CalendarPlus className="w-3.5 h-3.5 text-emerald-100" />
-                        )}
-                        <span>Renovar (+30d)</span>
+                        <Globe size={14} />
                       </button>
-                    ) : null}
 
-                    {/* Botão para Editar Prazo/Dias da Loja */}
-                    {!isBaseStore && (
-                      <button
-                        onClick={() => handleOpenEditDays(store)}
-                        className="px-2.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all border border-purple-200 cursor-pointer active:scale-98"
-                        title="Definir dias / validade da loja (ex: 180 dias / 3 meses)"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Dias</span>
-                      </button>
-                    )}
+                      {!isMatriz && (
+                        <button
+                          onClick={() => handleToggleStatus(store)}
+                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                            store.is_active 
+                              ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50 border-gray-200' 
+                              : 'text-emerald-600 bg-emerald-50 border-emerald-200'
+                          }`}
+                          title={store.is_active ? 'Pausar loja' : 'Ativar loja'}
+                        >
+                          <Power size={14} />
+                        </button>
+                      )}
 
-                    {/* Botão Ver Loja */}
-                    <a
-                      href={getStoreUrl(store, false)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Acessar vitrine pública da loja"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 text-[#FF1493]" />
-                      <span>Ver Loja</span>
-                    </a>
-
-                    {/* Botão Painel Admin do Cliente */}
-                    <a
-                      href={getStoreUrl(store, true)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                      title="Abrir painel administrativo isolado desta loja"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-pink-300" />
-                      <span>Admin</span>
-                    </a>
-
-                    {/* Botão Instruções DNS */}
-                    <button
-                      onClick={() => onOpenDns(store)}
-                      className="px-3 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-sky-200/60"
-                      title="Ver instruções de apontamento DNS e mensagem de WhatsApp"
-                    >
-                      <Globe className="w-3.5 h-3.5" />
-                      <span>DNS</span>
-                    </button>
-
-                    {/* Pausar / Ativar Loja (não aplicável à Matriz fixa) */}
-                    {!isBaseStore && (
-                      <button
-                        onClick={() => handleToggleStatus(store)}
-                        className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                          store.is_active
-                            ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 border-slate-200'
-                            : 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                        }`}
-                        title={store.is_active ? 'Pausar Loja' : 'Ativar Loja'}
-                      >
-                        <Power className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {/* Excluir Loja / Conta (não aplicável à Matriz fixa) */}
-                    {!isBaseStore && (
-                      <button
-                        onClick={() => handleDelete(store)}
-                        disabled={deletingId === store.id}
-                        className="px-3 py-2 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50/80 hover:border-rose-600 rounded-xl border border-rose-200 transition-all cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold shadow-2xs"
-                        title="Excluir Conta / Loja permanentemente"
-                      >
-                        {deletingId === store.id ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Excluindo...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Excluir</span>
-                          </>
-                        )}
-                      </button>
-                    )}
+                      {!isMatriz && (
+                        <button
+                          onClick={() => handleDelete(store)}
+                          disabled={deletingId === store.id}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg border border-red-100 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Excluir loja"
+                        >
+                          {deletingId === store.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Modal Editar Prazo / Validade da Loja */}
       {editingDaysStore && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Editar Prazo de Validade</h3>
-                  <p className="text-xs text-slate-500">{editingDaysStore.name} ({editingDaysStore.slug})</p>
+                  <h3 className="text-sm font-bold text-gray-900">Editar Prazo de Validade</h3>
+                  <p className="text-xs text-gray-500">{editingDaysStore.name} ({editingDaysStore.slug})</p>
                 </div>
               </div>
               <button
                 onClick={() => setEditingDaysStore(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Informação atual */}
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 mb-4 text-xs space-y-1">
-              <div className="flex justify-between text-slate-600">
+            <div className="p-3 bg-gray-50 rounded-xl border border-gray-200/80 mb-4 text-xs space-y-1">
+              <div className="flex justify-between text-gray-600">
                 <span>Prazo atual:</span>
-                <strong className="text-slate-900">
+                <strong className="text-gray-900">
                   {editingDaysStore.daysRemaining !== null ? `${editingDaysStore.daysRemaining} dias restantes` : 'Sem prazo'}
                 </strong>
               </div>
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-gray-600">
                 <span>Vencimento atual:</span>
-                <strong className="text-slate-900">
+                <strong className="text-gray-900">
                   {editingDaysStore.expires_at ? new Date(editingDaysStore.expires_at).toLocaleDateString('pt-BR') : 'Não definido'}
                 </strong>
               </div>
@@ -808,15 +682,15 @@ export const StoresList: React.FC<StoresListProps> = ({
 
             {/* Presets Rápidos */}
             <div className="space-y-2 mb-4">
-              <label className="text-xs font-bold text-slate-700">Atalhos rápidos (a partir de hoje):</label>
+              <label className="text-xs font-bold text-gray-700">Atalhos rápidos (a partir de hoje):</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => handleApplyDays(30)}
                   disabled={isSavingDays}
-                  className="py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 cursor-pointer transition-colors active:scale-98 disabled:opacity-50 text-left"
+                  className="py-2.5 px-3 text-xs font-bold rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 cursor-pointer transition-colors active:scale-98 disabled:opacity-50 text-left"
                 >
-                  📅 30 dias <span className="text-[10px] text-slate-400 block font-normal">(1 mês)</span>
+                  📅 30 dias <span className="text-[10px] text-gray-400 block font-normal">(1 mês)</span>
                 </button>
                 <button
                   type="button"
@@ -838,17 +712,17 @@ export const StoresList: React.FC<StoresListProps> = ({
                   type="button"
                   onClick={() => handleApplyDays(365)}
                   disabled={isSavingDays}
-                  className="py-2.5 px-3 text-xs font-bold rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 cursor-pointer transition-colors active:scale-98 disabled:opacity-50 text-left"
+                  className="py-2.5 px-3 text-xs font-bold rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 cursor-pointer transition-colors active:scale-98 disabled:opacity-50 text-left"
                 >
-                  👑 365 dias <span className="text-[10px] text-slate-400 block font-normal">(1 ano)</span>
+                  👑 365 dias <span className="text-[10px] text-gray-400 block font-normal">(1 ano)</span>
                 </button>
               </div>
             </div>
 
             {/* Inserir quantidade personalizada de dias */}
-            <div className="space-y-3 pt-3 border-t border-slate-100">
+            <div className="space-y-3 pt-3 border-t border-gray-100">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
+                <label className="text-xs font-bold text-gray-700 block mb-1">
                   Ou digite a quantidade exata de dias:
                 </label>
                 <div className="flex items-center gap-2">
@@ -858,7 +732,7 @@ export const StoresList: React.FC<StoresListProps> = ({
                     value={customDaysInput}
                     onChange={(e) => setCustomDaysInput(e.target.value)}
                     placeholder="Ex: 180"
-                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-purple-500 font-bold"
+                    className="flex-1 px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-purple-500 font-bold"
                   />
                   <button
                     type="button"
@@ -879,7 +753,7 @@ export const StoresList: React.FC<StoresListProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
+                <label className="text-xs font-bold text-gray-700 block mb-1">
                   Ou selecione a data de vencimento no calendário:
                 </label>
                 <div className="flex items-center gap-2">
@@ -887,13 +761,13 @@ export const StoresList: React.FC<StoresListProps> = ({
                     type="date"
                     value={customDateInput}
                     onChange={(e) => setCustomDateInput(e.target.value)}
-                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-purple-500"
                   />
                   <button
                     type="button"
                     onClick={handleApplyExactDate}
                     disabled={isSavingDays || !customDateInput}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors disabled:opacity-50 active:scale-98"
+                    className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl cursor-pointer transition-colors disabled:opacity-50 active:scale-98"
                   >
                     {isSavingDays ? 'Salvando...' : 'Salvar Data'}
                   </button>
@@ -901,11 +775,11 @@ export const StoresList: React.FC<StoresListProps> = ({
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+            <div className="mt-5 pt-3 border-t border-gray-100 flex justify-end">
               <button
                 type="button"
                 onClick={() => setEditingDaysStore(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-800 cursor-pointer"
               >
                 Fechar
               </button>
@@ -917,3 +791,23 @@ export const StoresList: React.FC<StoresListProps> = ({
     </div>
   );
 };
+
+// COMPONENTE: Aba
+interface TabProps {
+  children: React.ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+}
+
+function Tab({ children, active, onClick }: TabProps) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+        active ? 'bg-pink-50 text-pink-600 font-bold' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

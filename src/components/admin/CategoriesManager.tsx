@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { 
+  FolderTree, 
   Plus, 
+  Edit2, 
   Trash2, 
-  Edit3, 
-  FolderPlus, 
-  Layers, 
-  Check, 
+  ChevronDown, 
+  ChevronUp, 
   X, 
-  ChevronRight,
-  FolderTree
+  Check, 
+  FolderPlus 
 } from 'lucide-react';
 import { Category } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -25,19 +25,24 @@ export const CategoriesManager: React.FC = () => {
     products
   } = useStoreData();
 
+  // Estado para controlar qual categoria está expandida
+  const [expandedCat, setExpandedCat] = useState<string | null>(() => {
+    return categories.length > 0 ? categories[0].id : null;
+  });
+
+  // Estado para controlar se o input de nova subcategoria está aberto
+  const [addingSubCatTo, setAddingSubCatTo] = useState<string | null>(null);
+  const [newSubcatName, setNewSubcatName] = useState('');
+
   // Criar nova categoria
   const [newCatName, setNewCatName] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
 
-  // Renomear categoria
+  // Renomear categoria inline
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editCatName, setEditCatName] = useState('');
 
-  // Adicionar subcategoria
-  const [subcatInputCatId, setSubcatInputCatId] = useState<string | null>(null);
-  const [newSubcatName, setNewSubcatName] = useState('');
-
-  // Modal de exclusão
+  // Modal de confirmação de exclusão
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     type: 'category' | 'subcategory';
@@ -69,243 +74,313 @@ export const CategoriesManager: React.FC = () => {
     if (!newSubcatName.trim()) return;
     addSubcategory(categoryId, newSubcatName.trim());
     setNewSubcatName('');
-    setSubcatInputCatId(null);
+    setAddingSubCatTo(null);
   };
 
   const handleDeleteConfirm = () => {
     if (deleteModal.type === 'category') {
       deleteCategory(deleteModal.categoryId);
+      if (expandedCat === deleteModal.categoryId) {
+        setExpandedCat(null);
+      }
     } else if (deleteModal.type === 'subcategory' && deleteModal.subcatName) {
       deleteSubcategory(deleteModal.categoryId, deleteModal.subcatName);
     }
     setDeleteModal({ isOpen: false, type: 'category', categoryId: '', name: '' });
   };
 
-  const getProductCountByCategory = (catId: string) => {
-    return products.filter((p) => p.category === catId).length;
+  const getProductCountByCategory = (catId: string, catName: string) => {
+    const cName = (catName || '').toLowerCase().trim();
+    return products.filter((p) => {
+      return (
+        p.category_id === catId ||
+        p.category === catId ||
+        (p.category && p.category.toLowerCase().trim() === cName)
+      );
+    }).length;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans text-gray-800">
       
-      {/* Top Header & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm">
-        <div>
-          <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
-            <FolderTree className="w-5 h-5 text-theme-primary" />
-            <span>Categorias & Subcategorias</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-theme-light text-theme-primary font-bold">
-              {categories.length} {categories.length === 1 ? 'categoria' : 'categorias'}
-            </span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Gerencie a árvore de categorias exibida no menu lateral e filtros da loja
-          </p>
+      {/* CABEÇALHO */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-50 p-2.5 rounded-xl text-blue-600 shrink-0">
+              <FolderTree size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">Categorias</h1>
+              <p className="text-xs text-gray-500 mt-1">Organize a árvore da sua loja</p>
+            </div>
+          </div>
+          <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
+            {categories.length} {categories.length === 1 ? 'no total' : 'no total'}
+          </span>
         </div>
 
-        <button
-          onClick={() => setIsAddingCategory(true)}
-          className="px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border border-black"
-        >
-          <FolderPlus className="w-4 h-4 text-white" />
-          <span>Nova Categoria</span>
-        </button>
+        {/* Botão de Adicionar Categoria */}
+        {!isAddingCategory ? (
+          <button 
+            onClick={() => setIsAddingCategory(true)}
+            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer text-sm shadow-xs"
+          >
+            <Plus size={18} /> 
+            <span>Nova Categoria</span>
+          </button>
+        ) : (
+          <form 
+            onSubmit={handleCreateCategory}
+            className="p-4 bg-gray-50 rounded-xl border border-blue-200 animate-in fade-in space-y-3"
+          >
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <input
+                type="text"
+                autoFocus
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                placeholder="Digite o nome da categoria (ex: Camisetas, Eletrônicos)..."
+                className="w-full text-sm px-4 py-2.5 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              />
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddingCategory(false);
+                    setNewCatName('');
+                  }}
+                  className="px-4 py-2.5 text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  Salvar Categoria
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
 
-      {/* Form Nova Categoria Inline */}
-      {isAddingCategory && (
-        <form 
-          onSubmit={handleCreateCategory}
-          className="p-4 bg-white rounded-3xl border-2 border-theme-primary shadow-sm flex flex-col sm:flex-row items-center gap-3 animate-in fade-in"
-        >
-          <div className="flex-1 w-full">
-            <input
-              type="text"
-              autoFocus
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              placeholder="Digite o nome da nova categoria (ex: Topos de Bolo & Velas)..."
-              className="w-full text-xs sm:text-sm px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary"
-            />
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingCategory(false);
-                setNewCatName('');
-              }}
-              className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-xl shadow-xs"
-            >
-              Salvar Categoria
-            </button>
-          </div>
-        </form>
-      )}
+      {/* LISTA DE CATEGORIAS */}
+      {categories.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 p-8 shadow-xs">
+          <FolderPlus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-base font-bold text-gray-800">Nenhuma categoria cadastrada</p>
+          <p className="text-xs text-gray-400 mt-1">Crie a primeira categoria para organizar os produtos da sua loja.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {categories.map((category) => {
+            const isExpanded = expandedCat === category.id;
+            const productCount = getProductCountByCategory(category.id, category.name);
+            const isEditing = editingCatId === category.id;
+            const isAddingSub = addingSubCatTo === category.id;
 
-      {/* Grid / Lista de Categorias com Subcategorias */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {categories.map((category) => {
-          const productCount = getProductCountByCategory(category.id);
+            return (
+              <div 
+                key={category.id}
+                className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${
+                  isExpanded ? 'border-blue-200 shadow-md ring-1 ring-blue-100' : 'border-gray-100 shadow-xs hover:border-gray-200'
+                }`}
+              >
+                
+                {/* LINHA PRINCIPAL SEMPRE VISÍVEL */}
+                <div 
+                  className="p-4 flex items-center justify-between cursor-pointer select-none"
+                  onClick={() => setExpandedCat(isExpanded ? null : category.id)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Seta de expansão interativa */}
+                    <button 
+                      type="button"
+                      className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"
+                      title={isExpanded ? 'Recolher' : 'Expandir'}
+                    >
+                      {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </button>
 
-          return (
-            <div 
-              key={category.id} 
-              className="bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm flex flex-col justify-between space-y-4 hover:border-theme-primary/40 transition-colors"
-            >
-              
-              {/* Category Header */}
-              <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-                <div className="flex-1 min-w-0">
-                  {editingCatId === category.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={editCatName}
-                        onChange={(e) => setEditCatName(e.target.value)}
-                        className="w-full text-sm font-bold px-2 py-1 bg-slate-50 border border-theme-primary rounded-lg outline-none"
-                      />
-                      <button
-                        onClick={() => handleSaveRenameCategory(category.id)}
-                        className="p-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                    {isEditing ? (
+                      <div 
+                        className="flex items-center gap-2" 
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingCatId(null)}
-                        className="p-1 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-theme-primary" />
-                      <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate">
-                        {category.name}
-                      </h3>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">
-                        {productCount} {productCount === 1 ? 'produto' : 'produtos'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => {
-                      setEditingCatId(category.id);
-                      setEditCatName(category.name);
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-black hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Renomear Categoria"
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editCatName}
+                          onChange={(e) => setEditCatName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSaveRenameCategory(category.id);
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingCatId(null);
+                            }
+                          }}
+                          className="text-sm font-semibold px-2.5 py-1 bg-white border border-blue-400 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                        <button
+                          onClick={() => handleSaveRenameCategory(category.id)}
+                          className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors cursor-pointer"
+                          title="Salvar"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={() => setEditingCatId(null)}
+                          className="p-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors cursor-pointer"
+                          title="Cancelar"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-base truncate">
+                          {category.name}
+                        </span>
+                        <span className="bg-gray-100 text-gray-600 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
+                          {productCount} {productCount === 1 ? 'PRODUTO' : 'PRODUTOS'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Ações (Editar / Excluir) não interferem no clique de expansão */}
+                  <div 
+                    className="flex items-center gap-1 shrink-0" 
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteModal({
-                      isOpen: true,
-                      type: 'category',
-                      categoryId: category.id,
-                      name: category.name
-                    })}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="Excluir Categoria"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Subcategories List */}
-              <div className="space-y-2 flex-1">
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                  <span>Subcategorias ({category.subcategories.length}):</span>
-                  {subcatInputCatId !== category.id && (
-                    <button
+                    <button 
                       onClick={() => {
-                        setSubcatInputCatId(category.id);
-                        setNewSubcatName('');
+                        setEditingCatId(category.id);
+                        setEditCatName(category.name);
                       }}
-                      className="text-theme-primary hover:underline font-bold flex items-center gap-0.5 text-[11px]"
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                      title="Editar nome da categoria"
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>Adicionar</span>
+                      <Edit2 size={16} />
                     </button>
-                  )}
+                    <button 
+                      onClick={() => setDeleteModal({
+                        isOpen: true,
+                        type: 'category',
+                        categoryId: category.id,
+                        name: category.name
+                      })}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Excluir categoria"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Subcategory Input */}
-                {subcatInputCatId === category.id && (
-                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-theme-primary/30 animate-in fade-in">
-                    <input
-                      type="text"
-                      autoFocus
-                      value={newSubcatName}
-                      onChange={(e) => setNewSubcatName(e.target.value)}
-                      placeholder="Nome da subcategoria..."
-                      className="flex-1 text-xs px-2.5 py-1 bg-white border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-theme-primary"
-                    />
-                    <button
-                      onClick={() => handleAddSubcategory(category.id)}
-                      className="px-3 py-1 bg-black text-white text-xs font-bold rounded-lg hover:bg-slate-800"
-                    >
-                      OK
-                    </button>
-                    <button
-                      onClick={() => setSubcatInputCatId(null)}
-                      className="p-1 text-slate-400 hover:text-slate-700"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                {/* ÁREA DE SUBCATEGORIAS (Só aparece se estiver expandido) */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 pt-3 border-t border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Subcategorias ({category.subcategories?.length || 0})
+                      </span>
+                      {!isAddingSub && (
+                        <button
+                          onClick={() => {
+                            setAddingSubCatTo(category.id);
+                            setNewSubcatName('');
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          <span>Adicionar Subcategoria</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Form para Adicionar Subcategoria Inline */}
+                    {isAddingSub && (
+                      <div className="flex items-center gap-2 mb-3 p-2 bg-white rounded-xl border border-blue-200 shadow-2xs animate-in fade-in">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={newSubcatName}
+                          onChange={(e) => setNewSubcatName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSubcategory(category.id);
+                            }
+                            if (e.key === 'Escape') {
+                              setAddingSubCatTo(null);
+                            }
+                          }}
+                          placeholder="Nome da subcategoria..."
+                          className="flex-1 text-xs sm:text-sm px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                        <button
+                          onClick={() => handleAddSubcategory(category.id)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Check size={14} />
+                          <span>Salvar</span>
+                        </button>
+                        <button
+                          onClick={() => setAddingSubCatTo(null)}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                          title="Cancelar"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Lista de Chips / Badges de Subcategoria */}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {category.subcategories && category.subcategories.length > 0 ? (
+                        category.subcategories.map((subcat) => (
+                          <span
+                            key={subcat}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-gray-700 text-xs font-medium rounded-lg border border-gray-200 shadow-2xs group transition-colors hover:border-gray-300"
+                          >
+                            <span className="text-gray-400">•</span>
+                            <span>{subcat}</span>
+                            <button
+                              onClick={() => setDeleteModal({
+                                isOpen: true,
+                                type: 'subcategory',
+                                categoryId: category.id,
+                                subcatName: subcat,
+                                name: subcat
+                              })}
+                              className="text-gray-400 hover:text-red-500 ml-1 rounded p-0.5 transition-colors cursor-pointer"
+                              title="Excluir subcategoria"
+                            >
+                              <X size={13} />
+                            </button>
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-400 italic py-1">
+                          Nenhuma subcategoria cadastrada nesta categoria.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* Subcategory Badges / Items */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {category.subcategories.length > 0 ? (
-                    category.subcategories.map((subcat) => (
-                      <span
-                        key={subcat}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-theme-light text-slate-800 text-xs font-semibold rounded-xl border border-theme-primary/30 group/sub"
-                      >
-                        <span>° {subcat}</span>
-                        <button
-                          onClick={() => setDeleteModal({
-                            isOpen: true,
-                            type: 'subcategory',
-                            categoryId: category.id,
-                            subcatName: subcat,
-                            name: subcat
-                          })}
-                          className="text-slate-400 hover:text-rose-600 ml-1 rounded-full"
-                          title="Excluir subcategoria"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-slate-400 italic">
-                      Nenhuma subcategoria cadastrada.
-                    </span>
-                  )}
-                </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Delete Confirmation Modal */}
+      {/* Modal de Confirmação de Exclusão */}
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
         title={deleteModal.type === 'category' ? 'Excluir Categoria' : 'Excluir Subcategoria'}
@@ -317,3 +392,5 @@ export const CategoriesManager: React.FC = () => {
     </div>
   );
 };
+
+export default CategoriesManager;

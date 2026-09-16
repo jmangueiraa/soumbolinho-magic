@@ -95,7 +95,7 @@ export async function cloneStoreTemplate(
     const resolvedColorPalette = matrizStore?.color_palette || matrizThemeSettings?.color_palette || matrizSiteSettings?.color_palette || 'pink_pastel';
     const resolvedLayoutStyle = matrizStore?.layout_style || matrizThemeSettings?.theme_layout || matrizSiteSettings?.theme_layout || 'classic';
     const resolvedLogoUrl = matrizStore?.logo_url || matrizSiteSettings?.logo_url || '/ajpstore-logo.png';
-    const resolvedBannerUrl = matrizStore?.banner_url || matrizSiteSettings?.banner_url || null;
+    const resolvedBannerUrl = matrizStore?.banner_url || matrizSiteSettings?.banner_url || '/default-banner.png';
     const resolvedBannerDesktop = matrizStore?.banner_desktop || null;
     const resolvedBannerMobile = matrizStore?.banner_mobile || null;
     const resolvedBannersConfig = matrizStore?.banners_config || matrizThemeSettings?.banners_config || null;
@@ -108,6 +108,7 @@ export async function cloneStoreTemplate(
     const mergedThemeSettings = {
       ...(matrizThemeSettings || {}),
       logo_url: resolvedLogoUrl,
+      banner_url: resolvedBannerUrl,
       primary_color: resolvedPrimaryColor,
       secondary_color: resolvedSecondaryColor,
       color_palette: resolvedColorPalette,
@@ -359,6 +360,24 @@ export async function cloneStoreTemplate(
         }
       }
       console.log(`[storeCloneService] ✅ ${bannersCloned} banners clonados.`);
+    }
+
+    // Se a matriz não possuir banners cadastrados no banco, cadastra o banner oficial padrão
+    if (bannersCloned === 0) {
+      try {
+        await createBannerInSupabase({
+          store_id: targetStoreId,
+          type: 'image',
+          imageUrl: resolvedBannerUrl || '/default-banner.png',
+          altText: 'SEU BANNER AQUI AJPSTORE',
+          order: 1,
+          isActive: true
+        }, targetStoreId);
+        bannersCloned++;
+        console.log(`[storeCloneService] ✅ Banner padrão cadastrado com sucesso para a nova loja "${targetStoreId}".`);
+      } catch (banEx) {
+        console.warn('[storeCloneService] Aviso ao cadastrar banner padrão:', banEx);
+      }
     }
 
     console.log(`[storeCloneService] 🎉 Clonagem completa da matriz AJPSTORE finalizada: ${prodsCloned} produtos, ${catsCloned} categorias, ${bannersCloned} banners.`);
