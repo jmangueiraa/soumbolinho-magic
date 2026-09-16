@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
+  Settings,
   Store, 
   MessageCircle, 
+  LayoutTemplate,
   Instagram, 
   Save, 
   RotateCcw,
@@ -53,12 +55,85 @@ interface StoreSettingsManagerProps {
   onNavigateToLayout?: () => void;
 }
 
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+      active
+        ? 'bg-gray-900 text-white shadow-sm'
+        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-2xs'
+    }`}
+  >
+    {icon}
+    <span>{children}</span>
+  </button>
+);
+
+interface InputFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  prefix?: string;
+  required?: boolean;
+  helperText?: string;
+}
+
+const InputField: React.FC<InputFieldProps> = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  prefix,
+  required = false,
+  helperText
+}) => (
+  <div>
+    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+      {label}
+    </label>
+    <div className="relative flex items-center">
+      {prefix && (
+        <span className="absolute left-3 text-gray-400 font-bold text-xs pointer-events-none">
+          {prefix}
+        </span>
+      )}
+      <input
+        type={type}
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full text-xs sm:text-sm py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-800 placeholder:text-gray-400 ${
+          prefix ? 'pl-8 pr-3.5' : 'px-3.5'
+        }`}
+      />
+    </div>
+    {helperText && (
+      <p className="text-[11px] text-gray-400 mt-1">{helperText}</p>
+    )}
+  </div>
+);
+
 export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({ 
   onNavigateToApiDomain, 
   onNavigateToLayout 
 }) => {
   const { storeConfig, updateStoreConfig, resetToDefaults, showNotification } = useStoreData();
   const { currentStore, updateCurrentStore, refreshTenant } = useTenant();
+
+  const [activeTab, setActiveTab] = useState<'identidade' | 'atendimento' | 'rodape'>('identidade');
+  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     storeName: storeConfig.storeName || currentStore?.store_name || currentStore?.name || '',
@@ -192,7 +267,9 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
       return;
     }
 
-    const cleanWhatsApp = formData.whatsappNumber.replace(/\D/g, '');
+    setIsSaving(true);
+    try {
+      const cleanWhatsApp = formData.whatsappNumber.replace(/\D/g, '');
     const numMin = parseFloat(formData.minOrderValue.replace(',', '.')) || 0;
     const defaultMsg = (formData.whatsappDefaultMessage || storeConfig.whatsappDefaultMessage || '').trim();
 
@@ -410,7 +487,10 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
     if (refreshTenant) {
       await refreshTenant(true);
     }
-  };
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleResetDefaults = () => {
     resetToDefaults();
@@ -435,123 +515,88 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 font-sans text-gray-800 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="bg-white p-5 rounded-3xl border border-theme-primary/20 shadow-sm flex items-center justify-between">
-        <div>
-          <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Store className="w-5 h-5 text-theme-primary" />
-            <span>Configurações Gerais da Loja</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Configure o número de WhatsApp que recebe os pedidos, dados de contato e políticas
-          </p>
-        </div>
-      </div>
-
-      {/* Main Settings Form */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-theme-primary/20 shadow-sm space-y-6">
-        
-        {/* 1. WhatsApp para Recebimento de Pedidos */}
-        <div className="p-4 sm:p-5 bg-theme-light/40 rounded-3xl border border-theme-primary/30 space-y-4">
-          <div className="flex items-center gap-2 text-theme-primary font-bold text-sm">
-            <MessageCircle className="w-5 h-5 fill-theme-primary" />
-            <span>WhatsApp de Recebimento dos Pedidos</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Número do WhatsApp (com DDI e DDD) *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.whatsappNumber}
-                onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
-                placeholder="5521974975884"
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-theme-primary font-mono font-bold"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Formato numérico internacional sem espaços (ex: 5521974975884)
-              </p>
+      {/* CABEÇALHO */}
+      <header className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-2.5 rounded-xl text-blue-700 shrink-0">
+              <Settings size={24} />
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Exibição Visual do Telefone *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.whatsappDisplay}
-                onChange={(e) => setFormData({ ...formData, whatsappDisplay: e.target.value })}
-                placeholder="(21) 97497-5884"
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-white border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-theme-primary"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Como o telefone será exibido no rodapé e botões
-              </p>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">Configurações da Loja</h1>
+              <p className="text-xs text-gray-500">Gerencie informações e identidade visual</p>
             </div>
           </div>
-        </div>
 
-        {/* 2. Dados Institucionais */}
-        <div className="space-y-4 pt-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Identidade da Loja
-          </h3>
-
-          {/* Logo Circular da Loja */}
-          <div className="p-4 sm:p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-theme-primary" />
-                  <span>Logo Circular</span>
-                </label>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Envie a foto ou arte da sua logo circular. O nome da loja é individual da foto da logo e continua ao lado com a tipografia estilizada.
-                </p>
-              </div>
-
-              {formData.logoUrl && (
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, logoUrl: '' })}
-                  className="text-[11px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors px-2.5 py-1 rounded-lg hover:bg-rose-50 cursor-pointer"
-                  title="Remover logo circular e voltar ao bolinho padrão"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remover Logo Circular</span>
-                </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              form="store-settings-form"
+              disabled={isSaving}
+              className="px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-2 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 text-white" />
+                  <span>Salvar Alterações</span>
+                </>
               )}
-            </div>
+            </button>
+          </div>
+        </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              {/* Preview Box com Apenas a Logo Circular (Sem Textos) */}
-              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-2 relative overflow-hidden shrink-0 shadow-inner group">
-                <div className="flex flex-col items-center justify-center">
-                  <SoumbolinhoLogo 
-                    variant="light" 
-                    size="lg" 
-                    onlyLogo={true}
-                    logoUrl={formData.logoUrl} 
-                  />
-                  <span className="block text-[8px] text-zinc-400 mt-1.5 uppercase tracking-wider font-semibold text-center">
-                    {formData.logoUrl ? '✨ Logo Circular' : 'Bolinho Padrão'}
-                  </span>
-                </div>
-                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[7.5px] text-zinc-300 font-bold uppercase tracking-wider">
-                  Prévia
-                </div>
-              </div>
+        {/* NAVEGAÇÃO POR ABAS (Scroll Horizontal no Mobile) */}
+        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+          <TabButton active={activeTab === 'identidade'} onClick={() => setActiveTab('identidade')} icon={<Store size={16}/>}>
+            Identidade
+          </TabButton>
+          <TabButton active={activeTab === 'atendimento'} onClick={() => setActiveTab('atendimento')} icon={<MessageCircle size={16}/>}>
+            Atendimento
+          </TabButton>
+          <TabButton active={activeTab === 'rodape'} onClick={() => setActiveTab('rodape')} icon={<LayoutTemplate size={16}/>}>
+            Rodapé & Destaques
+          </TabButton>
+        </div>
+      </header>
 
-              {/* Upload and Link Inputs */}
-              <div className="flex-1 w-full space-y-2.5">
-                {/* Upload Button */}
-                <div className="flex flex-wrap items-center gap-2.5">
+      {/* FORMULÁRIO PRINCIPAL */}
+      <form id="store-settings-form" onSubmit={handleSubmit} className="space-y-6">
+
+        {/* ABA 1: IDENTIDADE */}
+        {activeTab === 'identidade' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Logo & Marca</h2>
+              
+              {/* Upload Compacto */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-4 rounded-2xl bg-gray-50/80 border border-gray-100">
+                <div 
+                  onClick={() => logoFileInputRef.current?.click()}
+                  className="w-20 h-20 bg-gray-900 rounded-2xl flex items-center justify-center text-white shrink-0 relative overflow-hidden group cursor-pointer border border-gray-800 shadow-inner"
+                  title="Clique para alterar a imagem"
+                >
+                  {formData.logoUrl ? (
+                    <img 
+                      src={formData.logoUrl} 
+                      alt="Logo da Loja" 
+                      className="w-full h-full object-contain p-1.5 rounded-2xl" 
+                    />
+                  ) : (
+                    <span className="text-xs font-bold tracking-wider">LOGO</span>
+                  )}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all text-white">
+                    <Upload size={20} />
+                  </div>
+                </div>
+
+                <div className="flex-1 space-y-2.5">
                   <input
                     ref={logoFileInputRef}
                     type="file"
@@ -560,321 +605,334 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                     className="hidden"
                     id="store-logo-file-input"
                   />
-                  <button
-                    type="button"
-                    disabled={isUploadingLogo}
-                    onClick={() => logoFileInputRef.current?.click()}
-                    className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-2 shadow-xs transition-colors disabled:opacity-60 cursor-pointer"
-                  >
-                    {isUploadingLogo ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-theme-primary" />
-                        <span>Fazendo upload...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 text-theme-primary" />
-                        <span>Fazer Upload da Logo Circular (PNG, JPG, SVG)</span>
-                      </>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button 
+                      type="button"
+                      disabled={isUploadingLogo}
+                      onClick={() => logoFileInputRef.current?.click()}
+                      className="text-xs font-bold text-blue-600 border border-blue-200 bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
+                    >
+                      {isUploadingLogo ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Fazendo upload...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={14} />
+                          <span>Alterar Imagem</span>
+                        </>
+                      )}
+                    </button>
+
+                    {formData.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, logoUrl: '' })}
+                        className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                        title="Remover logo"
+                      >
+                        <Trash2 size={14} />
+                        <span>Remover</span>
+                      </button>
                     )}
-                  </button>
-                  <span className="text-[11px] text-slate-400 font-medium">ou cole o link:</span>
+                  </div>
+
+                  <div className="relative flex items-center">
+                    <Link2 className="w-3.5 h-3.5 text-gray-400 absolute left-3 pointer-events-none" />
+                    <input
+                      type="url"
+                      value={formData.logoUrl}
+                      onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                      placeholder="Ou cole a URL direta da imagem (ex: https://...)"
+                      className="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 placeholder:text-gray-400 font-mono"
+                    />
+                  </div>
+
+                  {logoUploadError && (
+                    <p className="text-[11px] text-rose-600 font-semibold">{logoUploadError}</p>
+                  )}
+
+                  <label className="flex items-center gap-2 pt-1 text-xs text-gray-700 font-medium cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={Boolean(formData.onlyLogo)}
+                      onChange={(e) => setFormData({ ...formData, onlyLogo: e.target.checked })}
+                      className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+                    />
+                    <span>Ocultar nome em texto no topo (exibir apenas a logo circular)</span>
+                  </label>
                 </div>
-
-                {/* Direct Link Input */}
-                <div className="relative flex items-center">
-                  <Link2 className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
-                  <input
-                    type="url"
-                    value={formData.logoUrl}
-                    onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                    placeholder="https://exemplo.com/imagens/minha-logo-circular.png"
-                    className="w-full text-xs pl-9 pr-3.5 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800 placeholder:text-slate-400 font-mono"
-                  />
-                </div>
-
-                {logoUploadError && (
-                  <p className="text-[11px] text-rose-600 font-semibold">{logoUploadError}</p>
-                )}
-
-                <p className="text-[10.5px] text-slate-400 leading-tight">
-                  💡 O nome da loja é individual da foto da logo. Você pode personalizar o nome da loja e o subtítulo separadamente nos campos abaixo, enquanto a sua foto da logo circular é exibida ao lado.
-                </p>
-
-                {/* Opção para exibir apenas a logo circular no cabeçalho */}
-                <label className="flex items-center gap-2 cursor-pointer pt-1">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formData.onlyLogo)}
-                    onChange={(e) => setFormData({ ...formData, onlyLogo: e.target.checked })}
-                    className="w-4 h-4 text-theme-primary rounded border-slate-300 focus:ring-theme-primary cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-slate-700">
-                    Exibir apenas a logo circular no topo da loja (ocultar nome em texto)
-                  </span>
-                </label>
               </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Nome da Loja *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.storeName}
-                onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Instagram
-              </label>
-              <div className="relative flex items-center">
-                <Instagram className="w-4 h-4 text-slate-400 absolute left-3.5" />
-                <input
-                  type="text"
-                  value={formData.instagram}
-                  onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                  placeholder="@ajpstore"
-                  className="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
+              {/* Inputs Limpos */}
+              <div className="space-y-4 pt-2">
+                <InputField 
+                  label="Nome da Loja *" 
+                  value={formData.storeName} 
+                  onChange={(val) => setFormData({ ...formData, storeName: val })}
+                  required 
+                  placeholder="Ex: AJPSTORE"
+                />
+                <InputField 
+                  label="Slogan / Subtítulo" 
+                  value={formData.slogan} 
+                  onChange={(val) => setFormData({ ...formData, slogan: val })}
+                  placeholder="Ex: Site em Minutos"
+                />
+                <InputField 
+                  label="Usuário do Instagram" 
+                  value={formData.instagram} 
+                  onChange={(val) => setFormData({ ...formData, instagram: val })}
+                  prefix="@" 
+                  placeholder="suamarcaaqui"
                 />
               </div>
             </div>
           </div>
+        )}
 
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Slogan / Subtítulo
-            </label>
-            <input
-              type="text"
-              value={formData.slogan}
-              onChange={(e) => setFormData({ ...formData, slogan: e.target.value })}
-              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
-            />
-          </div>
-        </div>
+        {/* ABA 2: ATENDIMENTO */}
+        {activeTab === 'atendimento' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">WhatsApp & Contato</h2>
+              <div className="space-y-4">
+                <InputField 
+                  label="Número do WhatsApp (com DDI e DDD) *" 
+                  value={formData.whatsappNumber} 
+                  onChange={(val) => setFormData({ ...formData, whatsappNumber: val })}
+                  required
+                  placeholder="5521974975884"
+                  helperText="Formato numérico internacional sem espaços (ex: 5521974975884)"
+                />
 
-        {/* 3. Atendimento e Localização */}
-        <div className="space-y-4 pt-2 border-t border-slate-100">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Endereço & Atendimento
-          </h3>
+                <InputField 
+                  label="Texto de Exibição do Telefone *" 
+                  value={formData.whatsappDisplay} 
+                  onChange={(val) => setFormData({ ...formData, whatsappDisplay: val })}
+                  required
+                  placeholder="(21) 97497-5884"
+                  helperText="Como o telefone será exibido no rodapé e botões de contato"
+                />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Endereço do Ateliê (para retirada)
-              </label>
-              <input
-                type="text"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
-              />
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Mensagem Padrão do WhatsApp (opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.whatsappDefaultMessage}
+                    onChange={(e) => setFormData({ ...formData, whatsappDefaultMessage: e.target.value })}
+                    placeholder="Ex: Olá! Gostaria de tirar uma dúvida sobre os produtos da loja."
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-800 placeholder:text-gray-400"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Mensagem pré-preenchida quando o cliente clica no botão de atendimento no WhatsApp
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <InputField 
+                    label="Endereço do Ateliê / Retirada" 
+                    value={formData.address} 
+                    onChange={(val) => setFormData({ ...formData, address: val })}
+                    placeholder="Ex: Rua das Flores, 123 - Centro"
+                    helperText="Exibido nas informações de contato e rodapé"
+                  />
+
+                  <InputField 
+                    label="Horário de Funcionamento" 
+                    value={formData.workingHours} 
+                    onChange={(val) => setFormData({ ...formData, workingHours: val })}
+                    placeholder="Ex: SEMPRE ABERTO ou Seg a Sex 09h às 18h"
+                    helperText="Disponibilidade para atendimento ou entregas"
+                  />
+                </div>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Horário de Funcionamento
-              </label>
-              <input
-                type="text"
-                value={formData.workingHours}
-                onChange={(e) => setFormData({ ...formData, workingHours: e.target.value })}
-                className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-theme-primary"
-              />
-            </div>
           </div>
-        </div>
+        )}
 
-        {/* 3.1 Destaques & Benefícios do Rodapé (Cards Informativos) */}
-        <div className="space-y-4 pt-2 border-t border-slate-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-theme-primary" />
-                <span>Destaques & Benefícios do Rodapé (Cards Informativos)</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Personalize os 4 botões com ícones, títulos e textos que aparecem no rodapé da sua loja
-              </p>
-            </div>
+        {/* ABA 3: RODAPÉ */}
+        {activeTab === 'rodape' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+              <div>
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <LayoutTemplate size={18} className="text-blue-600" />
+                  <span>Destaques & Benefícios do Rodapé</span>
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Personalize os 4 cards informativos com ícones, títulos e textos que aparecem no rodapé da sua loja
+                </p>
+              </div>
 
-            {onNavigateToLayout && (
-              <button
-                type="button"
-                onClick={onNavigateToLayout}
-                className="px-3 py-1.5 bg-theme-light hover:bg-theme-light/80 text-theme-primary text-xs font-bold rounded-xl border border-theme-primary/30 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-              >
-                <Palette className="w-3.5 h-3.5" />
-                <span>Abrir na Aba Botões e Layout</span>
-              </button>
-            )}
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(formData.benefitCards && formData.benefitCards.length > 0 ? formData.benefitCards : DEFAULT_BENEFIT_CARDS).map((card, idx) => {
+                  const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
+                  const IconComponent = selectedIconObj.icon;
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(formData.benefitCards && formData.benefitCards.length > 0 ? formData.benefitCards : DEFAULT_BENEFIT_CARDS).map((card, idx) => {
-              const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
-              const IconComponent = selectedIconObj.icon;
+                  return (
+                    <div key={card.id || idx} className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200/80 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">
+                            {idx + 1}
+                          </span>
+                          Card {idx + 1}
+                        </span>
 
-              return (
-                <div key={card.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-theme-primary/10 text-theme-primary flex items-center justify-center text-[10px] font-bold">
-                        {idx + 1}
-                      </span>
-                      Botão / Card {idx + 1}
-                    </span>
-                    {/* Mini visualizador em tempo real */}
-                    <div className="flex items-center gap-2 px-2.5 py-1 bg-zinc-900 rounded-xl text-white text-xs border border-zinc-800">
-                      <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
-                      <span className="truncate max-w-[120px] font-medium text-[11px]">{card.title || `Card ${idx + 1}`}</span>
+                        {/* Preview Badge */}
+                        <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-900 rounded-xl text-white text-xs border border-gray-800">
+                          <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
+                          <span className="truncate max-w-[120px] font-medium text-[11px]">{card.title || `Card ${idx + 1}`}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Ícone
+                          </label>
+                          <select
+                            value={card.icon}
+                            onChange={(e) => handleBenefitCardChange(idx, 'icon', e.target.value)}
+                            className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 font-medium"
+                          >
+                            {AVAILABLE_BENEFIT_ICONS.map((item) => (
+                              <option key={item.value} value={item.value}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Título Principal *
+                          </label>
+                          <input
+                            type="text"
+                            value={card.title}
+                            onChange={(e) => handleBenefitCardChange(idx, 'title', e.target.value)}
+                            placeholder="Ex: Arquivos Digitais"
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Subtítulo / Descrição
+                          </label>
+                          <input
+                            type="text"
+                            value={card.description}
+                            onChange={(e) => handleBenefitCardChange(idx, 'description', e.target.value)}
+                            placeholder={idx === 3 ? "Ex: SeuWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                          />
+                        </div>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Atalhos Rápidos para Botões & Layout e Api & Dominio */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-white rounded-2xl border border-gray-200 flex flex-col justify-between gap-3 shadow-2xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-pink-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Palette className="w-4 h-4 text-white" />
                   </div>
-
-                  <div className="space-y-2.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Ícone
-                      </label>
-                      <select
-                        value={card.icon}
-                        onChange={(e) => handleBenefitCardChange(idx, 'icon', e.target.value)}
-                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800 font-medium"
-                      >
-                        {AVAILABLE_BENEFIT_ICONS.map((item) => (
-                          <option key={item.value} value={item.value}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Título Principal *
-                      </label>
-                      <input
-                        type="text"
-                        value={card.title}
-                        onChange={(e) => handleBenefitCardChange(idx, 'title', e.target.value)}
-                        placeholder="Ex: Arquivos Digitais"
-                        className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Subtítulo / Descrição
-                      </label>
-                      <input
-                        type="text"
-                        value={card.description}
-                        onChange={(e) => handleBenefitCardChange(idx, 'description', e.target.value)}
-                        placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
-                        className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-theme-primary text-slate-800"
-                      />
-                      {idx === 3 && (
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          💡 Dica: Se preencher com "SeuWhatsAppWhatsApp" ou deixar em branco, será exibido automaticamente o WhatsApp cadastrado acima.
-                        </p>
-                      )}
-                    </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                      <span>Layout & Cores da Loja</span>
+                      <span className="text-[10px] bg-pink-50 text-pink-600 font-bold px-2 py-0.5 rounded-full border border-pink-200">
+                        Aba Exclusiva
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Escolha o modelo de vitrine e paleta de cores oficial na aba <strong>Layout e Cores</strong>.
+                    </p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Atalhos Rápidos para Botões & Layout e Api & Dominio */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-gradient-to-r from-pink-50/70 via-purple-50/40 to-pink-50/30 rounded-3xl border border-pink-200/80 flex flex-col justify-between gap-3 shadow-xs">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-theme-primary text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Palette className="w-4 h-4 text-white" />
+                {onNavigateToLayout && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToLayout}
+                    className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <Palette className="w-3.5 h-3.5 text-white" />
+                    <span>Acessar Layout e Cores</span>
+                  </button>
+                )}
               </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <span>Layout & Cores da Loja</span>
-                  <span className="text-[10px] bg-theme-light text-theme-primary font-bold px-2 py-0.5 rounded-full border border-theme-primary/30">
-                    Aba Exclusiva
-                  </span>
-                </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Escolha o modelo de layout (Clássico, Moderno, Minimalista, Grid em Destaque) e a paleta de cores na aba <strong>Layout e Cores</strong>.
-                </p>
-              </div>
-            </div>
 
-            {onNavigateToLayout && (
-              <button
-                type="button"
-                onClick={onNavigateToLayout}
-                className="w-full py-2 bg-black hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-              >
-                <Palette className="w-3.5 h-3.5 text-white" />
-                <span>Acessar Layout e Cores</span>
-              </button>
-            )}
-          </div>
+              <div className="p-4 bg-white rounded-2xl border border-gray-200 flex flex-col justify-between gap-3 shadow-2xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                      <span>Domínio Próprio & APIs</span>
+                      <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full border border-blue-200">
+                        Aba Exclusiva
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Apontamento DNS (www), Mercado Pago e Telegram configurados na aba <strong>Api e Dominio</strong>.
+                    </p>
+                  </div>
+                </div>
 
-          <div className="p-4 bg-gradient-to-r from-sky-50 via-indigo-50/40 to-blue-50/30 rounded-3xl border border-sky-200/80 flex flex-col justify-between gap-3 shadow-xs">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Globe className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <span>Domínio Próprio & APIs</span>
-                  <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-300">
-                    Aba Exclusiva
-                  </span>
-                </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Apontamento DNS (www), Mercado Pago e Telegram Bot configurados na aba <strong>Api e Dominio</strong>.
-                </p>
+                {onNavigateToApiDomain && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToApiDomain}
+                    className="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-white" />
+                    <span>Acessar Api e Dominio</span>
+                  </button>
+                )}
               </div>
             </div>
-
-            {onNavigateToApiDomain && (
-              <button
-                type="button"
-                onClick={onNavigateToApiDomain}
-                className="w-full py-2 bg-black hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-              >
-                <Globe className="w-3.5 h-3.5 text-white" />
-                <span>Acessar Api e Dominio</span>
-              </button>
-            )}
           </div>
-        </div>
+        )}
 
-        {/* Save Button */}
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+        {/* BARRA INFERIOR DE AÇÕES */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => setIsResetModalOpen(true)}
-            className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1.5"
+            className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1.5 cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" />
             <span>Restaurar Dados Originais de Fábrica</span>
           </button>
 
           <button
             type="submit"
-            className="px-6 py-3 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center gap-2 active:scale-98 transition-all"
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
           >
-            <Save className="w-4 h-4 text-white" />
-            <span>Salvar Configurações</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 text-white" />
+                <span>Salvar Configurações</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -892,3 +950,6 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
     </div>
   );
 };
+
+export default StoreSettingsManager;
+

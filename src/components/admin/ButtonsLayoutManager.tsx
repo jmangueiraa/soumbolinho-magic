@@ -26,7 +26,9 @@ import {
   FileArchive,
   ShoppingBasket,
   Users,
-  Laptop
+  Laptop,
+  LayoutTemplate,
+  X
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -72,6 +74,9 @@ const AVAILABLE_FEATURE_ICONS = [
 export const ButtonsLayoutManager: React.FC = () => {
   const { storeConfig, updateStoreConfig, showNotification } = useStoreData();
   const { currentStore, updateCurrentStore, refreshTenant } = useTenant();
+
+  const [activeTab, setActiveTab] = useState<'aparencia' | 'botoes' | 'whatsapp'>('aparencia');
+  const [showPreview, setShowPreview] = useState<boolean>(false);
 
   const getInitialLayout = (): ThemeLayoutType => {
     const dbLayout = 
