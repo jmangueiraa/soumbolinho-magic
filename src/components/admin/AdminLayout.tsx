@@ -51,12 +51,53 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
     expiresAt, 
     monthlyFee 
   } = useTenant();
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+      if (hash === 'pedidos' || hash === 'orders') return 'orders';
+      if (hash === 'produtos' || hash === 'products') return 'products';
+      if (hash === 'cupons' || hash === 'coupons') return 'coupons';
+      if (hash === 'configuracoes' || hash === 'settings') return 'settings';
+      if (hash === 'layout') return 'layout';
+      if (hash === 'api' || hash === 'api-domain' || hash === 'dominio') return 'api-domain';
+      if (hash === 'categorias' || hash === 'categories') return 'categories';
+      if (hash === 'banners') return 'banners';
+    }
+    return 'dashboard';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isBaseStore = 
     currentStore?.slug === 'suamarcaaqui' || 
     currentStore?.id === 'suamarcaaqui' || 
     currentStore?.id === 'store_default';
+
+  // Sincroniza abas com mudança de hash na URL
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+      if (hash === 'pedidos' || hash === 'orders') {
+        setActiveTab('orders');
+      } else if (hash === 'produtos' || hash === 'products') {
+        setActiveTab('products');
+      } else if (hash === 'cupons' || hash === 'coupons') {
+        setActiveTab('coupons');
+      } else if (hash === 'configuracoes' || hash === 'settings') {
+        setActiveTab('settings');
+      } else if (hash === 'layout') {
+        setActiveTab('layout');
+      } else if (hash === 'api' || hash === 'api-domain' || hash === 'dominio') {
+        setActiveTab('api-domain');
+      } else if (hash === 'categorias' || hash === 'categories') {
+        setActiveTab('categories');
+      } else if (hash === 'banners') {
+        setActiveTab('banners');
+      } else if (hash === 'dashboard' || hash === 'metricas') {
+        setActiveTab('dashboard');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   const navGroups = [
     {
@@ -76,7 +117,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
     {
       title: 'Vendas & Operação',
       items: [
-        { id: 'orders' as AdminTab, label: 'Pedidos', icon: ShoppingBag },
+        { id: 'orders' as AdminTab, label: 'Pedidos', icon: ShoppingBag, isNew: true },
         { id: 'coupons' as AdminTab, label: 'Cupons & Promoções', icon: Ticket },
       ],
     },
@@ -275,6 +316,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
                         key={item.id}
                         onClick={() => {
                           setActiveTab(item.id);
+                          window.location.hash = item.id;
                           setIsMobileMenuOpen(false);
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-left ${
@@ -287,6 +329,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
                           <Icon className={`w-4 h-4 ${isActive ? 'text-theme-primary' : 'text-slate-500'}`} />
                           <span>{item.label}</span>
                         </div>
+                        {'isNew' in item && item.isNew && (
+                          <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-md uppercase tracking-wider ${
+                            isActive ? 'bg-theme-primary text-white' : 'bg-pink-100 text-pink-700'
+                          }`}>
+                            Novo
+                          </span>
+                        )}
                         {'isLive' in item && item.isLive && (
                           <span className="flex items-center gap-1 text-[10px] font-bold">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -361,7 +410,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
           {/* Main Admin Content Area */}
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             {activeTab === 'dashboard' && (
-              <MetricsDashboard storeId={currentStore?.id} onNavigateToProducts={() => setActiveTab('products')} />
+              <MetricsDashboard 
+                storeId={currentStore?.id} 
+                onNavigateToProducts={() => {
+                  setActiveTab('products');
+                  window.location.hash = 'products';
+                }} 
+                onNavigateToOrders={() => {
+                  setActiveTab('orders');
+                  window.location.hash = 'orders';
+                }}
+              />
             )}
             {activeTab === 'products' && <ProductsManager />}
             {activeTab === 'categories' && <CategoriesManager />}
