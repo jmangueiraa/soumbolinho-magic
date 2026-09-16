@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 // Inicializa cliente do Supabase para atualização segura no backend
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://whukogevqguzptqpsjfw.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://mbwxubnwaeywstnmlrqg.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id3h1Ym53YWV5d3N0bm1scnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyODAwNDEsImV4cCI6MjEwMzg1NjA0MX0.gGa7ZDgiDuN_NNiNK7i7nHEVtaBQ8nEuOPSz0eIn4D4';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface ShippingPerson {
@@ -78,11 +78,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'order_id é obrigatório.' });
     }
 
-    const cleanToken = String(melhor_envio_token || '').trim();
+    const cleanToken = String(melhor_envio_token || process.env.MELHOR_ENVIO_TOKEN || '').trim();
     if (!cleanToken) {
       return res.status(400).json({
         success: false,
-        error: 'Token da API do Melhor Envio não informado. Configure em API e Domínio no painel.',
+        error: 'Token da API do Melhor Envio não informado. Configure seu token na aba "API e Domínio" no painel.',
       });
     }
 

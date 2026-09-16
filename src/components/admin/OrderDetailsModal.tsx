@@ -56,6 +56,8 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [isGeneratingLabel, setIsGeneratingLabel] = useState(false);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [labelSuccess, setLabelSuccess] = useState<string | null>(null);
+  const [inlineToken, setInlineToken] = useState('');
+  const [showTokenInput, setShowTokenInput] = useState(false);
 
   // CPF / Documento editável caso precise para emissão
   const [customerDoc, setCustomerDoc] = useState(order.customer_document || '');
