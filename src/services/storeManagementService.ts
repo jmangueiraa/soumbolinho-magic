@@ -328,13 +328,6 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
   try {
     console.log('[storeManagementService] 📋 Buscando lista de lojas no Supabase...');
     
-    // Garante que a loja mensal Editáveis do Canva esteja cadastrada e configurada no Supabase
-    try {
-      await ensureEditaveisMonthlyStoreExists();
-    } catch (e) {
-      console.warn('[storeManagementService] Aviso ao executar ensureEditaveisMonthlyStoreExists:', e);
-    }
-
     const { data: stores, error } = await supabase
       .from('stores')
       .select('*')
@@ -345,26 +338,21 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
       return { data: [], error: error.message };
     }
 
-    let allStores = stores ? [...stores] : [];
-
-    // Se a consulta no banco não trouxe Editáveis do Canva, inclui no array
-    const hasEditaveis = allStores.some((s) => {
+    // Filtra e remove estritamente a loja store_editaveisdocanva / editaveisdocanva da interface
+    let allStores = (stores ? [...stores] : []).filter((s) => {
       const sSlug = (s.slug || '').toLowerCase();
       const sId = (s.id || '').toLowerCase();
       const sDomain = (s.custom_domain || '').toLowerCase();
       const sName = (s.name || s.store_name || '').toLowerCase();
-      return (
-        sSlug === 'editaveisdocanva' ||
+      const isBlocked =
         sId === 'store_editaveisdocanva' ||
-        sDomain.includes('editaveisdocanva.com.br') ||
+        sSlug === 'editaveisdocanva' ||
+        sSlug === 'editaveis-do-canva' ||
+        sDomain.includes('editaveisdocanva') ||
         sName.includes('editáveis do canva') ||
-        sName.includes('editaveis do canva')
-      );
+        sName.includes('editaveis do canva');
+      return !isBlocked;
     });
-
-    if (!hasEditaveis) {
-      allStores.push(EDITAVEIS_MONTHLY_STORE_DATA as any);
-    }
 
     // Busca contagem de produtos por loja
     const { data: productsData } = await supabase

@@ -58,9 +58,8 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     ''
   ).trim();
 
-  // Se o contexto for AJPSTORE e a logo apontar para caminhos padrão/antigos, prioriza a logo oficial em Base64
-  const isAjpDefaultPath = isAjpStore && (!rawLogo || rawLogo.includes('ajpstore-logo') || rawLogo.includes('logo.jpg') || rawLogo.includes('logo.png'));
-  const customLogoUrl = isAjpDefaultPath ? AJP_OFFICIAL_LOGO_BASE64 : (rawLogo || (isAjpStore ? AJP_OFFICIAL_LOGO_BASE64 : ''));
+  // Para a AJPSTORE, a logo oficial em Base64 é usada DIRETAMENTE e incondicionalmente, sem depender de configuração no admin
+  const customLogoUrl = isAjpStore ? AJP_OFFICIAL_LOGO_BASE64 : (rawLogo || AJP_OFFICIAL_LOGO_BASE64);
 
   // Nome da loja
   const rawName = propStoreName !== undefined

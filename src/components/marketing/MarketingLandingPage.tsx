@@ -34,7 +34,7 @@ import { supabase } from '../../lib/supabase';
 import { useNavigate } from '../../lib/router';
 import { cloneStoreTemplate } from '../../services/storeCloneService';
 import { slugify } from '../../utils/slug';
-import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
+import { AJP_OFFICIAL_LOGO_BASE64 } from '../../assets/officialLogo';
 
 export const MarketingLandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -343,10 +343,25 @@ export const MarketingLandingPage: React.FC = () => {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-950/85 border-b border-slate-800/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
-          {/* Logo Oficial AJPSTORE */}
+          {/* Logo Oficial AJPSTORE Direta (sem depender de config no admin) */}
           <div className="flex items-center gap-3">
-            <a href="/" className="flex items-center gap-3 group focus:outline-none">
-              <SoumbolinhoLogo variant="light" size="md" />
+            <a href="/" className="flex items-center gap-3 group focus:outline-none select-none">
+              <div className="w-11 h-11 sm:w-13 sm:h-13 aspect-square rounded-full overflow-hidden shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 flex items-center justify-center p-0.5">
+                <img
+                  src={AJP_OFFICIAL_LOGO_BASE64}
+                  alt="AJPSTORE"
+                  className="w-full h-full object-contain drop-shadow-sm"
+                />
+              </div>
+              <div className="flex flex-col text-left leading-none min-w-0">
+                <div className="flex items-center tracking-tight text-lg sm:text-xl md:text-2xl font-black">
+                  <span className="text-[#0062FF]">AJP</span>
+                  <span className="text-[#00C853] ml-0.5">STORE</span>
+                </div>
+                <span className="text-[8px] sm:text-[9.5px] md:text-[11px] font-bold text-emerald-400 tracking-wider uppercase mt-1">
+                  Sua Loja Online em Minutos
+                </span>
+              </div>
             </a>
           </div>
 
@@ -1554,9 +1569,21 @@ export const MarketingLandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-900">
             
-            <div className="flex flex-col items-center md:items-start gap-1">
-              <SoumbolinhoLogo variant="light" size="sm" />
-              <p className="text-[11px] text-slate-400 mt-1">
+            <div className="flex flex-col items-center md:items-start gap-2">
+              <a href="/" className="flex items-center gap-2.5 group select-none">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 aspect-square rounded-full overflow-hidden shrink-0 border border-white/40 ring-2 ring-emerald-500/60 shadow-md bg-white flex items-center justify-center p-0.5">
+                  <img
+                    src={AJP_OFFICIAL_LOGO_BASE64}
+                    alt="AJPSTORE"
+                    className="w-full h-full object-contain drop-shadow-sm"
+                  />
+                </div>
+                <div className="flex items-center tracking-tight text-base sm:text-lg font-black">
+                  <span className="text-[#0062FF]">AJP</span>
+                  <span className="text-[#00C853] ml-0.5">STORE</span>
+                </div>
+              </a>
+              <p className="text-[11px] text-slate-400">
                 Plataforma de lojas virtuais e páginas de vendas.
               </p>
             </div>

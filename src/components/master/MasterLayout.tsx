@@ -55,7 +55,22 @@ export const MasterLayout: React.FC = () => {
         setLoadError(error);
       }
       if (data) {
-        setStores(data);
+        // Regra de filtro estrita para remover completamente a loja store_editaveisdocanva da interface
+        const activeStores = data.filter((s) => {
+          const id = (s?.id || '').toLowerCase();
+          const slug = (s?.slug || '').toLowerCase();
+          const domain = (s?.custom_domain || '').toLowerCase();
+          const name = (s?.name || s?.store_name || '').toLowerCase();
+          return (
+            id !== 'store_editaveisdocanva' &&
+            slug !== 'editaveisdocanva' &&
+            slug !== 'editaveis-do-canva' &&
+            !domain.includes('editaveisdocanva') &&
+            !name.includes('editáveis do canva') &&
+            !name.includes('editaveis do canva')
+          );
+        });
+        setStores(activeStores);
       }
     } catch (err: any) {
       console.error('Erro ao listar lojas:', err);
@@ -89,9 +104,23 @@ export const MasterLayout: React.FC = () => {
     );
   }
 
-  // Estatísticas de Assinatura e Lojas (exclui a loja matriz vitalícia AJPSTORE)
+  // Estatísticas de Assinatura e Lojas (exclui a loja matriz vitalícia AJPSTORE e a loja bloqueada editaveisdocanva)
   const isBase = (s: Store) => Boolean(s && (s.is_matriz || s.slug === 'ajpstore' || s.id === 'store_ajpstore' || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'));
-  const safeStores = Array.isArray(stores) ? stores.filter(Boolean) : [];
+  const isBlocked = (s: Store) => {
+    const id = (s?.id || '').toLowerCase();
+    const slug = (s?.slug || '').toLowerCase();
+    const domain = (s?.custom_domain || '').toLowerCase();
+    const name = (s?.name || s?.store_name || '').toLowerCase();
+    return (
+      id === 'store_editaveisdocanva' ||
+      slug === 'editaveisdocanva' ||
+      slug === 'editaveis-do-canva' ||
+      domain.includes('editaveisdocanva') ||
+      name.includes('editáveis do canva') ||
+      name.includes('editaveis do canva')
+    );
+  };
+  const safeStores = (Array.isArray(stores) ? stores.filter(Boolean) : []).filter((s) => !isBlocked(s));
   const totalStores = safeStores.length;
   const trialStores = safeStores.filter((s) => (s.subscription_status === 'trial' || s.isTrial) && !s.isExpired && !isBase(s)).length;
   const activeSubscriptionStores = safeStores.filter((s) => s.subscription_status === 'active' && !s.isExpired && !isBase(s)).length;
@@ -259,7 +288,7 @@ export const MasterLayout: React.FC = () => {
           )}
 
           <StoresList
-            stores={stores}
+            stores={safeStores}
             isLoading={isLoading}
             onRefresh={loadStores}
             onOpenDns={(store) => setSelectedDnsStore(store)}
@@ -276,7 +305,7 @@ export const MasterLayout: React.FC = () => {
       {/* Modals */}
       <CreateStoreModal
         isOpen={isCreateModalOpen}
-        stores={stores}
+        stores={safeStores}
         onClose={() => setIsCreateModalOpen(false)}
         onStoreCreated={(newStore) => {
           loadStores();

@@ -151,7 +151,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {(currentStore?.id === 'suamarcaaqui' || currentStore?.id === 'store_default' || storeConfig.logoUrl || currentStore?.logo_url) ? (
+            {(currentStore?.slug === 'ajpstore' || currentStore?.id === 'store_ajpstore' || currentStore?.id === 'suamarcaaqui' || currentStore?.id === 'store_default' || storeConfig.logoUrl || currentStore?.logo_url || !currentStore) ? (
               <SoumbolinhoLogo variant="dark" size="sm" />
             ) : (
               <div className="font-festive font-black text-lg text-slate-900 flex items-center gap-2">
