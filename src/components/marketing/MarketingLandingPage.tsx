@@ -285,7 +285,7 @@ export const MarketingLandingPage: React.FC = () => {
       let currentPayload = { ...storePayload };
       let insertedStore = null;
 
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 25; attempt++) {
         const res = await supabase
           .from('stores')
           .insert([currentPayload])
@@ -303,10 +303,12 @@ export const MarketingLandingPage: React.FC = () => {
         // Se o erro for de coluna inexistente no schema cache do Supabase, remove e tenta novamente
         const colMatch =
           res.error.message?.match(/Could not find the '([^']+)' column/i) ||
+          res.error.message?.match(/Could not find the "([^"]+)" column/i) ||
           res.error.message?.match(/column "([^"]+)" of relation "stores" does not exist/i) ||
-          res.error.message?.match(/column "([^"]+)" does not exist/i);
+          res.error.message?.match(/column "([^"]+)" does not exist/i) ||
+          res.error.message?.match(/column '([^']+)' does not exist/i);
 
-        if (colMatch && colMatch[1]) {
+        if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
           console.log(`[Cadastro Loja] Coluna '${colMatch[1]}' não existe em stores. Removendo do payload...`);
           delete currentPayload[colMatch[1]];
           continue;

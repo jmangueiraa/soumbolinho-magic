@@ -699,8 +699,8 @@ export async function createStoreWithClient(
     let storeError: any = null;
 
     // Tenta inserir o payload completo. Se alguma coluna não existir na tabela stores do banco,
-    // remove apenas a coluna específica não encontrada e tenta novamente dinamicamente.
-    for (let attempt = 0; attempt < 8; attempt++) {
+    // salva o valor dentro de theme_settings para não perder a informação e tenta novamente.
+    for (let attempt = 0; attempt < 25; attempt++) {
       const res = await supabase
         .from('stores')
         .insert([currentPayload])
@@ -719,11 +719,21 @@ export async function createStoreWithClient(
       // Detecta se o erro foi coluna ausente no cache de schema do Supabase ou banco
       const colMatch = 
         res.error.message?.match(/Could not find the '([^']+)' column/i) ||
+        res.error.message?.match(/Could not find the "([^"]+)" column/i) ||
         res.error.message?.match(/column "([^"]+)" of relation "stores" does not exist/i) ||
-        res.error.message?.match(/column "([^"]+)" does not exist/i);
-      if (colMatch && colMatch[1]) {
+        res.error.message?.match(/column "([^"]+)" does not exist/i) ||
+        res.error.message?.match(/column '([^']+)' does not exist/i);
+
+      if (colMatch && colMatch[1] && colMatch[1] !== 'theme_settings') {
         const missingCol = colMatch[1];
-        console.warn(`[storeManagementService] Coluna "${missingCol}" ausente em stores, adaptando payload...`);
+        console.warn(`[storeManagementService] Coluna "${missingCol}" ausente em stores, movendo para theme_settings...`);
+        // Preserva o valor no objeto JSON theme_settings para não perder o dado
+        if (currentPayload[missingCol] !== undefined && currentPayload[missingCol] !== null) {
+          currentPayload.theme_settings = {
+            ...(currentPayload.theme_settings || {}),
+            [missingCol]: currentPayload[missingCol]
+          };
+        }
         delete currentPayload[missingCol];
         continue;
       }

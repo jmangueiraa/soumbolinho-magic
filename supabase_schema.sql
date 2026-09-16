@@ -49,13 +49,30 @@ ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS working_hours TEXT DEFAULT 'S
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS mp_access_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_api_provider TEXT DEFAULT 'evolution';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_api_url TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_api_token TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_notify_phone TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS is_matriz BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS layout_style TEXT DEFAULT 'classic';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS theme_layout TEXT DEFAULT 'classic';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#FF1493';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS secondary_color TEXT DEFAULT '#00a8e8';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS color_palette TEXT DEFAULT 'pink_pastel';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT '/ajpstore-logo.png';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS only_logo BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS onlyLogo BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS banner_url TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS banner_desktop TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS banner_mobile TEXT;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS banners_config JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS buttons_config JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS benefit_cards JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS store_features JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS main_cta_text TEXT DEFAULT 'Toda loja com Download imediato!';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS main_cta_link TEXT DEFAULT '';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS client_phone TEXT;
 
 -- Garantir que colunas não causem erro de NOT NULL caso a tabela já existisse
 ALTER TABLE public.stores ALTER COLUMN admin_password DROP NOT NULL;
