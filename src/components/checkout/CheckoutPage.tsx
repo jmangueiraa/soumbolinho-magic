@@ -388,6 +388,15 @@ export const CheckoutPage: React.FC = () => {
         shippingCost,
         shippingMethod: selectedShipping?.name,
         deliveryAddress: formattedAddress,
+        shippingAddressData: shippingAddress ? {
+          cep: shippingAddress.cep,
+          street: shippingAddress.street,
+          number: addressNumber || 'S/N',
+          complement: addressComplement || '',
+          neighborhood: shippingAddress.neighborhood,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+        } : undefined,
         paymentId: generatedOrderId,
         status: 'pending',
       });

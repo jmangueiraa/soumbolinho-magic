@@ -14,7 +14,8 @@ import {
   TrendingUp,
   Ticket,
   Menu,
-  X
+  X,
+  ShoppingBag
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -26,12 +27,13 @@ import { BannersManager } from './BannersManager';
 import { ButtonsLayoutManager } from './ButtonsLayoutManager';
 import { ApiDomainManager } from './ApiDomainManager';
 import { CouponsManager } from './CouponsManager';
+import { OrdersManager } from './OrdersManager';
 import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
 import { ColorPaletteType, ThemeLayoutType } from '../../types';
 
-type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'coupons' | 'settings' | 'layout' | 'api-domain';
+type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'orders' | 'coupons' | 'settings' | 'layout' | 'api-domain';
 
 interface AdminLayoutProps {
   onBackToStore: () => void;
@@ -74,6 +76,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
     {
       title: 'Vendas & Operação',
       items: [
+        { id: 'orders' as AdminTab, label: 'Pedidos', icon: ShoppingBag },
         { id: 'coupons' as AdminTab, label: 'Cupons & Promoções', icon: Ticket },
       ],
     },
@@ -363,6 +366,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
             {activeTab === 'products' && <ProductsManager />}
             {activeTab === 'categories' && <CategoriesManager />}
             {activeTab === 'banners' && <BannersManager />}
+            {activeTab === 'orders' && <OrdersManager />}
             {activeTab === 'coupons' && <CouponsManager />}
             {activeTab === 'settings' && (
               <StoreSettingsManager 
