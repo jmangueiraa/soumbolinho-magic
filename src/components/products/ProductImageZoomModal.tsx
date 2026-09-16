@@ -293,7 +293,7 @@ export const ProductImageZoomModal: React.FC<ProductImageZoomModalProps> = ({
             <button
               type="button"
               onClick={handlePrev}
-              className="absolute left-3 sm:left-6 z-30 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-slate-900/80 hover:bg-slate-900 border border-white/20 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
+              className="absolute left-3 sm:left-6 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 border border-white/20 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
               title="Imagem anterior (Seta esquerda)"
             >
               <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -302,7 +302,7 @@ export const ProductImageZoomModal: React.FC<ProductImageZoomModalProps> = ({
             <button
               type="button"
               onClick={handleNext}
-              className="absolute right-3 sm:right-6 z-30 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-slate-900/80 hover:bg-slate-900 border border-white/20 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
+              className="absolute right-3 sm:right-6 z-30 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-900/80 hover:bg-slate-900 border border-white/20 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 cursor-pointer backdrop-blur-md"
               title="Próxima imagem (Seta direita)"
             >
               <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />

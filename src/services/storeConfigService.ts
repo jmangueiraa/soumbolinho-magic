@@ -127,7 +127,8 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           if (storeRow.telegram_chat_id) mapped.telegramChatId = storeRow.telegram_chat_id;
           else if (stTheme.telegram_chat_id) mapped.telegramChatId = stTheme.telegram_chat_id;
 
-          if (storeRow.logo_url && !mapped.logoUrl) mapped.logoUrl = storeRow.logo_url;
+          if (storeRow.logo_url) mapped.logoUrl = storeRow.logo_url;
+          else if (stTheme.logo_url && !mapped.logoUrl) mapped.logoUrl = stTheme.logo_url;
           if (storeRow.only_logo !== undefined) mapped.onlyLogo = Boolean(storeRow.only_logo);
           else if (stTheme.only_logo !== undefined) mapped.onlyLogo = Boolean(stTheme.only_logo);
           else if (storeRow.onlyLogo !== undefined) mapped.onlyLogo = Boolean(storeRow.onlyLogo);

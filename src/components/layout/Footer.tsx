@@ -26,6 +26,7 @@ import {
 } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
+import { AJP_OFFICIAL_LOGO_BASE64 } from '../../assets/officialLogo';
 import { DEFAULT_BENEFIT_CARDS } from '../../data/storeConfig';
 import type { BenefitCard } from '../../types';
 
@@ -107,6 +108,131 @@ export const Footer: React.FC = () => {
     currentStore.id !== '__resolving_tenant__'
   );
   const showCreateStoreButton = isPlatformRootHostname(currentHostname) && !isTenant && !isLojaRoute && !isClientStore;
+
+  // 1. Estado da logo da loja e flag de exibição exclusiva
+  const [storeLogoUrl, setStoreLogoUrl] = useState<string>(() => {
+    return (
+      currentStore?.logo_url ||
+      currentStore?.theme_settings?.logo_url ||
+      storeConfig?.logoUrl ||
+      ''
+    );
+  });
+
+  const [onlyLogoSetting, setOnlyLogoSetting] = useState<boolean>(() => {
+    return Boolean(
+      (currentStore as any)?.only_logo ??
+      (currentStore as any)?.onlyLogo ??
+      currentStore?.theme_settings?.only_logo ??
+      currentStore?.theme_settings?.onlyLogo ??
+      storeConfig?.onlyLogo
+    );
+  });
+
+  // 2. Buscar a URL da logo diretamente da tabela stores filtrando pelo store_id
+  useEffect(() => {
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') return;
+
+    // Sincronização inicial rápida por contexto/cache
+    const initialLogo = currentStore?.logo_url || currentStore?.theme_settings?.logo_url || storeConfig?.logoUrl;
+    if (initialLogo) setStoreLogoUrl(initialLogo);
+
+    const initialOnly = Boolean(
+      (currentStore as any)?.only_logo ??
+      (currentStore as any)?.onlyLogo ??
+      currentStore?.theme_settings?.only_logo ??
+      currentStore?.theme_settings?.onlyLogo ??
+      storeConfig?.onlyLogo
+    );
+    setOnlyLogoSetting(initialOnly);
+
+    let isSubscribed = true;
+
+    async function fetchDirectStoreLogo() {
+      try {
+        // Consulta direta na tabela stores filtrando pelo store_id
+        const { data: storeRow } = await supabase
+          .from('stores')
+          .select('id, logo_url, only_logo, theme_settings, name, store_name, slogan')
+          .eq('id', currentStoreId)
+          .maybeSingle();
+
+        if (!isSubscribed) return;
+
+        if (storeRow) {
+          const stTheme = typeof storeRow.theme_settings === 'string'
+            ? JSON.parse(storeRow.theme_settings)
+            : (storeRow.theme_settings || {});
+
+          const fetchedLogo = storeRow.logo_url || stTheme.logo_url;
+          if (fetchedLogo) {
+            setStoreLogoUrl(fetchedLogo);
+          }
+
+          const fetchedOnly = Boolean(
+            (storeRow as any).only_logo ??
+            (storeRow as any).onlyLogo ??
+            stTheme.only_logo ??
+            stTheme.onlyLogo
+          );
+          setOnlyLogoSetting(fetchedOnly);
+        } else {
+          // Fallback na tabela site_settings filtrando pelo store_id
+          const { data: siteRow } = await supabase
+            .from('site_settings')
+            .select('logo_url, only_logo')
+            .eq('store_id', currentStoreId)
+            .maybeSingle();
+
+          if (siteRow && isSubscribed) {
+            if (siteRow.logo_url) setStoreLogoUrl(siteRow.logo_url);
+            if (siteRow.only_logo !== undefined) setOnlyLogoSetting(Boolean(siteRow.only_logo));
+          }
+        }
+      } catch (err) {
+        console.warn('[Footer] Erro ao buscar logo da tabela stores:', err);
+      }
+    }
+
+    fetchDirectStoreLogo();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [currentStoreId, currentStore?.logo_url, storeConfig?.logoUrl, storeConfig?.onlyLogo]);
+
+  // Resolução final da imagem da logo do rodapé (prioriza customizada, com fallback seguro para a logo oficial AJPSTORE)
+  const finalFooterLogoUrl = (
+    storeLogoUrl ||
+    currentStore?.logo_url ||
+    currentStore?.theme_settings?.logo_url ||
+    storeConfig?.logoUrl ||
+    AJP_OFFICIAL_LOGO_BASE64
+  ).trim();
+
+  // Status do campo 'Exibir apenas a logo circular'
+  const isOnlyLogo = Boolean(
+    onlyLogoSetting || 
+    (currentStore as any)?.only_logo || 
+    (currentStore as any)?.onlyLogo || 
+    currentStore?.theme_settings?.only_logo || 
+    currentStore?.theme_settings?.onlyLogo || 
+    storeConfig?.onlyLogo
+  );
+
+  const storeDisplayName = (
+    currentStore?.name || 
+    currentStore?.store_name || 
+    storeConfig?.storeName || 
+    'AJPSTORE'
+  ).trim();
+
+  const storeDisplaySlogan = (
+    currentStore?.slogan || 
+    currentStore?.theme_settings?.slogan || 
+    storeConfig?.slogan || 
+    'Sua Loja Online em Minutos'
+  ).trim();
 
   // Leitura dos cartões de benefícios salvos no Supabase (site_settings / storeConfig)
   const [benefitCards, setBenefitCards] = useState<BenefitCard[]>(
@@ -197,11 +323,48 @@ export const Footer: React.FC = () => {
           
           {/* Brand Info */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2.5">
-              <SoumbolinhoLogo variant="light" size="md" />
+            <div className="flex items-center gap-3">
+              {/* Logo Circular do Rodapé */}
+              <div 
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 hover:scale-105 hover:ring-emerald-400"
+                style={{ maxWidth: '56px', maxHeight: '56px' }}
+              >
+                <img
+                  src={finalFooterLogoUrl}
+                  alt={storeDisplayName}
+                  onError={(e) => {
+                    e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
+                  }}
+                  className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 pointer-events-none"
+                  style={{ maxWidth: '100%', maxHeight: '100%' }}
+                />
+              </div>
+
+              {/* Nome e subtítulo da loja (oculta o nome se 'Exibir apenas a logo circular' estiver ativo) */}
+              {!isOnlyLogo && storeDisplayName && (
+                <div className="flex flex-col text-left leading-none min-w-0">
+                  <div className="flex items-center tracking-tight whitespace-nowrap">
+                    {storeDisplayName.toUpperCase() === 'AJPSTORE' ? (
+                      <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-lg md:text-xl font-black">
+                        <span className="text-[#0062FF]">AJP</span>
+                        <span className="text-[#00C853] ml-0.5">STORE</span>
+                      </div>
+                    ) : (
+                      <span className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate">
+                        {storeDisplayName}
+                      </span>
+                    )}
+                  </div>
+                  {storeDisplaySlogan && (
+                    <span className="text-[9px] sm:text-[10px] font-bold text-emerald-400 tracking-wider uppercase mt-1 truncate">
+                      {storeDisplaySlogan}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              {storeConfig.slogan || 'Sua loja de moldes, papelaria e arquivos digitais'}.
+              {storeDisplaySlogan}.
             </p>
             <div className="flex items-center gap-3 pt-2">
               {storeConfig.instagram && (

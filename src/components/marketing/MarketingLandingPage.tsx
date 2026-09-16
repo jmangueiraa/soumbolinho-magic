@@ -382,7 +382,7 @@ export const MarketingLandingPage: React.FC = () => {
           {/* Logo Oficial AJPSTORE Direta (sem depender de config no admin) */}
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-3 group focus:outline-none select-none">
-              <div className="w-11 h-11 sm:w-13 sm:h-13 aspect-square rounded-full overflow-hidden shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 flex items-center justify-center p-0.5">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 aspect-square rounded-full overflow-hidden shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 flex items-center justify-center p-0.5">
                 <img
                   src={AJP_OFFICIAL_LOGO_BASE64}
                   alt="AJPSTORE"

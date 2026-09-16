@@ -208,15 +208,22 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 
             }}
           >
-            {/* Tag <img> para renderizar a logo circular no topo da página */}
-            <div className={`${isOnlyLogo ? 'w-16 h-16 sm:w-20 md:w-24' : 'w-13 h-13 sm:w-16 md:w-18'} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 group-hover:ring-emerald-400`}>
+            {/* Tag <img> para renderizar a logo circular no topo da página de forma responsiva */}
+            <div 
+              className={`${isOnlyLogo ? 'w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16' : 'w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12'} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-3 ring-emerald-500/60 shadow-md shadow-emerald-500/20 bg-white transition-all duration-300 group-hover:scale-105 group-hover:ring-emerald-400`}
+              style={{
+                maxWidth: isOnlyLogo ? '64px' : '48px',
+                maxHeight: isOnlyLogo ? '64px' : '48px',
+              }}
+            >
               <img
                 src={finalLogoUrl}
                 alt={storeDisplayName}
                 onError={(e) => {
                   e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
                 }}
-                className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 group-hover:scale-110"
+                className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 group-hover:scale-110 pointer-events-none"
+                style={{ maxWidth: '100%', maxHeight: '100%' }}
               />
             </div>
 
@@ -225,18 +232,18 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
               <div className="flex flex-col text-left leading-none min-w-0">
                 <div className="flex items-center tracking-tight whitespace-nowrap">
                   {storeDisplayName.toUpperCase() === 'AJPSTORE' ? (
-                    <div className="flex items-center tracking-tight whitespace-nowrap text-lg sm:text-2xl md:text-3xl font-black">
+                    <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-xl md:text-2xl font-black">
                       <span className="text-[#0062FF]">AJP</span>
                       <span className="text-[#00C853] ml-0.5">STORE</span>
                     </div>
                   ) : (
-                    <span className="text-base sm:text-xl md:text-2xl font-black text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] uppercase">
+                    <span className="text-sm sm:text-lg md:text-xl font-black text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] uppercase truncate max-w-[120px] sm:max-w-[200px] md:max-w-none">
                       {storeDisplayName}
                     </span>
                   )}
                 </div>
                 {storeDisplaySlogan && (
-                  <span className="text-[9px] sm:text-[11px] font-bold text-emerald-400 tracking-wider uppercase mt-1 sm:mt-1.5 whitespace-nowrap truncate max-w-[160px] sm:max-w-[280px]">
+                  <span className="text-[8px] sm:text-[10px] md:text-[11px] font-bold text-emerald-400 tracking-wider uppercase mt-0.5 sm:mt-1 whitespace-nowrap truncate max-w-[120px] sm:max-w-[200px] md:max-w-[280px]">
                     {storeDisplaySlogan}
                   </span>
                 )}

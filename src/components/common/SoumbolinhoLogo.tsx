@@ -87,7 +87,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   const sizeClasses = {
     sm: 'w-9 h-9 sm:w-11 sm:h-11',
     md: 'w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16',
-    lg: 'w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20',
+    lg: 'w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20',
     xl: 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24',
   }[size] || 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24';
 
@@ -137,63 +137,23 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
             <img
               src={customLogoUrl}
               alt={resolvedName}
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                if (e.currentTarget.src !== AJP_OFFICIAL_LOGO_BASE64) {
+                  e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
+                } else {
+                  setImageError(true);
+                }
+              }}
               className="logo-image w-full h-full object-contain rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
             />
           </div>
-        ) : isAjpStore ? (
+        ) : (
           <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white`}>
             <img
               src={AJP_OFFICIAL_LOGO_BASE64}
               alt={resolvedName}
               className="logo-image w-full h-full object-contain rounded-full"
             />
-          </div>
-        ) : (
-          /* SVG Oficial Vetorial da Marca AJPSTORE (Sacola Azul + Foguete + Seta Verde) */
-          <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 p-1 transition-all duration-300 group-hover:ring-emerald-400 group-hover:scale-105`}>
-            <svg
-              className="w-full h-full aspect-square drop-shadow-sm"
-              viewBox="0 0 500 500"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <linearGradient id="logoRingGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-                  <stop offset="0%" stopColor="#0062FF" />
-                  <stop offset="50%" stopColor="#00A3FF" />
-                  <stop offset="100%" stopColor="#00C853" />
-                </linearGradient>
-                <linearGradient id="logoBagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#0072FF" />
-                  <stop offset="100%" stopColor="#0052D4" />
-                </linearGradient>
-              </defs>
-
-              {/* Anel Externo Degradê */}
-              <circle cx="250" cy="250" r="226" fill="none" stroke="url(#logoRingGrad)" strokeWidth="22" strokeLinecap="round" />
-
-              {/* Alça da Sacola */}
-              <path d="M195 130 C195 85, 305 85, 305 130" fill="none" stroke="url(#logoBagGrad)" strokeWidth="24" strokeLinecap="round" />
-
-              {/* Corpo da Sacola de Compras */}
-              <path d="M182 130 L145 305 C142 318 152 328 165 328 L335 328 C348 328 358 318 355 305 L318 130 C315 122 308 118 298 118 L202 118 C192 118 185 122 182 130 Z" fill="url(#logoBagGrad)" />
-
-              {/* Rastro de Fogo do Foguete (Barras Verdes) */}
-              <rect x="220" y="270" width="14" height="40" rx="7" fill="#00C853" />
-              <rect x="243" y="260" width="14" height="60" rx="7" fill="#00C853" />
-              <rect x="266" y="270" width="14" height="40" rx="7" fill="#00C853" />
-
-              {/* Foguete em Decolagem */}
-              <path d="M250 145 C260 175 272 215 272 258 L228 258 C228 215 240 175 250 145 Z" fill="#FFFFFF" />
-              <path d="M228 215 L204 258 L228 250 Z" fill="#FFFFFF" />
-              <path d="M272 215 L296 258 L272 250 Z" fill="#FFFFFF" />
-              <circle cx="250" cy="182" r="11" fill="#0062FF" />
-
-              {/* Seta Verde Curva em Órbita */}
-              <path d="M115 255 C110 300 165 315 235 285 C295 258 360 195 385 140" fill="none" stroke="#00C853" strokeWidth="22" strokeLinecap="round" />
-              <path d="M362 138 L398 130 L390 168 L376 150 Z" fill="#00C853" />
-            </svg>
           </div>
         )}
       </div>
