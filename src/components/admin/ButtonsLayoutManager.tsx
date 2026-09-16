@@ -618,94 +618,68 @@ export const ButtonsLayoutManager: React.FC = () => {
   const activePaletteObj = COLOR_PALETTES[colorPalette] || COLOR_PALETTES.pink_pastel;
   const activeLayoutObj = THEME_LAYOUTS[themeLayout] || THEME_LAYOUTS.classic;
 
+  const TabButton: React.FC<{
+    active: boolean;
+    onClick: () => void;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+  }> = ({ active, onClick, icon, children }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+        active
+          ? 'bg-purple-600 text-white shadow-sm'
+          : 'bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-200'
+      }`}
+    >
+      {icon}
+      <span>{children}</span>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen pb-24 font-sans text-gray-800">
+    <div className="min-h-screen bg-gray-50 pb-24 font-sans text-gray-800 relative">
       
       {/* CABEÇALHO */}
-      <header className="bg-white rounded-2xl p-5 mb-6 shadow-xs border border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+      <header className="bg-white px-4 py-6 border-b border-gray-200 sticky top-0 z-10 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 mb-6">
+        <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">
-            <div className="bg-purple-100 text-purple-700 p-2.5 rounded-xl shrink-0">
+            <div className="bg-purple-100 p-2 rounded-lg text-purple-700">
               <Palette size={24} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">Layout e Cores</h1>
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">Layout e Cores</h1>
               <p className="text-xs text-gray-500">Personalize a vitrine da sua loja</p>
             </div>
           </div>
-
-          {/* Botões de Ação do Topo */}
+          
+          {/* Botão de Preview e Salvar no Topo */}
           <div className="flex items-center gap-2">
-            <button
+            <button 
               type="button"
               onClick={() => setShowPreview(true)}
-              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm"
             >
-              <Eye size={16} />
-              <span>Prévia</span>
+              <Eye size={16} /> Prévia
             </button>
-
             <button
               type="button"
               onClick={() => handleSave()}
               disabled={isSaving}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm disabled:opacity-50"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Salvando...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span>Salvar</span>
-                </>
-              )}
+              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              <span>Salvar</span>
             </button>
           </div>
         </div>
 
-        {/* NAVEGAÇÃO POR ABAS (Scroll Horizontal no Mobile) */}
-        <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar gap-2 sm:gap-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab('aparencia')}
-            className={`pb-3 px-2 text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-colors relative cursor-pointer ${
-              activeTab === 'aparencia'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <LayoutTemplate size={18} />
-            Aparência
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('botoes')}
-            className={`pb-3 px-2 text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-colors relative cursor-pointer ${
-              activeTab === 'botoes'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Layers size={18} />
-            Botões e Destaques
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('whatsapp')}
-            className={`pb-3 px-2 text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-colors relative cursor-pointer ${
-              activeTab === 'whatsapp'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <MessageCircle size={18} />
-            WhatsApp
-          </button>
+        {/* NAVEGAÇÃO POR ABAS */}
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 mt-2">
+          <TabButton active={activeTab === 'aparencia'} onClick={() => setActiveTab('aparencia')} icon={<LayoutTemplate size={16}/>}>Aparência</TabButton>
+          <TabButton active={activeTab === 'botoes'} onClick={() => setActiveTab('botoes')} icon={<Layers size={16}/>}>Botões e Destaques</TabButton>
+          <TabButton active={activeTab === 'whatsapp'} onClick={() => setActiveTab('whatsapp')} icon={<MessageCircle size={16}/>}>WhatsApp</TabButton>
         </div>
       </header>
 
@@ -717,75 +691,58 @@ export const ButtonsLayoutManager: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* ABA 1: APARÊNCIA (LAYOUTS + PALETAS DE CORES) */}
-      {/* ========================================================= */}
-      {activeTab === 'aparencia' && (
-        <div className="space-y-6">
-          
-          {/* Seção 1: Modelo de Layout */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs">
-                  <LayoutTemplate size={18} />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Modelo de Layout da Vitrine</h2>
-                  <p className="text-xs text-gray-500">Escolha como os produtos, menus e categorias serão dispostos</p>
-                </div>
-              </div>
+      {/* CONTEÚDO DAS ABAS */}
+      <div className="space-y-6">
 
-              <span className="text-[11px] font-bold px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full border border-purple-200 self-start sm:self-auto">
-                Ativo: {activeLayoutObj.name}
-              </span>
-            </div>
+        {/* ========================================================= */}
+        {/* ABA 1: APARÊNCIA */}
+        {/* ========================================================= */}
+        {activeTab === 'aparencia' && (
+          <div className="space-y-6 animate-in fade-in">
+            
+            {/* Seção de Layout */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+              <h2 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider flex items-center gap-2">
+                <LayoutTemplate size={18} className="text-purple-500"/> 1. Modelo de Layout
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(Object.keys(THEME_LAYOUTS) as ThemeLayoutType[]).map((layoutKey) => {
+                  const layout = THEME_LAYOUTS[layoutKey];
+                  const isSelected = themeLayout === layoutKey;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(Object.keys(THEME_LAYOUTS) as ThemeLayoutType[]).map((layoutKey) => {
-                const layout = THEME_LAYOUTS[layoutKey];
-                const isSelected = themeLayout === layoutKey;
-
-                return (
-                  <div
-                    key={layoutKey}
-                    onClick={() => handleLayoutSelect(layoutKey)}
-                    className={`p-5 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                      isSelected
-                        ? 'border-purple-600 bg-purple-50/20 shadow-xs ring-2 ring-purple-600/10'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {layoutKey === 'classic' && <Layers className="w-4 h-4 text-gray-700" />}
-                          {layoutKey === 'modern' && <Sparkles className="w-4 h-4 text-purple-600" />}
-                          {layoutKey === 'minimal' && <Feather className="w-4 h-4 text-emerald-600" />}
-                          {layoutKey === 'featured_grid' && <Grid3X3 className="w-4 h-4 text-blue-600" />}
-                          <span className="font-bold text-sm text-gray-900">{layout.name}</span>
+                  return (
+                    <div
+                      key={layoutKey}
+                      onClick={() => handleLayoutSelect(layoutKey)}
+                      className={`border-2 rounded-xl p-4 relative transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-purple-500 bg-purple-50/30 shadow-xs'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      {isSelected ? (
+                        <div className="absolute top-4 right-4 bg-purple-500 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">
+                          Ativo
                         </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {isSelected ? 'Ativo' : layout.tag}
-                          </span>
-                          {isSelected && (
-                            <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                              <Check className="w-3 h-3 stroke-[3]" />
-                            </span>
-                          )}
+                      ) : (
+                        <div className="absolute top-4 right-4 bg-gray-100 text-gray-600 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">
+                          {layout.tag}
                         </div>
-                      </div>
+                      )}
 
-                      <p className="text-xs text-gray-600 leading-relaxed mb-3">
-                        {layout.description}
-                      </p>
+                      <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                        {layoutKey === 'classic' && <Layers size={16} className="text-purple-600" />}
+                        {layoutKey === 'modern' && <Sparkles size={16} className="text-purple-600" />}
+                        {layoutKey === 'minimal' && <Feather size={16} className="text-purple-600" />}
+                        {layoutKey === 'featured_grid' && <Grid3X3 size={16} className="text-purple-600" />}
+                        <span>{layout.name}</span>
+                      </h3>
+
+                      <p className="text-xs text-gray-600 mt-2">{layout.description}</p>
 
                       {/* Mini Wireframe Ilustrativo */}
-                      <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 mb-3 space-y-1.5">
+                      <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 my-3 space-y-1.5">
                         <div className="h-2 w-full bg-gray-800 rounded-xs opacity-90" />
                         <div className="h-4 w-full bg-purple-100 rounded-xs flex items-center justify-center text-[8px] text-purple-700 font-bold">
                           Banner da Loja
@@ -827,452 +784,419 @@ export const ButtonsLayoutManager: React.FC = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* Features list */}
+                      <ul className="space-y-1 pt-1 border-t border-gray-100">
+                        {layout.features.map((feat, fIdx) => (
+                          <li key={fIdx} className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-
-                    {/* Features list */}
-                    <ul className="space-y-1 pt-1 border-t border-gray-100">
-                      {layout.features.map((feat, fIdx) => (
-                        <li key={fIdx} className="text-[11px] text-gray-500 flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Seção 2: Paletas de Cores */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center font-bold text-xs">
-                  <Palette size={18} />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Paleta de Cores Institucional</h2>
-                  <p className="text-xs text-gray-500">Transforme botões, badges e detalhes visuais da loja com 1 clique</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: primaryColor }} />
-                <span className="text-xs font-mono font-bold text-gray-700">{primaryColor}</span>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Grid de Paletas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(Object.keys(COLOR_PALETTES) as ColorPaletteType[]).map((paletteKey) => {
-                const pal = COLOR_PALETTES[paletteKey];
-                const isSelected = colorPalette === paletteKey;
+            {/* Seção de Cores (Grid Compacto substituindo a lista longa) */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <Palette size={18} className="text-purple-500"/> 2. Paleta de Cores
+                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: primaryColor }} />
+                  <span className="text-xs font-mono font-bold text-gray-700">{primaryColor}</span>
+                </div>
+              </div>
 
-                return (
-                  <div
-                    key={paletteKey}
-                    onClick={() => handlePaletteSelect(paletteKey)}
-                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                      isSelected
-                        ? 'border-purple-600 bg-purple-50/20 shadow-xs ring-2 ring-purple-600/10'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/40'
-                    }`}
-                  >
-                    <div>
-                      {/* Amostras de cores */}
+              {/* Grid Compacto de Paletas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {(Object.keys(COLOR_PALETTES) as ColorPaletteType[]).map((paletteKey) => {
+                  const pal = COLOR_PALETTES[paletteKey];
+                  const isSelected = colorPalette === paletteKey;
+
+                  return (
+                    <div
+                      key={paletteKey}
+                      onClick={() => handlePaletteSelect(paletteKey)}
+                      className={`p-4 rounded-xl border-2 transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'border-purple-500 bg-purple-50/30 shadow-xs'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 bg-purple-500 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">
+                          Ativo
+                        </div>
+                      )}
+
+                      {/* Amostras das cores compactas */}
                       <div className="flex items-center gap-1.5 mb-3">
                         <span 
-                          className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
+                          className="w-6 h-6 rounded-full shadow-xs border border-black/10" 
                           style={{ backgroundColor: pal.primary }} 
-                          title={`Cor Primária: ${pal.primary}`}
+                          title={`Primária: ${pal.primary}`}
                         />
                         <span 
-                          className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
+                          className="w-6 h-6 rounded-full shadow-xs border border-black/10" 
                           style={{ backgroundColor: pal.accent }} 
-                          title={`Cor de Destaque: ${pal.accent}`}
+                          title={`Destaque: ${pal.accent}`}
                         />
                         <span 
-                          className="w-7 h-7 rounded-xl shadow-xs border border-gray-300" 
+                          className="w-6 h-6 rounded-full shadow-xs border border-gray-300" 
                           style={{ backgroundColor: pal.primaryLight }} 
-                          title={`Fundo Suave: ${pal.primaryLight}`}
+                          title={`Fundo: ${pal.primaryLight}`}
                         />
                         <span 
-                          className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
+                          className="w-6 h-6 rounded-full shadow-xs border border-black/10" 
                           style={{ backgroundColor: pal.headerBg }} 
-                          title={`Fundo Cabeçalho: ${pal.headerBg}`}
+                          title={`Cabeçalho: ${pal.headerBg}`}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-bold text-xs text-gray-900">{pal.name}</h3>
-                        {isSelected && (
-                          <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                            <Check className="w-2.5 h-2.5 stroke-[3]" />
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-[11px] text-gray-500 leading-tight">
-                        {pal.description}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-mono text-gray-600">
-                      <span className="font-bold">{pal.primary}</span>
-                      <span className={`text-[10px] uppercase font-bold ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
-                        {isSelected ? 'Ativa' : 'Selecionar'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Ajuste Fino da Cor Primária */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-800">
-                  Ajuste Fino da Cor Primária
-                </label>
-                <p className="text-[11px] text-gray-500">
-                  Personalize o código hexadecimal exato da identidade da sua marca
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => handleCustomColorChange(e.target.value)}
-                  className="w-10 h-10 rounded-xl cursor-pointer border border-gray-300 p-0.5 bg-white shrink-0"
-                />
-                <input
-                  type="text"
-                  value={primaryColor}
-                  onChange={(e) => handleCustomColorChange(e.target.value)}
-                  placeholder="#FF1493"
-                  className="w-28 text-xs sm:text-sm px-3 py-2 bg-white border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 font-mono font-bold"
-                />
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* ABA 2: BOTÕES E DESTAQUES (TOPO + CTA AZUL + RODAPÉ) */}
-      {/* ========================================================= */}
-      {activeTab === 'botoes' && (
-        <div className="space-y-6">
-
-          {/* Subseção A: 3 Botões Circulares do Topo da Vitrine */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-                  <Layers size={18} />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900">3 Botões Circulares em Destaque</h2>
-                  <p className="text-xs text-gray-500">Exibidos no topo da vitrine. Deixe o título em branco para ocultar o botão correspondente.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {storeFeatures.map((feat, idx) => {
-                const selectedIconObj = AVAILABLE_FEATURE_ICONS.find((i) => i.value === feat.icon) || AVAILABLE_FEATURE_ICONS[0];
-                const IconComponent = selectedIconObj.icon;
-
-                return (
-                  <div key={feat.id || idx} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">
-                          {idx + 1}
-                        </span>
-                        Botão {idx + 1}
-                      </span>
-
-                      {/* Mini Live Preview */}
-                      <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-xs">
-                        <IconComponent className="w-4 h-4 text-white" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Ícone
-                        </label>
-                        <select
-                          value={feat.icon}
-                          onChange={(e) => handleFeatureChange(idx, 'icon', e.target.value)}
-                          className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800 font-medium cursor-pointer"
-                        >
-                          {AVAILABLE_FEATURE_ICONS.map((item) => (
-                            <option key={item.value} value={item.value}>
-                              {item.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Texto Principal (Título)
-                        </label>
-                        <input
-                          type="text"
-                          value={feat.title}
-                          onChange={(e) => handleFeatureChange(idx, 'title', e.target.value)}
-                          placeholder="Ex: Arquivos Editáveis (vazio = ocultar)"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Subtítulo / Linha 2 (Opcional)
-                        </label>
-                        <input
-                          type="text"
-                          value={feat.subtitle || ''}
-                          onChange={(e) => handleFeatureChange(idx, 'subtitle', e.target.value)}
-                          placeholder="Ex: Editáveis"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Link de Redirecionamento (Opcional)
-                        </label>
-                        <input
-                          type="text"
-                          value={feat.link || ''}
-                          onChange={(e) => handleFeatureChange(idx, 'link', e.target.value)}
-                          placeholder="Ex: #produtos ou /categoria/canva"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Subseção B: Barra / Botão Principal de Destaque Azul */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#00a8e8]/15 text-[#00a8e8] flex items-center justify-center font-bold text-xs">
-                  <Zap size={18} />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Botão Principal de Destaque (Barra Azul)</h2>
-                  <p className="text-xs text-gray-500">Barra de aviso ou promoção logo acima do catálogo. Deixe vazio para ocultar.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Preview da Barra Azul */}
-            {mainCtaText && mainCtaText.trim().length > 0 && (
-              <div className="w-full py-3 px-4 bg-[#00a8e8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs text-center">
-                <span>{mainCtaText}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Texto do Botão Azul
-                </label>
-                <input
-                  type="text"
-                  value={mainCtaText}
-                  onChange={(e) => setMainCtaText(e.target.value)}
-                  placeholder="Ex: Toda loja com Download imediato!"
-                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                />
-                <p className="text-[10px] text-gray-500 mt-1">
-                  💡 Deixe em branco se preferir não exibir esta barra.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Link de Redirecionamento (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={mainCtaLink}
-                  onChange={(e) => setMainCtaLink(e.target.value)}
-                  placeholder="Ex: #produtos ou /promocoes"
-                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                />
-                <p className="text-[10px] text-gray-500 mt-1">
-                  💡 Redireciona o cliente para este destino ao clicar na barra.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Subseção C: 4 Botões Informativos de Benefícios (Rodapé) */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">
-                  <Sparkles size={18} />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900">4 Botões Informativos de Destaque (Rodapé)</h2>
-                  <p className="text-xs text-gray-500">Configure os títulos, descrições e ícones que aparecem nos 4 cards no rodapé</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {benefitCards.map((card, idx) => {
-                const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
-                const IconComponent = selectedIconObj.icon;
-
-                return (
-                  <div key={card.id || idx} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">
-                          {idx + 1}
-                        </span>
-                        Botão {idx + 1}
-                      </span>
+                      <h3 className="font-bold text-xs text-gray-900">{pal.name}</h3>
+                      <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{pal.description}</p>
                       
-                      {/* Live Preview Badge */}
-                      <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-900 rounded-lg text-white text-xs">
-                        <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
-                        <span className="truncate max-w-[130px] font-medium text-[11px]">{card.title || `Botão ${idx + 1}`}</span>
+                      <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] font-mono text-gray-600">
+                        <span className="font-bold">{pal.primary}</span>
+                        <span className={`text-[10px] uppercase font-bold ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
+                          {isSelected ? 'Ativa' : 'Aplicar'}
+                        </span>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="space-y-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Ícone
-                        </label>
-                        <select
-                          value={card.icon}
-                          onChange={(e) => handleBenefitChange(idx, 'icon', e.target.value)}
-                          className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800 font-medium cursor-pointer"
-                        >
-                          {AVAILABLE_BENEFIT_ICONS.map((item) => (
-                            <option key={item.value} value={item.value}>
-                              {item.label}
-                            </option>
-                          ))}
-                        </select>
+              {/* Ajuste fino da cor primária */}
+              <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-800">
+                    Ajuste Fino da Cor Primária
+                  </label>
+                  <p className="text-[11px] text-gray-500">
+                    Personalize o código hexadecimal exato da identidade da sua marca
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={primaryColor}
+                    onChange={(e) => handleCustomColorChange(e.target.value)}
+                    className="w-10 h-10 rounded-xl cursor-pointer border border-gray-300 p-0.5 bg-white shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={primaryColor}
+                    onChange={(e) => handleCustomColorChange(e.target.value)}
+                    placeholder="#FF1493"
+                    className="w-28 text-xs sm:text-sm px-3 py-2 bg-white border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 font-mono font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* ABA 2: BOTÕES E DESTAQUES */}
+        {/* ========================================================= */}
+        {activeTab === 'botoes' && (
+          <div className="space-y-6 animate-in fade-in">
+
+            {/* Subseção A: 3 Botões Circulares do Topo da Vitrine */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <Layers size={18} className="text-purple-500"/> 1. 3 Botões Circulares em Destaque
+                </h2>
+                <span className="text-[11px] text-gray-400">Deixe em branco para ocultar o botão</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {storeFeatures.map((feat, idx) => {
+                  const selectedIconObj = AVAILABLE_FEATURE_ICONS.find((i) => i.value === feat.icon) || AVAILABLE_FEATURE_ICONS[0];
+                  const IconComponent = selectedIconObj.icon;
+
+                  return (
+                    <div key={feat.id || idx} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">
+                            {idx + 1}
+                          </span>
+                          Botão {idx + 1}
+                        </span>
+
+                        {/* Mini Live Preview */}
+                        <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-xs">
+                          <IconComponent className="w-4 h-4 text-white" />
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Título Principal *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={card.title}
-                          onChange={(e) => handleBenefitChange(idx, 'title', e.target.value)}
-                          placeholder="Ex: Arquivos Digitais"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                        />
-                      </div>
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Ícone
+                          </label>
+                          <select
+                            value={feat.icon}
+                            onChange={(e) => handleFeatureChange(idx, 'icon', e.target.value)}
+                            className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800 font-medium cursor-pointer"
+                          >
+                            {AVAILABLE_FEATURE_ICONS.map((item) => (
+                              <option key={item.value} value={item.value}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                          Subtítulo / Descrição
-                        </label>
-                        <input
-                          type="text"
-                          value={card.description}
-                          onChange={(e) => handleBenefitChange(idx, 'description', e.target.value)}
-                          placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
-                        />
-                        {idx === 3 && (
-                          <p className="text-[10px] text-gray-500 mt-1 leading-tight">
-                            💡 Dica: Se mantiver "SeuWhatsAppWhatsApp" ou deixar em branco, o sistema exibirá automaticamente o número de WhatsApp cadastrado.
-                          </p>
-                        )}
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Texto Principal (Título)
+                          </label>
+                          <input
+                            type="text"
+                            value={feat.title}
+                            onChange={(e) => handleFeatureChange(idx, 'title', e.target.value)}
+                            placeholder="Ex: Arquivos Editáveis (vazio = ocultar)"
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Subtítulo / Linha 2 (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={feat.subtitle || ''}
+                            onChange={(e) => handleFeatureChange(idx, 'subtitle', e.target.value)}
+                            placeholder="Ex: Editáveis"
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Link de Redirecionamento (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={feat.link || ''}
+                            onChange={(e) => handleFeatureChange(idx, 'link', e.target.value)}
+                            placeholder="Ex: #produtos ou /categoria/canva"
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                          />
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Subseção B: Barra / Botão Principal de Destaque Azul */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <Zap size={18} className="text-purple-500"/> 2. Botão Principal de Destaque (Barra Azul)
+                </h2>
+                <span className="text-[11px] text-gray-400">Exibido no topo dos produtos</span>
+              </div>
+
+              {/* Live Preview da Barra Azul */}
+              {mainCtaText && mainCtaText.trim().length > 0 && (
+                <div className="w-full py-3 px-4 bg-[#00a8e8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs text-center">
+                  <span>{mainCtaText}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Texto do Botão Azul
+                  </label>
+                  <input
+                    type="text"
+                    value={mainCtaText}
+                    onChange={(e) => setMainCtaText(e.target.value)}
+                    placeholder="Ex: Toda loja com Download imediato!"
+                    className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    💡 Deixe em branco se preferir não exibir esta barra.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    Link de Redirecionamento (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={mainCtaLink}
+                    onChange={(e) => setMainCtaLink(e.target.value)}
+                    placeholder="Ex: #produtos ou /promocoes"
+                    className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    💡 Redireciona o cliente para este destino ao clicar na barra.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Subseção C: 4 Botões Informativos de Benefícios (Rodapé) */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles size={18} className="text-purple-500"/> 3. 4 Botões Informativos de Destaque (Rodapé)
+                </h2>
+                <span className="text-[11px] text-gray-400">Exibidos no rodapé do site</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {benefitCards.map((card, idx) => {
+                  const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
+                  const IconComponent = selectedIconObj.icon;
+
+                  return (
+                    <div key={card.id || idx} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">
+                            {idx + 1}
+                          </span>
+                          Botão {idx + 1}
+                        </span>
+                        
+                        {/* Live Preview Badge */}
+                        <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-900 rounded-lg text-white text-xs">
+                          <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
+                          <span className="truncate max-w-[130px] font-medium text-[11px]">{card.title || `Botão ${idx + 1}`}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Ícone
+                          </label>
+                          <select
+                            value={card.icon}
+                            onChange={(e) => handleBenefitChange(idx, 'icon', e.target.value)}
+                            className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800 font-medium cursor-pointer"
+                          >
+                            {AVAILABLE_BENEFIT_ICONS.map((item) => (
+                              <option key={item.value} value={item.value}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Título Principal *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={card.title}
+                            onChange={(e) => handleBenefitChange(idx, 'title', e.target.value)}
+                            placeholder="Ex: Arquivos Digitais"
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                            Subtítulo / Descrição
+                          </label>
+                          <input
+                            type="text"
+                            value={card.description}
+                            onChange={(e) => handleBenefitChange(idx, 'description', e.target.value)}
+                            placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
+                            className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                          />
+                          {idx === 3 && (
+                            <p className="text-[10px] text-gray-500 mt-1 leading-tight">
+                              💡 Dica: Se mantiver "SeuWhatsAppWhatsApp" ou deixar em branco, o sistema exibirá automaticamente o número de WhatsApp cadastrado.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* ABA 3: WHATSAPP */}
+        {/* ========================================================= */}
+        {activeTab === 'whatsapp' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              <div className="border-b border-gray-100 pb-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                  <MessageCircle size={18} className="text-purple-500"/> Mensagem Padrão do WhatsApp
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">Texto inicial que é enviado no WhatsApp quando o cliente clica para falar com o suporte</p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-gray-700">
+                  Texto da Mensagem Inicial
+                </label>
+                <textarea
+                  rows={3}
+                  value={whatsappDefaultMessage}
+                  onChange={(e) => setWhatsappDefaultMessage(e.target.value)}
+                  placeholder="Ex: Olá! Gostaria de mais informações sobre os produtos da loja."
+                  className="w-full text-xs sm:text-sm p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 text-gray-800 transition-all resize-none"
+                />
+                <p className="text-[11px] text-gray-500">
+                  💡 Quando o cliente clica no botão do WhatsApp da sua loja, essa frase já estará pronta no chat dele, bastando apenas enviar.
+                </p>
+              </div>
+
+              {/* Simulação Visual de Conversa WhatsApp */}
+              <div className="mt-4 p-4 rounded-xl bg-[#e5ddd5] border border-gray-300 max-w-md">
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-300/60">
+                  <div className="w-7 h-7 rounded-full bg-[#25D366] text-white flex items-center justify-center text-xs font-bold">
+                    W
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* ABA 3: WHATSAPP (MENSAGEM PADRÃO) */}
-      {/* ========================================================= */}
-      {activeTab === 'whatsapp' && (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#25D366] flex items-center justify-center font-bold text-xs">
-                  <MessageCircle size={18} />
+                  <div>
+                    <span className="text-xs font-bold text-gray-900 block leading-tight">Atendimento WhatsApp</span>
+                    <span className="text-[10px] text-emerald-700 font-semibold">Online</span>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Mensagem Padrão do WhatsApp</h2>
-                  <p className="text-xs text-gray-500">Texto inicial que é enviado no WhatsApp quando o cliente clica para falar com o suporte</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <label className="block text-xs font-bold text-gray-700">
-                Texto da Mensagem Inicial
-              </label>
-              <textarea
-                rows={3}
-                value={whatsappDefaultMessage}
-                onChange={(e) => setWhatsappDefaultMessage(e.target.value)}
-                placeholder="Ex: Olá! Gostaria de mais informações sobre os produtos da loja."
-                className="w-full text-xs sm:text-sm p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 text-gray-800 transition-all resize-none"
-              />
-              <p className="text-[11px] text-gray-500">
-                💡 Quando o cliente clica no botão do WhatsApp da sua loja, essa frase já estará pronta no chat dele, bastando apenas enviar.
-              </p>
-            </div>
-
-            {/* Simulação Visual de Conversa WhatsApp */}
-            <div className="mt-4 p-4 rounded-xl bg-[#e5ddd5] border border-gray-300 max-w-md">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-300/60">
-                <div className="w-7 h-7 rounded-full bg-[#25D366] text-white flex items-center justify-center text-xs font-bold">
-                  W
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-gray-900 block leading-tight">Atendimento WhatsApp</span>
-                  <span className="text-[10px] text-emerald-700 font-semibold">Online</span>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <div className="bg-[#dcf8c6] p-3 rounded-xl rounded-tr-xs shadow-xs text-xs text-gray-800 max-w-[85%]">
-                  <p>{whatsappDefaultMessage || 'Olá! Gostaria de mais informações sobre os produtos da loja.'}</p>
-                  <span className="text-[9px] text-gray-500 block text-right mt-1">12:00 ✓✓</span>
+                <div className="flex justify-end">
+                  <div className="bg-[#dcf8c6] p-3 rounded-xl rounded-tr-xs shadow-xs text-xs text-gray-800 max-w-[85%]">
+                    <p>{whatsappDefaultMessage || 'Olá! Gostaria de mais informações sobre os produtos da loja.'}</p>
+                    <span className="text-[9px] text-gray-500 block text-right mt-1">12:00 ✓✓</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>
 
       {/* ========================================================= */}
       {/* MODAL DE PRÉ-VISUALIZAÇÃO AO VIVO (POPUP COM 'X') */}
@@ -1429,4 +1353,5 @@ export const ButtonsLayoutManager: React.FC = () => {
 };
 
 export default ButtonsLayoutManager;
+
 
