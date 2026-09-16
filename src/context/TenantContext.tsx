@@ -134,7 +134,8 @@ export function checkIsTenantRoute(): boolean {
   const pathname = window.location.pathname.toLowerCase();
   const hash = window.location.hash.toLowerCase();
   const pathSlugMatch = pathname.match(/\/loja\/([^/?#]+)/i) || hash.match(/loja\/([^/?#]+)/i);
-  const routeSlug = pathSlugMatch ? pathSlugMatch[1].toLowerCase().trim() : null;
+  const directEditaveisMatch = pathname.match(/^\/(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i) || hash.match(/^#?\/?(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i);
+  const routeSlug = pathSlugMatch ? pathSlugMatch[1].toLowerCase().trim() : (directEditaveisMatch ? 'editaveisdocanva' : null);
   const searchParams = new URLSearchParams(window.location.search);
   const storeSlugParam = (searchParams.get('store')?.toLowerCase().trim()) || routeSlug;
   const domainParam = searchParams.get('domain')?.toLowerCase().trim();
@@ -364,7 +365,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const pathname = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
       const hash = typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '';
       const pathSlugMatch = pathname.match(/\/loja\/([^/?#]+)/i) || hash.match(/loja\/([^/?#]+)/i);
-      const routeSlug = pathSlugMatch ? pathSlugMatch[1].toLowerCase().trim() : null;
+      const directEditaveisMatch = pathname.match(/^\/(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i) || hash.match(/^#?\/?(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i);
+      const routeSlug = pathSlugMatch ? pathSlugMatch[1].toLowerCase().trim() : (directEditaveisMatch ? 'editaveisdocanva' : null);
 
       const search = typeof window !== 'undefined' ? window.location.search : '';
       const searchParams = new URLSearchParams(search);
@@ -401,11 +403,21 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // REGRA 2: Rota explícita de loja por parâmetro / URL (/loja/:slug ou ?store=...)
       // =========================================================================
       if (storeSlugParam) {
-        const { data: storeBySlug } = await supabase
+        let { data: storeBySlug } = await supabase
           .from('stores')
           .select('*')
-          .ilike('slug', storeSlugParam)
+          .or(`slug.ilike.${storeSlugParam},id.eq.${storeSlugParam}`)
           .maybeSingle();
+
+        // Se for editaveisdocanva e não encontrar diretamente, tenta variações
+        if (!storeBySlug && (storeSlugParam === 'editaveisdocanva' || storeSlugParam === 'editaveis-do-canva')) {
+          const { data: altStore } = await supabase
+            .from('stores')
+            .select('*')
+            .or('slug.eq.editaveisdocanva,id.eq.store_editaveisdocanva,custom_domain.ilike.%editaveisdocanva.com.br%')
+            .maybeSingle();
+          storeBySlug = altStore;
+        }
 
         if (storeBySlug) {
           console.log('[TenantResolver] ✅ Loja identificada por slug:', storeBySlug.name);

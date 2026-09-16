@@ -62,22 +62,8 @@ export const StoresList: React.FC<StoresListProps> = ({
   const [isSavingDays, setIsSavingDays] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Contagens para os filtros (exclui a Matriz permanente AJPSTORE e a loja bloqueada editaveisdocanva)
-  const isBlocked = (s: Store) => {
-    const id = (s?.id || '').toLowerCase();
-    const slug = (s?.slug || '').toLowerCase();
-    const domain = (s?.custom_domain || '').toLowerCase();
-    const name = (s?.name || s?.store_name || '').toLowerCase();
-    return (
-      id === 'store_editaveisdocanva' ||
-      slug === 'editaveisdocanva' ||
-      slug === 'editaveis-do-canva' ||
-      domain.includes('editaveisdocanva') ||
-      name.includes('editáveis do canva') ||
-      name.includes('editaveis do canva')
-    );
-  };
-  const safeList = (Array.isArray(stores) ? stores.filter(Boolean) : []).filter((s) => !isBlocked(s));
+  // Contagens para os filtros (exclui a Matriz permanente AJPSTORE da contagem de clientes)
+  const safeList = Array.isArray(stores) ? stores.filter(Boolean) : [];
   const isMatrizOrBase = (s: Store) => Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore' || s.slug === 'suamarcaaqui' || s.id === 'store_default';
   const trialCount = safeList.filter(s => (s.subscription_status === 'trial' || s.isTrial) && !isMatrizOrBase(s)).length;
   const activeCount = safeList.filter(s => s.subscription_status === 'active' && !s.isExpired && !isMatrizOrBase(s)).length;

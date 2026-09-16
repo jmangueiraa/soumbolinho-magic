@@ -141,6 +141,13 @@ export function useParams<T extends Record<string, string | undefined> = Record<
       return { storeSlug: decoded, slug: decoded, id: decoded } as unknown as T;
     }
 
+    // 2.55. Rota direta /editaveisdocanva ou /editaveis-do-canva
+    const editaveisMatch = path.match(/^\/(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i) || h.match(/^#?\/?(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i);
+    if (editaveisMatch && editaveisMatch[1]) {
+      const decoded = decodeURIComponent(editaveisMatch[1]);
+      return { storeSlug: decoded, slug: decoded, id: decoded } as unknown as T;
+    }
+
     // 2.6. Rota /:storeSlug/admin direta
     const rootAdminMatch = path.match(/^\/([^/?#]+)\/admin(?:\/)?$/i) || h.match(/^#?\/?([^/?#]+)\/admin(?:\/)?$/i);
     if (rootAdminMatch && rootAdminMatch[1]) {

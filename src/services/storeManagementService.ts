@@ -357,21 +357,35 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
       return { data: [], error: error.message };
     }
 
-    // Filtra e remove estritamente a loja store_editaveisdocanva / editaveisdocanva da interface
-    let allStores = (stores ? [...stores] : []).filter((s) => {
+    let allStores = stores ? [...stores] : [];
+
+    // Garante que a loja Editáveis do Canva esteja presente na listagem da plataforma
+    const hasEditaveis = allStores.some((s) => {
       const sSlug = (s.slug || '').toLowerCase();
       const sId = (s.id || '').toLowerCase();
       const sDomain = (s.custom_domain || '').toLowerCase();
       const sName = (s.name || s.store_name || '').toLowerCase();
-      const isBlocked =
+      return (
         sId === 'store_editaveisdocanva' ||
         sSlug === 'editaveisdocanva' ||
         sSlug === 'editaveis-do-canva' ||
         sDomain.includes('editaveisdocanva') ||
         sName.includes('editáveis do canva') ||
-        sName.includes('editaveis do canva');
-      return !isBlocked;
+        sName.includes('editaveis do canva')
+      );
     });
+
+    if (!hasEditaveis) {
+      try {
+        const created = await ensureEditaveisMonthlyStoreExists();
+        if (created) {
+          allStores.push(created);
+        }
+      } catch (e) {
+        console.warn('Fallback para Editáveis do Canva:', e);
+        allStores.push(EDITAVEIS_MONTHLY_STORE_DATA as Store);
+      }
+    }
 
     // Busca contagem de produtos por loja
     const { data: productsData } = await supabase

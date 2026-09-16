@@ -33,7 +33,10 @@ import { recordStoreVisit, recordProductView } from './services/analyticsService
 
 export const StoreFront: React.FC = () => {
   const { slug, storeSlug } = useParams<{ slug?: string; storeSlug?: string }>();
-  const activeSlug = slug || storeSlug;
+  const pathname = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
+  const hash = typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '';
+  const directEditaveisMatch = pathname.match(/^\/(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i) || hash.match(/^#?\/?(editaveisdocanva|editaveis-do-canva)(?:\/|$)/i);
+  const activeSlug = slug || storeSlug || (directEditaveisMatch ? 'editaveisdocanva' : undefined);
   const { currentStore, switchStore, isResolvingTenant, tenantNotFound, tenantError } = useTenant();
   const { storeConfig, isLoading: isStoreDataLoading } = useStoreData();
   const navigate = useNavigate();
@@ -368,7 +371,29 @@ const NavigationRouter: React.FC = () => {
         <Route path="/precos" element={<MarketingLandingPage />} />
         <Route path="/faq" element={<MarketingLandingPage />} />
 
-        {/* 1.2. Rotas Dinâmicas de Loja por Slug (/loja/:slug e /loja/:storeSlug) */}
+        {/* 1.2. Rotas Diretas e Dinâmicas de Loja por Slug */}
+        <Route path="/editaveisdocanva" element={<StoreFront />} />
+        <Route path="/editaveis-do-canva" element={<StoreFront />} />
+        <Route
+          path="/editaveisdocanva/admin"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
+        <Route
+          path="/editaveis-do-canva/admin"
+          element={
+            isAuthenticated ? (
+              <AdminLayout onBackToStore={handleBackToStore} />
+            ) : (
+              <AdminLogin onBackToStore={handleBackToStore} />
+            )
+          }
+        />
         <Route path="/loja/:slug" element={<StoreFront />} />
         <Route path="/loja/:storeSlug" element={<StoreFront />} />
         <Route
