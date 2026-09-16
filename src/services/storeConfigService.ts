@@ -29,8 +29,8 @@ export function mapSupabaseConfig(item: any): StoreConfig {
     primaryColor: item.primary_color || item.primaryColor || undefined,
     whatsappDefaultMessage: item.whatsapp_default_message || item.whatsappDefaultMessage || undefined,
     themeLayout: item.theme_layout || item.themeLayout || undefined,
-    colorPalette: item.color_palette || item.colorPalette || undefined,
     logoUrl: item.logo_url || item.logoUrl || undefined,
+    onlyLogo: item.only_logo !== undefined ? Boolean(item.only_logo) : (item.onlyLogo !== undefined ? Boolean(item.onlyLogo) : undefined),
   };
 }
 
@@ -128,6 +128,9 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           else if (stTheme.telegram_chat_id) mapped.telegramChatId = stTheme.telegram_chat_id;
 
           if (storeRow.logo_url && !mapped.logoUrl) mapped.logoUrl = storeRow.logo_url;
+          if (storeRow.only_logo !== undefined) mapped.onlyLogo = Boolean(storeRow.only_logo);
+          else if (stTheme.only_logo !== undefined) mapped.onlyLogo = Boolean(stTheme.only_logo);
+          else if (storeRow.onlyLogo !== undefined) mapped.onlyLogo = Boolean(storeRow.onlyLogo);
           if (storeRow.whatsapp_number && (!mapped.whatsappNumber || mapped.whatsappNumber === INITIAL_STORE_CONFIG.whatsappNumber)) mapped.whatsappNumber = storeRow.whatsapp_number;
           if (storeRow.whatsapp_display && (!mapped.whatsappDisplay || mapped.whatsappDisplay === INITIAL_STORE_CONFIG.whatsappDisplay)) mapped.whatsappDisplay = storeRow.whatsapp_display;
           if (storeRow.instagram && (!mapped.instagram || mapped.instagram === INITIAL_STORE_CONFIG.instagram)) mapped.instagram = storeRow.instagram;
@@ -163,6 +166,7 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           if (siteThemeData.color_palette) mapped.colorPalette = siteThemeData.color_palette;
           if (siteThemeData.primary_color) mapped.primaryColor = siteThemeData.primary_color;
           if (siteThemeData.logo_url) mapped.logoUrl = siteThemeData.logo_url;
+          if (siteThemeData.only_logo !== undefined) mapped.onlyLogo = Boolean(siteThemeData.only_logo);
           if (siteThemeData.benefit_cards) {
             const parsedCards = typeof siteThemeData.benefit_cards === 'string'
               ? JSON.parse(siteThemeData.benefit_cards)

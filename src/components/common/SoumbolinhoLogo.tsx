@@ -58,8 +58,8 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     ''
   ).trim();
 
-  // Para a AJPSTORE, a logo oficial em Base64 é usada DIRETAMENTE e incondicionalmente, sem depender de configuração no admin
-  const customLogoUrl = isAjpStore ? AJP_OFFICIAL_LOGO_BASE64 : (rawLogo || AJP_OFFICIAL_LOGO_BASE64);
+  // Prioriza a logo personalizada enviada pelo cliente (URL do Supabase); caso não haja, usa a logo oficial AJPSTORE em Base64
+  const customLogoUrl = rawLogo || AJP_OFFICIAL_LOGO_BASE64;
 
   // Nome da loja
   const rawName = propStoreName !== undefined
@@ -118,6 +118,15 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     lg: 'max-w-[200px] sm:max-w-[320px] md:max-w-none',
     xl: 'max-w-[260px] sm:max-w-[400px] md:max-w-none',
   }[size] || 'max-w-[260px] sm:max-w-[400px] md:max-w-none';
+
+  const showOnlyLogo = Boolean(
+    onlyLogo || 
+    storeConfig?.onlyLogo || 
+    (currentStore as any)?.only_logo || 
+    (currentStore as any)?.onlyLogo || 
+    currentStore?.theme_settings?.only_logo || 
+    currentStore?.theme_settings?.onlyLogo
+  );
 
   return (
     <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
@@ -190,7 +199,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
       </div>
 
       {/* Tipografia da Marca com Subtítulo AJPSTORE */}
-      {!onlyLogo && !storeConfig?.onlyLogo && resolvedName && (
+      {!showOnlyLogo && resolvedName && (
         <div className="flex flex-col text-left leading-none min-w-0">
           <div className="flex items-center tracking-tight whitespace-nowrap">
             {(() => {

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ShoppingBag, Menu, X, Sparkles } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
+import { supabase } from '../../lib/supabase';
+import { AJP_OFFICIAL_LOGO_BASE64 } from '../../assets/officialLogo';
 
 import { 
   useTenant, 
@@ -12,7 +14,6 @@ import {
   extractStoreSubdomain, 
   isCustomStoreDomain 
 } from '../../context/TenantContext';
-import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
 interface HeaderProps {
   isSticky?: boolean;
@@ -47,6 +48,128 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
   );
   const showCreateStoreButton = isPlatformRootHostname(currentHostname) && !isTenant && !isLojaRoute && !isClientStore;
 
+  const currentStoreId = currentStore?.id || '';
+
+  // 1. Estado da logo circular e da opção 'Exibir apenas a logo circular'
+  const [storeLogoUrl, setStoreLogoUrl] = useState<string | null>(() => {
+    return currentStore?.logo_url || currentStore?.theme_settings?.logo_url || storeConfig?.logoUrl || null;
+  });
+
+  const [onlyLogoSetting, setOnlyLogoSetting] = useState<boolean>(() => {
+    return Boolean(
+      (currentStore as any)?.only_logo ??
+      (currentStore as any)?.onlyLogo ??
+      currentStore?.theme_settings?.only_logo ??
+      currentStore?.theme_settings?.onlyLogo ??
+      storeConfig?.onlyLogo
+    );
+  });
+
+  // 2. Buscar a URL da logo diretamente da tabela stores filtrando pelo store_id
+  useEffect(() => {
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') return;
+
+    // Sincronização inicial rápida por contexto/cache
+    const initialLogo = currentStore?.logo_url || currentStore?.theme_settings?.logo_url || storeConfig?.logoUrl;
+    if (initialLogo) setStoreLogoUrl(initialLogo);
+
+    const initialOnly = Boolean(
+      (currentStore as any)?.only_logo ??
+      (currentStore as any)?.onlyLogo ??
+      currentStore?.theme_settings?.only_logo ??
+      currentStore?.theme_settings?.onlyLogo ??
+      storeConfig?.onlyLogo
+    );
+    setOnlyLogoSetting(initialOnly);
+
+    let isSubscribed = true;
+
+    async function fetchDirectStoreLogo() {
+      try {
+        // Consulta direta na tabela stores filtrando pelo store_id
+        const { data: storeRow } = await supabase
+          .from('stores')
+          .select('id, logo_url, only_logo, theme_settings, name, store_name, slogan')
+          .eq('id', currentStoreId)
+          .maybeSingle();
+
+        if (!isSubscribed) return;
+
+        if (storeRow) {
+          const stTheme = typeof storeRow.theme_settings === 'string'
+            ? JSON.parse(storeRow.theme_settings)
+            : (storeRow.theme_settings || {});
+
+          const fetchedLogo = storeRow.logo_url || stTheme.logo_url;
+          if (fetchedLogo) {
+            setStoreLogoUrl(fetchedLogo);
+          }
+
+          const fetchedOnly = Boolean(
+            (storeRow as any).only_logo ??
+            (storeRow as any).onlyLogo ??
+            stTheme.only_logo ??
+            stTheme.onlyLogo
+          );
+          setOnlyLogoSetting(fetchedOnly);
+        } else {
+          // Fallback na tabela site_settings filtrando pelo store_id
+          const { data: siteRow } = await supabase
+            .from('site_settings')
+            .select('logo_url, only_logo')
+            .eq('store_id', currentStoreId)
+            .maybeSingle();
+
+          if (siteRow && isSubscribed) {
+            if (siteRow.logo_url) setStoreLogoUrl(siteRow.logo_url);
+            if (siteRow.only_logo !== undefined) setOnlyLogoSetting(Boolean(siteRow.only_logo));
+          }
+        }
+      } catch (err) {
+        console.warn('[Header] Erro ao buscar logo da tabela stores:', err);
+      }
+    }
+
+    fetchDirectStoreLogo();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [currentStoreId, currentStore?.logo_url, storeConfig?.logoUrl, storeConfig?.onlyLogo]);
+
+  // Resolução final da imagem da logo (prioriza o upload da loja, com fallback seguro para a logo oficial)
+  const finalLogoUrl = (
+    storeLogoUrl || 
+    currentStore?.logo_url || 
+    currentStore?.theme_settings?.logo_url || 
+    storeConfig?.logoUrl || 
+    AJP_OFFICIAL_LOGO_BASE64
+  ).trim();
+
+  // Status do campo 'Exibir apenas a logo circular'
+  const isOnlyLogo = Boolean(
+    onlyLogoSetting || 
+    (currentStore as any)?.only_logo || 
+    (currentStore as any)?.onlyLogo || 
+    currentStore?.theme_settings?.only_logo || 
+    currentStore?.theme_settings?.onlyLogo || 
+    storeConfig?.onlyLogo
+  );
+
+  const storeDisplayName = (
+    currentStore?.name || 
+    currentStore?.store_name || 
+    storeConfig?.storeName || 
+    'AJPSTORE'
+  ).trim();
+
+  const storeDisplaySlogan = (
+    currentStore?.slogan || 
+    currentStore?.theme_settings?.slogan || 
+    storeConfig?.slogan || 
+    ''
+  ).trim();
+
   return (
     <header 
       className={`${isSticky ? 'sticky top-0' : 'relative'} z-40 w-full text-white border-b shadow-md transition-all ${className}`}
@@ -73,10 +196,10 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
             </button>
           </div>
 
-          {/* CENTRO / LOGO: Logo Festivo Soumbolinho sem Fundo */}
+          {/* CENTRO / LOGO: Renderização direta da Logo Circular com condicional onlyLogo */}
           <a 
             href={storeHomeUrl} 
-            className="flex items-center group shrink-0 sm:shrink min-w-0 cursor-pointer py-1" 
+            className="flex items-center gap-2 sm:gap-3.5 group shrink-0 sm:shrink min-w-0 cursor-pointer py-1 select-none" 
             onClick={(e) => { 
               e.preventDefault(); 
               window.location.hash = ''; 
@@ -85,7 +208,40 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
               window.scrollTo({ top: 0, behavior: 'smooth' }); 
             }}
           >
-            <SoumbolinhoLogo variant="light" size="xl" onlyLogo={Boolean(storeConfig?.onlyLogo)} />
+            {/* Tag <img> para renderizar a logo circular no topo da página */}
+            <div className="w-10 h-10 sm:w-13 sm:h-13 aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:scale-105 group-hover:ring-emerald-400">
+              <img
+                src={finalLogoUrl}
+                alt={storeDisplayName}
+                onError={(e) => {
+                  e.currentTarget.src = AJP_OFFICIAL_LOGO_BASE64;
+                }}
+                className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 group-hover:scale-110"
+              />
+            </div>
+
+            {/* Condicional do formulário: se 'Exibir apenas a logo circular' for verdadeiro, oculta o texto */}
+            {!isOnlyLogo && storeDisplayName && (
+              <div className="flex flex-col text-left leading-none min-w-0">
+                <div className="flex items-center tracking-tight whitespace-nowrap">
+                  {storeDisplayName.toUpperCase() === 'AJPSTORE' ? (
+                    <div className="flex items-center tracking-tight whitespace-nowrap text-lg sm:text-2xl md:text-3xl font-black">
+                      <span className="text-[#0062FF]">AJP</span>
+                      <span className="text-[#00C853] ml-0.5">STORE</span>
+                    </div>
+                  ) : (
+                    <span className="text-base sm:text-xl md:text-2xl font-black text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] uppercase">
+                      {storeDisplayName}
+                    </span>
+                  )}
+                </div>
+                {storeDisplaySlogan && (
+                  <span className="text-[9px] sm:text-[11px] font-bold text-emerald-400 tracking-wider uppercase mt-1 sm:mt-1.5 whitespace-nowrap truncate max-w-[160px] sm:max-w-[280px]">
+                    {storeDisplaySlogan}
+                  </span>
+                )}
+              </div>
+            )}
           </a>
 
           {/* BARRA DE PESQUISA (Desktop) */}
