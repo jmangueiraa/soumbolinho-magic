@@ -425,6 +425,7 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
       // Normaliza Editáveis do Canva como Loja Mensal
       const isEditaveisCanva = !isAjpStore && (
         sSlug === 'editaveisdocanva' ||
+        sSlug === 'editaveis-do-canva' ||
         sId === 'store_editaveisdocanva' ||
         sDomain.includes('editaveisdocanva.com.br') ||
         sName.includes('editáveis do canva') ||

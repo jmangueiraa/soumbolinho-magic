@@ -72,7 +72,8 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
 
     // A) Para lojas clientes (não-matriz), busca estritamente os dados exclusivos desta loja
     if (!isBaseStore) {
-      const editaveisFilter = targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz' ? ',store_id.eq.matriz,id.eq.cfg_matriz' : '';
+      const isEditaveisTarget = targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'editaveisdocanva' || targetStoreId === 'editaveis-do-canva' || targetStoreId === 'matriz';
+      const editaveisFilter = isEditaveisTarget ? ',store_id.eq.matriz,id.eq.cfg_matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva' : '';
       const { data: clientConfig } = await supabase
         .from('store_config')
         .select('*')
@@ -83,8 +84,8 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
       // Consulta complementar na tabela site_settings filtrando pela loja ativa atual (CRUCIAL)
       let siteThemeData: any = null;
       try {
-        const siteOrFilters = targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz'
-          ? `store_id.eq.${targetStoreId},store_id.eq.matriz`
+        const siteOrFilters = isEditaveisTarget
+          ? `store_id.eq.${targetStoreId},store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.matriz`
           : `store_id.eq.${targetStoreId}`;
         const { data: siteRow } = await supabase
           .from('site_settings')

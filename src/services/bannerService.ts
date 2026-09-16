@@ -47,8 +47,8 @@ export async function fetchAllBanners(storeId?: string): Promise<{ data: BannerS
 
     if (isBaseStore) {
       query = query.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
-    } else if (targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz' || targetStoreId === 'editaveisdocanva') {
-      query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.matriz,store_id.eq.editaveisdocanva');
+    } else if (targetStoreId === 'store_editaveisdocanva' || targetStoreId === 'matriz' || targetStoreId === 'editaveisdocanva' || targetStoreId === 'editaveis-do-canva') {
+      query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.matriz,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva');
     } else {
       query = query.eq('store_id', targetStoreId);
     }

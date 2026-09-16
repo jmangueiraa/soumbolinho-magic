@@ -170,7 +170,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // 2. SUPABASE REALTIME MULTI-CANAL PARA ATUALIZAÇÃO INSTANTÂNEA
     // -------------------------------------------------------------
     const isBase = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default' || !currentStoreId;
-    const isEditaveis = currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'matriz' || currentStoreId === 'editaveisdocanva';
+    const isEditaveis = currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'matriz' || currentStoreId === 'editaveisdocanva' || currentStoreId === 'editaveis-do-canva';
     const globalChannel = supabase
       .channel(`realtime_store_sync_${currentStoreId || 'suamarcaaqui'}`)
       // Sincronização de Produtos isolada por loja
@@ -182,7 +182,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const affectsThisStore = isBase
             ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default')
             : isEditaveis
-              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva')
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva' || recordStoreId === 'editaveis-do-canva')
               : recordStoreId === currentStoreId;
 
           if (affectsThisStore) {
@@ -201,7 +201,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const affectsThisStore = isBase
             ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
             : isEditaveis
-              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva')
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva' || recordStoreId === 'editaveis-do-canva')
               : recordStoreId === currentStoreId;
 
           if (affectsThisStore) {
@@ -224,7 +224,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const affectsThisStore = isBase
             ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
             : isEditaveis
-              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva')
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva' || recordStoreId === 'editaveis-do-canva')
               : recordStoreId === currentStoreId;
 
           if (affectsThisStore) {
@@ -243,7 +243,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const affectsThisStore = isBase
             ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
             : isEditaveis
-              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva')
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva' || recordStoreId === 'editaveis-do-canva')
               : recordStoreId === currentStoreId;
 
           if (affectsThisStore) {
@@ -262,7 +262,7 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const affectsThisStore = isBase
             ? (recordStoreId === 'suamarcaaqui' || recordStoreId === 'store_default' || !recordStoreId)
             : isEditaveis
-              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva')
+              ? (recordStoreId === 'store_editaveisdocanva' || recordStoreId === 'matriz' || recordStoreId === 'editaveisdocanva' || recordStoreId === 'editaveis-do-canva')
               : recordStoreId === currentStoreId;
 
           if (affectsThisStore) {

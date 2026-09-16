@@ -32,14 +32,17 @@ import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
 import { ColorPaletteType, ThemeLayoutType } from '../../types';
+import { AdminSidebar, AdminTab } from './AdminSidebar';
 
-type AdminTab = 'dashboard' | 'products' | 'categories' | 'banners' | 'orders' | 'coupons' | 'settings' | 'layout' | 'api-domain';
+export { AdminSidebar };
+export type { AdminTab };
 
 interface AdminLayoutProps {
   onBackToStore: () => void;
+  initialTab?: AdminTab;
 }
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
+export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initialTab }) => {
   const { storeConfig, logout, adminNotification, isLoading: isStoreDataLoading } = useStoreData();
   const { 
     currentStore, 
@@ -51,85 +54,62 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
     expiresAt, 
     monthlyFee 
   } = useTenant();
-  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+  const adminBasePath = useMemo(() => {
+    if (currentPath.startsWith('/loja/') && currentPath.includes('/admin')) {
+      const match = currentPath.match(/\/loja\/[^/]+\/admin/);
+      return match ? match[0] : '/admin';
+    }
+    if (currentPath.startsWith('/editaveisdocanva/admin')) {
+      return '/editaveisdocanva/admin';
+    }
+    if (currentPath.startsWith('/editaveis-do-canva/admin')) {
+      return '/editaveis-do-canva/admin';
+    }
+    const match = currentPath.match(/^\/([^/]+)\/admin/);
+    if (match && !['admin', 'master', 'super-admin'].includes(match[1].toLowerCase())) {
+      return `/${match[1]}/admin`;
+    }
+    return '/admin';
+  }, [currentPath]);
+
+  const getTabFromLocation = (): AdminTab => {
+    if (initialTab) return initialTab;
     if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
-      if (hash === 'pedidos' || hash === 'orders') return 'orders';
-      if (hash === 'produtos' || hash === 'products') return 'products';
-      if (hash === 'cupons' || hash === 'coupons') return 'coupons';
-      if (hash === 'configuracoes' || hash === 'settings') return 'settings';
-      if (hash === 'layout') return 'layout';
-      if (hash === 'api' || hash === 'api-domain' || hash === 'dominio') return 'api-domain';
-      if (hash === 'categorias' || hash === 'categories') return 'categories';
-      if (hash === 'banners') return 'banners';
+      if (pathname.endsWith('/orders') || pathname.endsWith('/pedidos') || pathname.includes('/admin/orders') || pathname.includes('/admin/pedidos') || hash === 'pedidos' || hash === 'orders') return 'orders';
+      if (pathname.endsWith('/products') || pathname.endsWith('/produtos') || pathname.includes('/admin/products') || hash === 'produtos' || hash === 'products') return 'products';
+      if (pathname.endsWith('/coupons') || pathname.endsWith('/cupons') || pathname.includes('/admin/coupons') || hash === 'cupons' || hash === 'coupons') return 'coupons';
+      if (pathname.endsWith('/settings') || pathname.endsWith('/configuracoes') || pathname.includes('/admin/settings') || hash === 'configuracoes' || hash === 'settings') return 'settings';
+      if (pathname.endsWith('/layout') || pathname.includes('/admin/layout') || hash === 'layout') return 'layout';
+      if (pathname.endsWith('/api') || pathname.endsWith('/api-domain') || pathname.includes('/admin/api-domain') || hash === 'api' || hash === 'api-domain' || hash === 'dominio') return 'api-domain';
+      if (pathname.endsWith('/categories') || pathname.endsWith('/categorias') || pathname.includes('/admin/categories') || hash === 'categorias' || hash === 'categories') return 'categories';
+      if (pathname.endsWith('/banners') || pathname.includes('/admin/banners') || hash === 'banners') return 'banners';
+      if (hash === 'dashboard' || hash === 'metricas') return 'dashboard';
     }
     return 'dashboard';
-  });
+  };
+
+  const [activeTab, setActiveTab] = useState<AdminTab>(getTabFromLocation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isBaseStore = 
     currentStore?.slug === 'suamarcaaqui' || 
     currentStore?.id === 'suamarcaaqui' || 
     currentStore?.id === 'store_default';
 
-  // Sincroniza abas com mudança de hash na URL
+  // Sincroniza abas com mudança de rota/hash na URL
   useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
-      if (hash === 'pedidos' || hash === 'orders') {
-        setActiveTab('orders');
-      } else if (hash === 'produtos' || hash === 'products') {
-        setActiveTab('products');
-      } else if (hash === 'cupons' || hash === 'coupons') {
-        setActiveTab('coupons');
-      } else if (hash === 'configuracoes' || hash === 'settings') {
-        setActiveTab('settings');
-      } else if (hash === 'layout') {
-        setActiveTab('layout');
-      } else if (hash === 'api' || hash === 'api-domain' || hash === 'dominio') {
-        setActiveTab('api-domain');
-      } else if (hash === 'categorias' || hash === 'categories') {
-        setActiveTab('categories');
-      } else if (hash === 'banners') {
-        setActiveTab('banners');
-      } else if (hash === 'dashboard' || hash === 'metricas') {
-        setActiveTab('dashboard');
-      }
+    const handleUrlChange = () => {
+      setActiveTab(getTabFromLocation());
     };
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
-
-  const navGroups = [
-    {
-      title: 'Visão Geral',
-      items: [
-        { id: 'dashboard' as AdminTab, label: 'Métricas & Conversão', icon: TrendingUp, isLive: true },
-      ],
-    },
-    {
-      title: 'Catálogo & Conteúdo',
-      items: [
-        { id: 'products' as AdminTab, label: 'Produtos', icon: Package },
-        { id: 'categories' as AdminTab, label: 'Categorias & Subcategorias', icon: FolderTree },
-        { id: 'banners' as AdminTab, label: 'Banners / Slides', icon: Sliders },
-      ],
-    },
-    {
-      title: 'Vendas & Operação',
-      items: [
-        { id: 'orders' as AdminTab, label: 'Pedidos', icon: ShoppingBag, isNew: true },
-        { id: 'coupons' as AdminTab, label: 'Cupons & Promoções', icon: Ticket },
-      ],
-    },
-    {
-      title: 'Configurações',
-      items: [
-        { id: 'settings' as AdminTab, label: 'Configurações da Loja', icon: Settings },
-        { id: 'layout' as AdminTab, label: 'Layout e Cores', icon: Palette },
-        { id: 'api-domain' as AdminTab, label: 'API e Domínio', icon: Globe },
-      ],
-    },
-  ];
+    window.addEventListener('hashchange', handleUrlChange);
+    window.addEventListener('popstate', handleUrlChange);
+    return () => {
+      window.removeEventListener('hashchange', handleUrlChange);
+      window.removeEventListener('popstate', handleUrlChange);
+    };
+  }, [initialTab]);
 
   // Injeta a variável global --primary-color e o tema na raiz do documento ao carregar o painel admin
   useEffect(() => {
@@ -252,125 +232,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore }) => {
       {/* 2. Container Principal: Menu Lateral (Sidebar) + Área de Conteúdo */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Backdrop para mobile drawer */}
-        {isMobileMenuOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 lg:hidden transition-opacity"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-
         {/* Menu Lateral (Sidebar) */}
-        <aside
-          className={`
-            fixed lg:static top-0 bottom-0 left-0 z-50 lg:z-30
-            w-64 xl:w-72 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0
-            transition-transform duration-300 ease-in-out
-            ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-            h-full lg:h-[calc(100vh-61px)] lg:sticky lg:top-[61px]
-          `}
-        >
-          {/* Header Mobile do Menu com botão fechar */}
-          <div className="p-4 flex items-center justify-between border-b border-slate-100 lg:hidden">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-theme-light text-theme-primary flex items-center justify-center font-sans font-black text-xs border border-theme-primary/20">
-                {storeDisplayName.charAt(0).toUpperCase()}
-              </span>
-              <div>
-                <span className="text-xs font-bold truncate max-w-[170px] block">{storeDisplayName}</span>
-                {storeDomainDisplay && (
-                  <a
-                    href={`https://${storeDomainDisplay}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] font-mono text-sky-600 hover:underline flex items-center gap-1 mt-0.5"
-                  >
-                    <span>{storeDomainDisplay}</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer"
-              title="Fechar menu"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Links de Navegação Agrupados */}
-          <div className="p-4 space-y-6 overflow-y-auto flex-1">
-            {navGroups.map((group) => (
-              <div key={group.title} className="space-y-1.5">
-                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  {group.title}
-                </p>
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveTab(item.id);
-                          window.location.hash = item.id;
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-left ${
-                          isActive
-                            ? 'bg-black text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isActive ? 'text-theme-primary' : 'text-slate-500'}`} />
-                          <span>{item.label}</span>
-                        </div>
-                        {'isNew' in item && item.isNew && (
-                          <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-md uppercase tracking-wider ${
-                            isActive ? 'bg-theme-primary text-white' : 'bg-pink-100 text-pink-700'
-                          }`}>
-                            Novo
-                          </span>
-                        )}
-                        {'isLive' in item && item.isLive && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className={isActive ? 'text-emerald-400' : 'text-emerald-600'}>Ao vivo</span>
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Rodapé do Menu Lateral */}
-          <div className="p-4 border-t border-slate-100 space-y-2 bg-slate-50/50">
-            <button
-              onClick={onBackToStore}
-              className="w-full px-3 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-theme-primary" />
-              <span>Ver Vitrine da Loja</span>
-            </button>
-            <button
-              onClick={logout}
-              className="w-full px-3 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sair da Conta</span>
-            </button>
-            <div className="pt-2 text-center text-[10px] text-slate-400 font-medium">
-              AJPSTORE v2.4 • Multi-Tenant
-            </div>
-          </div>
-        </aside>
+        <AdminSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          storeDisplayName={storeDisplayName}
+          storeDomainDisplay={storeDomainDisplay}
+          onBackToStore={onBackToStore}
+          logout={logout}
+          adminBasePath={adminBasePath}
+        />
 
         {/* 3. Área de Conteúdo à Direita */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
