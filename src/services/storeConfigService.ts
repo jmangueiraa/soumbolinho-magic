@@ -153,6 +153,16 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           if (stTheme.benefit_cards && Array.isArray(stTheme.benefit_cards) && stTheme.benefit_cards.length > 0) {
             mapped.benefitCards = stTheme.benefit_cards;
           }
+
+          const rawStoreFeat = storeRow.store_features || stTheme.store_features;
+          if (rawStoreFeat) {
+            mapped.storeFeatures = typeof rawStoreFeat === 'string' ? JSON.parse(rawStoreFeat) : rawStoreFeat;
+          }
+          if (storeRow.main_cta_text !== undefined) mapped.mainCtaText = storeRow.main_cta_text;
+          else if (stTheme.main_cta_text !== undefined) mapped.mainCtaText = stTheme.main_cta_text;
+
+          if (storeRow.main_cta_link !== undefined) mapped.mainCtaLink = storeRow.main_cta_link;
+          else if (stTheme.main_cta_link !== undefined) mapped.mainCtaLink = stTheme.main_cta_link;
         }
 
         if (siteThemeData) {
@@ -176,6 +186,13 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
               mapped.benefitCards = parsedCards;
             }
           }
+          if (siteThemeData.store_features) {
+            mapped.storeFeatures = typeof siteThemeData.store_features === 'string'
+              ? JSON.parse(siteThemeData.store_features)
+              : siteThemeData.store_features;
+          }
+          if (siteThemeData.main_cta_text) mapped.mainCtaText = siteThemeData.main_cta_text;
+          if (siteThemeData.main_cta_link) mapped.mainCtaLink = siteThemeData.main_cta_link;
         }
 
         // Fallback do localStorage para a loja específica ou global
@@ -459,6 +476,9 @@ export async function saveStoreConfigInSupabase(
     theme_layout: config.themeLayout || 'classic',
     color_palette: config.colorPalette || 'pink_pastel',
     whatsapp_default_message: config.whatsappDefaultMessage || null,
+    store_features: config.storeFeatures || null,
+    main_cta_text: config.mainCtaText !== undefined ? config.mainCtaText : null,
+    main_cta_link: config.mainCtaLink !== undefined ? config.mainCtaLink : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -511,6 +531,9 @@ export async function saveStoreConfigInSupabase(
         theme_layout: config.themeLayout || currentTheme.theme_layout || 'classic',
         primary_color: config.primaryColor || currentTheme.primary_color || '#FF1493',
         color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
+        store_features: config.storeFeatures || currentTheme.store_features || null,
+        main_cta_text: config.mainCtaText !== undefined ? config.mainCtaText : currentTheme.main_cta_text,
+        main_cta_link: config.mainCtaLink !== undefined ? config.mainCtaLink : currentTheme.main_cta_link,
         theme_settings: {
           ...currentTheme,
           layout_style: config.themeLayout || currentTheme.layout_style || currentTheme.theme_layout || 'classic',
@@ -519,6 +542,9 @@ export async function saveStoreConfigInSupabase(
           color_palette: config.colorPalette || currentTheme.color_palette || 'pink_pastel',
           logo_url: config.logoUrl !== undefined ? config.logoUrl : currentTheme.logo_url,
           benefit_cards: config.benefitCards || DEFAULT_BENEFIT_CARDS,
+          store_features: config.storeFeatures || currentTheme.store_features || null,
+          main_cta_text: config.mainCtaText !== undefined ? config.mainCtaText : currentTheme.main_cta_text,
+          main_cta_link: config.mainCtaLink !== undefined ? config.mainCtaLink : currentTheme.main_cta_link,
           whatsapp_default_message: config.whatsappDefaultMessage,
           mp_access_token: config.mpAccessToken?.trim() || currentTheme.mp_access_token || null,
           telegram_bot_token: config.telegramBotToken?.trim() || currentTheme.telegram_bot_token || null,

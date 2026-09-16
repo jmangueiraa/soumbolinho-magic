@@ -167,6 +167,14 @@ export interface BenefitCard {
   icon: string;
 }
 
+export interface StoreFeatureItem {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  icon: string;
+  link?: string;
+}
+
 export type ThemeLayoutType = 'classic' | 'modern' | 'minimal' | 'featured_grid';
 export type ColorPaletteType = 'pink_pastel' | 'blue_corporate' | 'purple_elegant' | 'green_nature' | 'blue_cyan';
 
@@ -196,6 +204,9 @@ export interface StoreConfig {
   whatsappNotifyPhone?: string;
   shippingConfig?: StoreShippingConfig;
   benefitCards?: BenefitCard[];
+  storeFeatures?: StoreFeatureItem[];
+  mainCtaText?: string;
+  mainCtaLink?: string;
   primaryColor?: string;
   whatsappDefaultMessage?: string;
   themeLayout?: ThemeLayoutType;
@@ -221,11 +232,17 @@ export interface Store {
   banners_config?: any;
   buttons_config?: any;
   benefit_cards?: BenefitCard[];
+  store_features?: StoreFeatureItem[] | null;
+  main_cta_text?: string | null;
+  main_cta_link?: string | null;
   theme_settings?: {
     primary_color?: string;
     secondary_color?: string;
     logo_url?: string;
     benefit_cards?: BenefitCard[];
+    store_features?: StoreFeatureItem[] | null;
+    main_cta_text?: string | null;
+    main_cta_link?: string | null;
     whatsapp_default_message?: string;
     theme_layout?: ThemeLayoutType;
     layout_style?: ThemeLayoutType | string;

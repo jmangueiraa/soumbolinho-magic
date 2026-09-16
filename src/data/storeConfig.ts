@@ -1,4 +1,4 @@
-import { StoreConfig, BenefitCard } from '../types';
+import { StoreConfig, BenefitCard, StoreFeatureItem } from '../types';
 
 export const DEFAULT_BENEFIT_CARDS: BenefitCard[] = [
   {
@@ -27,6 +27,32 @@ export const DEFAULT_BENEFIT_CARDS: BenefitCard[] = [
   },
 ];
 
+export const DEFAULT_STORE_FEATURES: StoreFeatureItem[] = [
+  {
+    id: 'feat_1',
+    title: 'Arquivos Editáveis',
+    subtitle: '',
+    icon: 'file-archive',
+    link: '',
+  },
+  {
+    id: 'feat_2',
+    title: 'Compra Segura',
+    subtitle: '',
+    icon: 'shopping-basket',
+    link: '',
+  },
+  {
+    id: 'feat_3',
+    title: 'Acesso Vitalício',
+    subtitle: '',
+    icon: 'users',
+    link: '',
+  },
+];
+
+export const DEFAULT_MAIN_CTA_TEXT = 'Toda loja com Download imediato!';
+
 export const STORE_CONFIG: StoreConfig = {
   storeName: 'AJPSTORE',
   slogan: 'Sua Loja Online em Minutos',
@@ -38,6 +64,9 @@ export const STORE_CONFIG: StoreConfig = {
   workingHours: 'Segunda a Sábado das 09h às 18h',
   minOrderValue: 0.00,
   benefitCards: DEFAULT_BENEFIT_CARDS,
+  storeFeatures: DEFAULT_STORE_FEATURES,
+  mainCtaText: DEFAULT_MAIN_CTA_TEXT,
+  mainCtaLink: '',
   themeLayout: 'classic',
   colorPalette: 'blue_cyan',
   primaryColor: '#0062FF',

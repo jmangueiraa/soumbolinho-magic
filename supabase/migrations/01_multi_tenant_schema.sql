@@ -50,6 +50,9 @@ ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS is_matriz BOOLEAN DEFAULT FAL
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS layout_style TEXT DEFAULT 'classic';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#FF1493';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS color_palette TEXT DEFAULT 'pink_pastel';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS store_features JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS main_cta_text TEXT DEFAULT 'Toda loja com Download imediato!';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS main_cta_link TEXT DEFAULT '';
 
 -- Atualizar CHECK constraint para aceitar tanto 'active' quanto 'ativo', 'pending_dns', 'pendente'
 ALTER TABLE public.stores DROP CONSTRAINT IF EXISTS stores_domain_status_check;

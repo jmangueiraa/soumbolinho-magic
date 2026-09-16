@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Store, DomainStatus, SubscriptionStatus } from '../types';
 import { supabase } from '../lib/supabase';
+import { DEFAULT_STORE_FEATURES, DEFAULT_MAIN_CTA_TEXT } from '../data/storeConfig';
 
 export const DEFAULT_STORE: Store = {
   id: 'store_ajpstore',
@@ -12,6 +13,9 @@ export const DEFAULT_STORE: Store = {
   primary_color: '#FF1493',
   color_palette: 'pink_pastel',
   logo_url: '/ajpstore-logo.png',
+  store_features: DEFAULT_STORE_FEATURES,
+  main_cta_text: DEFAULT_MAIN_CTA_TEXT,
+  main_cta_link: '',
   theme_settings: {
     primary_color: '#FF1493',
     secondary_color: '#00a8e8',
@@ -19,6 +23,9 @@ export const DEFAULT_STORE: Store = {
     theme_layout: 'classic',
     layout_style: 'classic',
     logo_url: '/ajpstore-logo.png',
+    store_features: DEFAULT_STORE_FEATURES,
+    main_cta_text: DEFAULT_MAIN_CTA_TEXT,
+    main_cta_link: '',
   },
   is_active: true,
   is_matriz: true,
@@ -245,7 +252,9 @@ export function normalizeStore(s: any): Store {
     layout_style: resolvedLayout,
     theme_layout: resolvedLayout,
     primary_color: resolvedPrimary,
-    color_palette: resolvedPalette,
+    store_features: s.store_features || stTheme.store_features || (isAjpStore ? DEFAULT_STORE_FEATURES : []),
+    main_cta_text: s.main_cta_text !== undefined ? s.main_cta_text : (stTheme.main_cta_text !== undefined ? stTheme.main_cta_text : (isAjpStore ? DEFAULT_MAIN_CTA_TEXT : '')),
+    main_cta_link: s.main_cta_link !== undefined ? s.main_cta_link : (stTheme.main_cta_link || ''),
     theme_settings: {
       ...stTheme,
       layout_style: resolvedLayout,
@@ -256,6 +265,9 @@ export function normalizeStore(s: any): Store {
       only_logo: s.only_logo !== undefined ? Boolean(s.only_logo) : (stTheme.only_logo !== undefined ? Boolean(stTheme.only_logo) : (s.onlyLogo !== undefined ? Boolean(s.onlyLogo) : false)),
       onlyLogo: s.only_logo !== undefined ? Boolean(s.only_logo) : (stTheme.only_logo !== undefined ? Boolean(stTheme.only_logo) : (s.onlyLogo !== undefined ? Boolean(s.onlyLogo) : false)),
       benefit_cards: stTheme.benefit_cards,
+      store_features: s.store_features || stTheme.store_features || (isAjpStore ? DEFAULT_STORE_FEATURES : []),
+      main_cta_text: s.main_cta_text !== undefined ? s.main_cta_text : (stTheme.main_cta_text !== undefined ? stTheme.main_cta_text : (isAjpStore ? DEFAULT_MAIN_CTA_TEXT : '')),
+      main_cta_link: s.main_cta_link !== undefined ? s.main_cta_link : (stTheme.main_cta_link || ''),
       whatsapp_default_message: stTheme.whatsapp_default_message,
     },
     mp_access_token: s.mp_access_token || stTheme.mp_access_token || (typeof window !== 'undefined' ? (localStorage.getItem(`store_${resolvedId}_mp_access_token`) || localStorage.getItem(`store_${s.id}_mp_access_token`) || localStorage.getItem('store_store_editaveisdocanva_mp_access_token') || localStorage.getItem('store_editaveisdocanva_mp_access_token') || localStorage.getItem('mp_access_token') || localStorage.getItem('encantando_festa_mp_access_token')) : null) || null,

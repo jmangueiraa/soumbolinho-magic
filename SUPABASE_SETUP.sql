@@ -70,6 +70,9 @@ CREATE TABLE IF NOT EXISTS public.stores (
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS layout_style TEXT DEFAULT 'classic';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#FF1493';
 ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS color_palette TEXT DEFAULT 'pink_pastel';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS store_features JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS main_cta_text TEXT DEFAULT 'Toda loja com Download imediato!';
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS main_cta_link TEXT DEFAULT '';
 
 -- Remove restrições NOT NULL que possam ter vindo de esquemas anteriores
 ALTER TABLE public.stores ALTER COLUMN admin_password DROP NOT NULL;

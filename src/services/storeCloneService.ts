@@ -100,6 +100,9 @@ export async function cloneStoreTemplate(
     const resolvedBannersConfig = matrizStore?.banners_config || matrizThemeSettings?.banners_config || null;
     const resolvedButtonsConfig = matrizStore?.buttons_config || matrizThemeSettings?.buttons_config || null;
     const resolvedBenefitCards = matrizStore?.benefit_cards || matrizSiteSettings?.benefit_cards || matrizThemeSettings?.benefit_cards || null;
+    const resolvedStoreFeatures = matrizStore?.store_features || matrizThemeSettings?.store_features || null;
+    const resolvedMainCtaText = matrizStore?.main_cta_text !== undefined ? matrizStore.main_cta_text : (matrizThemeSettings?.main_cta_text !== undefined ? matrizThemeSettings.main_cta_text : 'Toda loja com Download imediato!');
+    const resolvedMainCtaLink = matrizStore?.main_cta_link || matrizThemeSettings?.main_cta_link || '';
 
     const mergedThemeSettings = {
       ...(matrizThemeSettings || {}),
@@ -110,7 +113,10 @@ export async function cloneStoreTemplate(
       layout_style: resolvedLayoutStyle,
       buttons_config: resolvedButtonsConfig,
       banners_config: resolvedBannersConfig,
-      benefit_cards: resolvedBenefitCards
+      benefit_cards: resolvedBenefitCards,
+      store_features: resolvedStoreFeatures,
+      main_cta_text: resolvedMainCtaText,
+      main_cta_link: resolvedMainCtaLink,
     };
 
     // Atualiza a nova loja na tabela stores copiando todas as configurações de layout, banners, logo, cores e botões exatos
@@ -127,6 +133,9 @@ export async function cloneStoreTemplate(
         banners_config: resolvedBannersConfig,
         buttons_config: resolvedButtonsConfig,
         benefit_cards: resolvedBenefitCards,
+        store_features: resolvedStoreFeatures,
+        main_cta_text: resolvedMainCtaText,
+        main_cta_link: resolvedMainCtaLink,
         theme_settings: mergedThemeSettings,
         updated_at: new Date().toISOString()
       };

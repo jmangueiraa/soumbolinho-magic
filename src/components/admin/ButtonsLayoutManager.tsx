@@ -22,13 +22,17 @@ import {
   Feather,
   Smartphone,
   Eye,
-  CheckCircle
+  CheckCircle,
+  FileArchive,
+  ShoppingBasket,
+  Users,
+  Laptop
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
-import { DEFAULT_BENEFIT_CARDS } from '../../data/storeConfig';
-import { BenefitCard, ColorPaletteType, ThemeLayoutType } from '../../types';
+import { DEFAULT_BENEFIT_CARDS, DEFAULT_STORE_FEATURES, DEFAULT_MAIN_CTA_TEXT } from '../../data/storeConfig';
+import { BenefitCard, ColorPaletteType, ThemeLayoutType, StoreFeatureItem } from '../../types';
 import { COLOR_PALETTES, THEME_LAYOUTS, applyThemeToDocument } from '../../utils/theme';
 
 const AVAILABLE_BENEFIT_ICONS = [
@@ -44,6 +48,25 @@ const AVAILABLE_BENEFIT_ICONS = [
   { value: 'clock', label: 'Relógio / Sempre Aberto', icon: Clock, color: 'text-[#3b82f6]' },
   { value: 'gift', label: 'Presente / Brinde', icon: Gift, color: 'text-theme-primary' },
   { value: 'award', label: 'Troféu / Garantia', icon: Award, color: 'text-[#eab308]' },
+];
+
+const AVAILABLE_FEATURE_ICONS = [
+  { value: 'file-archive', label: 'Arquivos / Pastas (Editáveis)', icon: FileArchive },
+  { value: 'shopping-basket', label: 'Cesta de Compras (Compra Segura)', icon: ShoppingBasket },
+  { value: 'users', label: 'Usuários / Pessoas (Acesso Vitalício)', icon: Users },
+  { value: 'shield', label: 'Escudo / Segurança (Confiança)', icon: ShieldCheck },
+  { value: 'download', label: 'Download / Baixar (Acesso Imediato)', icon: Download },
+  { value: 'zap', label: 'Raio / Relâmpago (Envio Rápido)', icon: Zap },
+  { value: 'star', label: 'Estrela (Destaque / Qualidade)', icon: Star },
+  { value: 'sparkles', label: 'Brilhos (Exclusivo / Especial)', icon: Sparkles },
+  { value: 'heart', label: 'Coração (Feito com Amor / Mimos)', icon: Heart },
+  { value: 'gift', label: 'Presente (Brindes / Bônus)', icon: Gift },
+  { value: 'award', label: 'Troféu / Medalha (Garantia)', icon: Award },
+  { value: 'clock', label: 'Relógio (24h / Imediato)', icon: Clock },
+  { value: 'check', label: 'Verificado (Aprovado)', icon: CheckCircle2 },
+  { value: 'message', label: 'WhatsApp / Chat (Suporte)', icon: MessageCircle },
+  { value: 'smartphone', label: 'Celular (Compatível)', icon: Smartphone },
+  { value: 'laptop', label: 'Computador (Canva / Online)', icon: Laptop },
 ];
 
 export const ButtonsLayoutManager: React.FC = () => {
@@ -89,6 +112,41 @@ export const ButtonsLayoutManager: React.FC = () => {
       ? storeConfig.benefitCards 
       : (currentStore?.theme_settings?.benefit_cards || DEFAULT_BENEFIT_CARDS)
   );
+
+  // Botões de Destaque da Vitrine (3 Botões Redondos + Barra de Ação Azul)
+  const [storeFeatures, setStoreFeatures] = useState<StoreFeatureItem[]>(() => {
+    const raw = currentStore?.store_features || currentStore?.theme_settings?.store_features || storeConfig?.storeFeatures;
+    if (raw && Array.isArray(raw) && raw.length > 0) return raw;
+    return DEFAULT_STORE_FEATURES;
+  });
+
+  const [mainCtaText, setMainCtaText] = useState<string>(() => {
+    if (currentStore?.main_cta_text !== undefined && currentStore?.main_cta_text !== null) {
+      return currentStore.main_cta_text;
+    }
+    if (currentStore?.theme_settings?.main_cta_text !== undefined && currentStore?.theme_settings?.main_cta_text !== null) {
+      return currentStore.theme_settings.main_cta_text;
+    }
+    if (storeConfig?.mainCtaText !== undefined && storeConfig?.mainCtaText !== null) {
+      return storeConfig.mainCtaText;
+    }
+    return DEFAULT_MAIN_CTA_TEXT;
+  });
+
+  const [mainCtaLink, setMainCtaLink] = useState<string>(() => {
+    return currentStore?.main_cta_link || currentStore?.theme_settings?.main_cta_link || storeConfig?.mainCtaLink || '';
+  });
+
+  const handleFeatureChange = (index: number, field: keyof StoreFeatureItem, value: string) => {
+    setStoreFeatures((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+      };
+      return updated;
+    });
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -191,6 +249,41 @@ export const ButtonsLayoutManager: React.FC = () => {
           }
         }
 
+        // 6. Store Features (3 Botões de Destaque da Vitrine)
+        const freshFeatures = 
+          storeRow?.store_features || 
+          storeRow?.theme_settings?.store_features || 
+          siteData?.store_features || 
+          storeConfig?.storeFeatures;
+
+        if (freshFeatures) {
+          const parsedFeatures = typeof freshFeatures === 'string' ? JSON.parse(freshFeatures) : freshFeatures;
+          if (Array.isArray(parsedFeatures) && parsedFeatures.length > 0) {
+            setStoreFeatures(parsedFeatures);
+          }
+        }
+
+        // 7. Botão / Barra de Destaque Azul (CTA)
+        const freshCtaText = 
+          storeRow?.main_cta_text ?? 
+          storeRow?.theme_settings?.main_cta_text ?? 
+          siteData?.main_cta_text ?? 
+          storeConfig?.mainCtaText;
+
+        if (freshCtaText !== undefined && freshCtaText !== null) {
+          setMainCtaText(freshCtaText);
+        }
+
+        const freshCtaLink = 
+          storeRow?.main_cta_link ?? 
+          storeRow?.theme_settings?.main_cta_link ?? 
+          siteData?.main_cta_link ?? 
+          storeConfig?.mainCtaLink;
+
+        if (freshCtaLink !== undefined && freshCtaLink !== null) {
+          setMainCtaLink(freshCtaLink);
+        }
+
         hasLoadedRef.current = true;
       } catch (err) {
         console.warn('[ButtonsLayoutManager] Aviso ao carregar configurações frescas:', err);
@@ -258,6 +351,9 @@ export const ButtonsLayoutManager: React.FC = () => {
         theme_layout: themeLayout,
         color_palette: colorPalette,
         whatsapp_default_message: whatsappDefaultMessage.trim(),
+        store_features: storeFeatures,
+        main_cta_text: mainCtaText.trim(),
+        main_cta_link: mainCtaLink.trim(),
         theme_settings: {
           ...(currentStore?.theme_settings || {}),
           primary_color: primaryColor,
@@ -266,6 +362,9 @@ export const ButtonsLayoutManager: React.FC = () => {
           color_palette: colorPalette,
           whatsapp_default_message: whatsappDefaultMessage.trim(),
           benefit_cards: benefitCards,
+          store_features: storeFeatures,
+          main_cta_text: mainCtaText.trim(),
+          main_cta_link: mainCtaLink.trim(),
         },
         updated_at: new Date().toISOString(),
       };
@@ -386,13 +485,16 @@ export const ButtonsLayoutManager: React.FC = () => {
       }
 
       // 2. Gravação na tabela site_settings filtrando pela loja ativa atual (CRUCIAL)
-      const siteSettingsPayload = {
+      const siteSettingsPayload: any = {
         store_id: currentStoreId,
         whatsapp_default_message: whatsappDefaultMessage.trim(),
         theme_layout: themeLayout,
         color_palette: colorPalette,
         primary_color: primaryColor,
         benefit_cards: benefitCards,
+        store_features: storeFeatures,
+        main_cta_text: mainCtaText.trim(),
+        main_cta_link: mainCtaLink.trim(),
         updated_at: new Date().toISOString()
       };
 
@@ -409,7 +511,16 @@ export const ButtonsLayoutManager: React.FC = () => {
           .upsert([siteSettingsPayload], { onConflict: 'store_id' });
         if (upsertErr) {
           console.warn('[ButtonsLayoutManager] Aviso ao dar upsert em site_settings:', upsertErr.message);
-          await supabase.from('site_settings').insert([siteSettingsPayload]);
+          const fallbackSitePayload = {
+            store_id: currentStoreId,
+            whatsapp_default_message: whatsappDefaultMessage.trim(),
+            theme_layout: themeLayout,
+            color_palette: colorPalette,
+            primary_color: primaryColor,
+            benefit_cards: benefitCards,
+            updated_at: new Date().toISOString()
+          };
+          await supabase.from('site_settings').upsert([fallbackSitePayload], { onConflict: 'store_id' });
         }
       }
 
@@ -451,6 +562,9 @@ export const ButtonsLayoutManager: React.FC = () => {
         primaryColor,
         whatsappDefaultMessage: whatsappDefaultMessage.trim(),
         benefitCards,
+        storeFeatures,
+        mainCtaText: mainCtaText.trim(),
+        mainCtaLink: mainCtaLink.trim(),
       });
 
       // 5. Atualiza TenantContext em memória sem recarregar a tela
@@ -460,6 +574,9 @@ export const ButtonsLayoutManager: React.FC = () => {
           theme_layout: themeLayout,
           primary_color: primaryColor,
           color_palette: colorPalette,
+          store_features: storeFeatures,
+          main_cta_text: mainCtaText.trim(),
+          main_cta_link: mainCtaLink.trim(),
           theme_settings: {
             ...(currentStore?.theme_settings || {}),
             primary_color: primaryColor,
@@ -468,6 +585,9 @@ export const ButtonsLayoutManager: React.FC = () => {
             color_palette: colorPalette,
             whatsapp_default_message: whatsappDefaultMessage.trim(),
             benefit_cards: benefitCards,
+            store_features: storeFeatures,
+            main_cta_text: mainCtaText.trim(),
+            main_cta_link: mainCtaLink.trim(),
           }
         });
       }
@@ -773,7 +893,174 @@ export const ButtonsLayoutManager: React.FC = () => {
         </div>
 
         {/* ========================================================= */}
-        {/* 3. OS 4 BOTÕES DE BENEFÍCIOS DO RODAPÉ */}
+        {/* 3. BOTÕES DE DESTAQUE DA VITRINE (TOPO DA LOJA) */}
+        {/* ========================================================= */}
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-[#00a8e8] text-white flex items-center justify-center shadow-xs">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                3. Botões de Destaque da Vitrine (Topo da Loja)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Personalize os 3 botões circulares e a barra de destaque azul exibidos acima dos produtos. Se deixar o campo em branco, o botão correspondente não aparecerá na vitrine pública.
+              </p>
+            </div>
+          </div>
+
+          {/* Subseção A: 3 Botões Redondos */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-black inline-block"></span>
+                3 Botões Circulares em Destaque
+              </h4>
+              <span className="text-[11px] text-slate-400 font-medium">Deixe o título vazio para ocultar o botão</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {storeFeatures.map((feat, idx) => {
+                const selectedIconObj = AVAILABLE_FEATURE_ICONS.find((i) => i.value === feat.icon) || AVAILABLE_FEATURE_ICONS[0];
+                const IconComponent = selectedIconObj.icon;
+
+                return (
+                  <div key={feat.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold">
+                          {idx + 1}
+                        </span>
+                        Botão {idx + 1}
+                      </span>
+
+                      {/* Mini Live Preview */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center shadow-xs">
+                          <IconComponent className="w-4 h-4 text-white" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Ícone
+                        </label>
+                        <select
+                          value={feat.icon}
+                          onChange={(e) => handleFeatureChange(idx, 'icon', e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800 font-medium cursor-pointer"
+                        >
+                          {AVAILABLE_FEATURE_ICONS.map((item) => (
+                            <option key={item.value} value={item.value}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Texto Principal (Título)
+                        </label>
+                        <input
+                          type="text"
+                          value={feat.title}
+                          onChange={(e) => handleFeatureChange(idx, 'title', e.target.value)}
+                          placeholder="Ex: Arquivos Editáveis (vazio = ocultar)"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Subtítulo / Linha 2 (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={feat.subtitle || ''}
+                          onChange={(e) => handleFeatureChange(idx, 'subtitle', e.target.value)}
+                          placeholder="Ex: Editáveis"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Link de Redirecionamento (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={feat.link || ''}
+                          onChange={(e) => handleFeatureChange(idx, 'link', e.target.value)}
+                          placeholder="Ex: #produtos ou /categoria/canva"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Subseção B: Barra / Botão Principal de Destaque Azul */}
+          <div className="pt-4 border-t border-slate-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-md bg-[#00a8e8] inline-block"></span>
+                Botão Principal de Destaque (Barra Azul)
+              </h4>
+              <span className="text-[11px] text-slate-400 font-medium">Deixe vazio para ocultar na vitrine</span>
+            </div>
+
+            {/* Live Preview da Barra Azul */}
+            {mainCtaText && mainCtaText.trim().length > 0 && (
+              <div className="w-full py-3 px-4 bg-[#00a8e8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs text-center">
+                <span>{mainCtaText}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/90">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Texto do Botão Azul *
+                </label>
+                <input
+                  type="text"
+                  value={mainCtaText}
+                  onChange={(e) => setMainCtaText(e.target.value)}
+                  placeholder="Ex: Toda loja com Download imediato!"
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  💡 Deixe em branco caso prefira não exibir este botão na sua vitrine.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Link de Redirecionamento (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={mainCtaLink}
+                  onChange={(e) => setMainCtaLink(e.target.value)}
+                  placeholder="Ex: #produtos ou /promocoes"
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  💡 Se preenchido, o cliente será levado a esse link ao clicar no botão.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* 4. OS 4 BOTÕES DE BENEFÍCIOS DO RODAPÉ */}
         {/* ========================================================= */}
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
           <div className="flex items-center gap-3">
@@ -782,7 +1069,7 @@ export const ButtonsLayoutManager: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                3. 4 Botões Informativos de Destaque (Rodapé)
+                4. 4 Botões Informativos de Destaque (Rodapé)
               </h3>
               <p className="text-xs text-slate-500">
                 Configure os títulos, textos e ícones que aparecem nos 4 botões no rodapé da loja
@@ -869,7 +1156,7 @@ export const ButtonsLayoutManager: React.FC = () => {
         </div>
 
         {/* ========================================================= */}
-        {/* 4. BOTÃO DE ATENDIMENTO WHATSAPP & MENSAGEM */}
+        {/* 5. BOTÃO DE ATENDIMENTO WHATSAPP & MENSAGEM */}
         {/* ========================================================= */}
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center gap-3">
@@ -878,7 +1165,7 @@ export const ButtonsLayoutManager: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                4. Mensagem Padrão do WhatsApp
+                5. Mensagem Padrão do WhatsApp
               </h3>
               <p className="text-xs text-slate-500">Texto inicial pré-preenchido ao clicar no suporte ou no card de atendimento</p>
             </div>
@@ -896,9 +1183,9 @@ export const ButtonsLayoutManager: React.FC = () => {
         </div>
 
         {/* ========================================================= */}
-        {/* 5. PRÉ-VISUALIZAÇÃO AO VIVO INTEGRADA */}
+        {/* 6. PRÉ-VISUALIZAÇÃO AO VIVO INTEGRADA */}
         {/* ========================================================= */}
-        <div className="bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-zinc-800 space-y-4">
+        <div className="bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-zinc-800 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-white" />
@@ -918,31 +1205,69 @@ export const ButtonsLayoutManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Cards do Rodapé com Estilo da Paleta */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-            {benefitCards.map((card, idx) => {
-              const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
-              const IconComponent = selectedIconObj.icon;
-              const isWhatsAppCard = card.icon === 'message' || card.id === 'card_4';
-              const displayDesc = isWhatsAppCard && (!card.description || card.description === 'SeuWhatsAppWhatsApp')
-                ? (storeConfig.whatsappDisplay || '(21) 99999-9999')
-                : card.description;
+          {/* Destaque do Topo da Vitrine (3 Botões Redondos + Barra Azul) */}
+          <div className="space-y-4 pt-1">
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+              Destaques do Topo da Vitrine
+            </span>
 
-              return (
-                <div key={card.id || idx} className="flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800">
-                  <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: `${primaryColor}25` }}
-                  >
-                    <IconComponent className="w-5 h-5" style={{ color: primaryColor }} />
+            {/* 3 Botões Redondos */}
+            <div className="flex items-center justify-center gap-4 sm:gap-8 py-2">
+              {storeFeatures.filter(f => f.title && f.title.trim()).map((feat, idx) => {
+                const selectedIconObj = AVAILABLE_FEATURE_ICONS.find((i) => i.value === feat.icon) || AVAILABLE_FEATURE_ICONS[0];
+                const IconComponent = selectedIconObj.icon;
+
+                return (
+                  <div key={idx} className="flex flex-col items-center space-y-1.5 text-center">
+                    <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center shadow-md border border-zinc-800">
+                      <IconComponent className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-[10px] sm:text-[11px] font-bold text-zinc-200 leading-tight block max-w-[80px] truncate">
+                      {feat.title}
+                    </span>
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-white truncate">{card.title || `Botão ${idx + 1}`}</h4>
-                    <p className="text-[11px] text-zinc-400 truncate">{displayDesc}</p>
+                );
+              })}
+            </div>
+
+            {/* Barra Azul / CTA */}
+            {mainCtaText && mainCtaText.trim().length > 0 && (
+              <div className="w-full max-w-md mx-auto py-2.5 px-4 bg-[#00a8e8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md text-center">
+                <span>{mainCtaText}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Cards Informativos do Rodapé com Estilo da Paleta */}
+          <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+              Botões Informativos do Rodapé
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+              {benefitCards.map((card, idx) => {
+                const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
+                const IconComponent = selectedIconObj.icon;
+                const isWhatsAppCard = card.icon === 'message' || card.id === 'card_4';
+                const displayDesc = isWhatsAppCard && (!card.description || card.description === 'SeuWhatsAppWhatsApp')
+                  ? (storeConfig.whatsappDisplay || '(21) 99999-9999')
+                  : card.description;
+
+                return (
+                  <div key={card.id || idx} className="flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800">
+                    <div 
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${primaryColor}25` }}
+                    >
+                      <IconComponent className="w-5 h-5" style={{ color: primaryColor }} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-white truncate">{card.title || `Botão ${idx + 1}`}</h4>
+                      <p className="text-[11px] text-zinc-400 truncate">{displayDesc}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
 
