@@ -5,7 +5,13 @@ import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { formatCurrency } from '../../utils/formatters';
 
-import { useTenant } from '../../context/TenantContext';
+import { 
+  useTenant, 
+  isPlatformRootHostname, 
+  isTenantHost, 
+  extractStoreSubdomain, 
+  isCustomStoreDomain 
+} from '../../context/TenantContext';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 
 interface HeaderProps {
@@ -29,6 +35,17 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
   const storeHomeUrl = isLojaRoute && currentStore?.slug && currentStore.id !== '__resolving_tenant__'
     ? `/loja/${currentStore.slug}`
     : '/';
+
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase().trim() : '';
+  const isTenant = isTenantHost(currentHostname) || Boolean(extractStoreSubdomain(currentHostname)) || isCustomStoreDomain(currentHostname);
+  const isClientStore = Boolean(
+    currentStore && 
+    !currentStore.is_matriz && 
+    currentStore.slug !== 'ajpstore' && 
+    currentStore.id !== 'store_ajpstore' && 
+    currentStore.id !== '__resolving_tenant__'
+  );
+  const showCreateStoreButton = isPlatformRootHostname(currentHostname) && !isTenant && !isLojaRoute && !isClientStore;
 
   return (
     <header 
@@ -95,14 +112,16 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
 
           {/* LADO DIREITO: Botão Criar Loja (7 Dias Grátis) + Botão do Carrinho */}
           <div className="flex items-center gap-2 shrink-0">
-            <a
-              href="/cadastro"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all hover:scale-102 active:scale-98 shrink-0"
-              title="Crie sua loja grátis por 7 dias"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-yellow-200" />
-              <span>Criar Loja (7 Dias Grátis)</span>
-            </a>
+            {showCreateStoreButton && (
+              <a
+                href="/cadastro"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-lg font-bold text-xs shadow-xs transition-all hover:scale-102 active:scale-98 shrink-0"
+                title="Crie sua loja grátis por 7 dias"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-yellow-200" />
+                <span>Criar Loja (7 Dias Grátis)</span>
+              </a>
+            )}
 
             {/* Botão do Carrinho com borda e badge (ex: R$ 10,00 🛒 1) */}
             <button

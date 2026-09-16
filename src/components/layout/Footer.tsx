@@ -17,7 +17,13 @@ import {
 } from 'lucide-react';
 import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
-import { useTenant } from '../../context/TenantContext';
+import { 
+  useTenant, 
+  isPlatformRootHostname, 
+  isTenantHost, 
+  extractStoreSubdomain, 
+  isCustomStoreDomain 
+} from '../../context/TenantContext';
 import { supabase } from '../../lib/supabase';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { DEFAULT_BENEFIT_CARDS } from '../../data/storeConfig';
@@ -89,6 +95,18 @@ export const Footer: React.FC = () => {
 
   const currentStoreId = currentStore?.id || '';
   const isBase = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default' || !currentStoreId;
+
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase().trim() : '';
+  const isTenant = isTenantHost(currentHostname) || Boolean(extractStoreSubdomain(currentHostname)) || isCustomStoreDomain(currentHostname);
+  const isLojaRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/loja/');
+  const isClientStore = Boolean(
+    currentStore && 
+    !currentStore.is_matriz && 
+    currentStore.slug !== 'ajpstore' && 
+    currentStore.id !== 'store_ajpstore' && 
+    currentStore.id !== '__resolving_tenant__'
+  );
+  const showCreateStoreButton = isPlatformRootHostname(currentHostname) && !isTenant && !isLojaRoute && !isClientStore;
 
   // Leitura dos cartões de benefícios salvos no Supabase (site_settings / storeConfig)
   const [benefitCards, setBenefitCards] = useState<BenefitCard[]>(
@@ -264,15 +282,17 @@ export const Footer: React.FC = () => {
       <div className="border-t border-zinc-900 py-6 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© {new Date().getFullYear()} {storeConfig.storeName || 'Soumbolinho'} • Todos os direitos reservados.</p>
-          <a
-            href="/cadastro"
-            className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 font-semibold"
-          >
-            <span>Crie sua Loja na AJPSTORE</span>
-            <span className="text-[10px] bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2 py-0.5 rounded-full font-bold">
-              7 Dias Grátis
-            </span>
-          </a>
+          {showCreateStoreButton && (
+            <a
+              href="/cadastro"
+              className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 font-semibold"
+            >
+              <span>Crie sua Loja na AJPSTORE</span>
+              <span className="text-[10px] bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2 py-0.5 rounded-full font-bold">
+                7 Dias Grátis
+              </span>
+            </a>
+          )}
         </div>
       </div>
 
