@@ -619,310 +619,367 @@ export const ButtonsLayoutManager: React.FC = () => {
   const activeLayoutObj = THEME_LAYOUTS[themeLayout] || THEME_LAYOUTS.classic;
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="min-h-screen pb-24 font-sans text-gray-800">
       
-      {/* Header da Aba */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="p-2 rounded-2xl bg-black text-white">
-              <Palette className="w-5 h-5 text-white" />
-            </span>
-            <h2 className="font-festive text-xl sm:text-2xl font-bold text-slate-900">
-              Layout e Cores da Loja
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            Escolha o modelo de layout do catálogo, paleta de cores institucional, botões de benefícios e mensagem do WhatsApp.
-          </p>
-        </div>
-
-        {/* Status Badge */}
-        <div className="flex items-center gap-2 self-start sm:self-center px-3.5 py-1.5 rounded-2xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
-          <span>Tema: <strong>{activePaletteObj.name.split('/')[0]}</strong></span>
-          <span className="text-slate-300">•</span>
-          <span>Layout: <strong>{activeLayoutObj.name}</strong></span>
-        </div>
-      </div>
-
-      <div className="space-y-8">
-
-        {/* ========================================================= */}
-        {/* 1. SELEÇÃO DE LAYOUT DO SITE (4 OPÇÕES VISUAIS) */}
-        {/* ========================================================= */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                <Layout className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span>1. Modelo de Layout do Site</span>
-                  <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full border border-indigo-200">
-                    Visual do Catálogo
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-500">Escolha a disposição dos produtos, menus e cabeçalho na sua loja</p>
-              </div>
+      {/* CABEÇALHO */}
+      <header className="bg-white rounded-2xl p-5 mb-6 shadow-xs border border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-100 text-purple-700 p-2.5 rounded-xl shrink-0">
+              <Palette size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">Layout e Cores</h1>
+              <p className="text-xs text-gray-500">Personalize a vitrine da sua loja</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(Object.keys(THEME_LAYOUTS) as ThemeLayoutType[]).map((layoutKey) => {
-              const layout = THEME_LAYOUTS[layoutKey];
-              const isSelected = themeLayout === layoutKey;
+          {/* Botões de Ação do Topo */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPreview(true)}
+              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Eye size={16} />
+              <span>Prévia</span>
+            </button>
 
-              return (
-                <div
-                  key={layoutKey}
-                  onClick={() => handleLayoutSelect(layoutKey)}
-                  className={`p-5 rounded-3xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                    isSelected
-                      ? 'border-black bg-slate-50/70 shadow-md ring-2 ring-black/5'
-                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/30'
-                  }`}
-                >
-                  {/* Top Header Card */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2.5">
-                      <div className="flex items-center gap-2">
-                        {layoutKey === 'classic' && <Layers className="w-4 h-4 text-slate-700" />}
-                        {layoutKey === 'modern' && <Sparkles className="w-4 h-4 text-theme-primary" />}
-                        {layoutKey === 'minimal' && <Feather className="w-4 h-4 text-emerald-600" />}
-                        {layoutKey === 'featured_grid' && <Grid3X3 className="w-4 h-4 text-blue-600" />}
-                        <span className="font-bold text-sm text-slate-900">{layout.name}</span>
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={isSaving}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Salvar</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* NAVEGAÇÃO POR ABAS (Scroll Horizontal no Mobile) */}
+        <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar gap-2 sm:gap-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab('aparencia')}
+            className={`pb-3 px-2 text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-colors relative cursor-pointer ${
+              activeTab === 'aparencia'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <LayoutTemplate size={18} />
+            Aparência
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('botoes')}
+            className={`pb-3 px-2 text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-colors relative cursor-pointer ${
+              activeTab === 'botoes'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Layers size={18} />
+            Botões e Destaques
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('whatsapp')}
+            className={`pb-3 px-2 text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-colors relative cursor-pointer ${
+              activeTab === 'whatsapp'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <MessageCircle size={18} />
+            WhatsApp
+          </button>
+        </div>
+      </header>
+
+      {/* FEEDBACK DE SALVAMENTO */}
+      {saveSuccess && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-xs sm:text-sm font-medium animate-in fade-in">
+          <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>Preferências de layout, cores e destaques salvas com sucesso no banco de dados!</span>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* ABA 1: APARÊNCIA (LAYOUTS + PALETAS DE CORES) */}
+      {/* ========================================================= */}
+      {activeTab === 'aparencia' && (
+        <div className="space-y-6">
+          
+          {/* Seção 1: Modelo de Layout */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs">
+                  <LayoutTemplate size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Modelo de Layout da Vitrine</h2>
+                  <p className="text-xs text-gray-500">Escolha como os produtos, menus e categorias serão dispostos</p>
+                </div>
+              </div>
+
+              <span className="text-[11px] font-bold px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full border border-purple-200 self-start sm:self-auto">
+                Ativo: {activeLayoutObj.name}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(Object.keys(THEME_LAYOUTS) as ThemeLayoutType[]).map((layoutKey) => {
+                const layout = THEME_LAYOUTS[layoutKey];
+                const isSelected = themeLayout === layoutKey;
+
+                return (
+                  <div
+                    key={layoutKey}
+                    onClick={() => handleLayoutSelect(layoutKey)}
+                    className={`p-5 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-purple-600 bg-purple-50/20 shadow-xs ring-2 ring-purple-600/10'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {layoutKey === 'classic' && <Layers className="w-4 h-4 text-gray-700" />}
+                          {layoutKey === 'modern' && <Sparkles className="w-4 h-4 text-purple-600" />}
+                          {layoutKey === 'minimal' && <Feather className="w-4 h-4 text-emerald-600" />}
+                          {layoutKey === 'featured_grid' && <Grid3X3 className="w-4 h-4 text-blue-600" />}
+                          <span className="font-bold text-sm text-gray-900">{layout.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {isSelected ? 'Ativo' : layout.tag}
+                          </span>
+                          {isSelected && (
+                            <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isSelected ? 'bg-black text-white' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {layout.tag}
-                        </span>
-                        {isSelected && (
-                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </span>
+                      <p className="text-xs text-gray-600 leading-relaxed mb-3">
+                        {layout.description}
+                      </p>
+
+                      {/* Mini Wireframe Ilustrativo */}
+                      <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 mb-3 space-y-1.5">
+                        <div className="h-2 w-full bg-gray-800 rounded-xs opacity-90" />
+                        <div className="h-4 w-full bg-purple-100 rounded-xs flex items-center justify-center text-[8px] text-purple-700 font-bold">
+                          Banner da Loja
+                        </div>
+
+                        {layoutKey === 'featured_grid' ? (
+                          <div className="grid grid-cols-5 gap-1 pt-0.5">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <div key={n} className="h-6 bg-blue-100 border border-blue-200 rounded-xs" />
+                            ))}
+                          </div>
+                        ) : layoutKey === 'modern' ? (
+                          <div className="space-y-1">
+                            <div className="flex gap-1 justify-center">
+                              <div className="h-1.5 w-6 bg-purple-200 rounded-full" />
+                              <div className="h-1.5 w-8 bg-purple-400 rounded-full" />
+                              <div className="h-1.5 w-6 bg-purple-200 rounded-full" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-1 pt-0.5">
+                              {[1, 2, 3].map((n) => (
+                                <div key={n} className="h-6 bg-purple-100 border border-purple-200 rounded-md" />
+                              ))}
+                            </div>
+                          </div>
+                        ) : layoutKey === 'minimal' ? (
+                          <div className="grid grid-cols-3 gap-1 pt-0.5">
+                            {[1, 2, 3].map((n) => (
+                              <div key={n} className="h-7 bg-white border border-gray-300 rounded-none" />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-1 pt-0.5">
+                            <div className="col-span-1 h-7 bg-gray-200 rounded-xs" />
+                            <div className="col-span-3 grid grid-cols-3 gap-1">
+                              {[1, 2, 3].map((n) => (
+                                <div key={n} className="h-7 bg-purple-50 border border-purple-200 rounded-xs" />
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                      {layout.description}
-                    </p>
+                    {/* Features list */}
+                    <ul className="space-y-1 pt-1 border-t border-gray-100">
+                      {layout.features.map((feat, fIdx) => (
+                        <li key={fIdx} className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-                    {/* Mini Wireframe Ilustrativo */}
-                    <div className="p-3 bg-white rounded-2xl border border-slate-200 mb-3 space-y-1.5 shadow-2xs">
-                      {/* Top bar */}
-                      <div className="h-2 w-full bg-slate-900 rounded-sm opacity-80" />
-                      
-                      {/* Banner */}
-                      <div className="h-4 w-full bg-slate-200 rounded-sm flex items-center justify-center text-[9px] text-slate-400 font-bold">
-                        Banner Topo
+          {/* Seção 2: Paletas de Cores */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center font-bold text-xs">
+                  <Palette size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Paleta de Cores Institucional</h2>
+                  <p className="text-xs text-gray-500">Transforme botões, badges e detalhes visuais da loja com 1 clique</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: primaryColor }} />
+                <span className="text-xs font-mono font-bold text-gray-700">{primaryColor}</span>
+              </div>
+            </div>
+
+            {/* Grid de Paletas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {(Object.keys(COLOR_PALETTES) as ColorPaletteType[]).map((paletteKey) => {
+                const pal = COLOR_PALETTES[paletteKey];
+                const isSelected = colorPalette === paletteKey;
+
+                return (
+                  <div
+                    key={paletteKey}
+                    onClick={() => handlePaletteSelect(paletteKey)}
+                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-purple-600 bg-purple-50/20 shadow-xs ring-2 ring-purple-600/10'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/40'
+                    }`}
+                  >
+                    <div>
+                      {/* Amostras de cores */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <span 
+                          className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
+                          style={{ backgroundColor: pal.primary }} 
+                          title={`Cor Primária: ${pal.primary}`}
+                        />
+                        <span 
+                          className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
+                          style={{ backgroundColor: pal.accent }} 
+                          title={`Cor de Destaque: ${pal.accent}`}
+                        />
+                        <span 
+                          className="w-7 h-7 rounded-xl shadow-xs border border-gray-300" 
+                          style={{ backgroundColor: pal.primaryLight }} 
+                          title={`Fundo Suave: ${pal.primaryLight}`}
+                        />
+                        <span 
+                          className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
+                          style={{ backgroundColor: pal.headerBg }} 
+                          title={`Fundo Cabeçalho: ${pal.headerBg}`}
+                        />
                       </div>
 
-                      {/* Content Area Wireframe */}
-                      {layoutKey === 'featured_grid' ? (
-                        /* Full width grid wireframe */
-                        <div className="space-y-1">
-                          <div className="h-2 w-3/4 bg-slate-200 rounded-sm mx-auto" />
-                          <div className="grid grid-cols-5 gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <div key={n} className="h-6 bg-blue-50 border border-blue-200 rounded-xs" />
-                            ))}
-                          </div>
-                        </div>
-                      ) : layoutKey === 'modern' ? (
-                        /* Modern wireframe with horizontal chips */
-                        <div className="space-y-1">
-                          <div className="flex gap-1 justify-center">
-                            <div className="h-1.5 w-6 bg-pink-200 rounded-full" />
-                            <div className="h-1.5 w-8 bg-pink-300 rounded-full" />
-                            <div className="h-1.5 w-6 bg-pink-200 rounded-full" />
-                          </div>
-                          <div className="grid grid-cols-3 gap-1 pt-0.5">
-                            {[1, 2, 3].map((n) => (
-                              <div key={n} className="h-6 bg-pink-50 border border-pink-200 rounded-md" />
-                            ))}
-                          </div>
-                        </div>
-                      ) : layoutKey === 'minimal' ? (
-                        /* Minimal wireframe */
-                        <div className="grid grid-cols-3 gap-1 pt-1">
-                          {[1, 2, 3].map((n) => (
-                            <div key={n} className="h-7 bg-slate-50 border border-slate-200 rounded-none" />
-                          ))}
-                        </div>
-                      ) : (
-                        /* Classic wireframe with left sidebar */
-                        <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                          <div className="col-span-1 h-8 bg-slate-100 border border-slate-200 rounded-xs" />
-                          <div className="col-span-3 grid grid-cols-3 gap-1">
-                            {[1, 2, 3].map((n) => (
-                              <div key={n} className="h-8 bg-pink-50/60 border border-pink-100 rounded-xs" />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-bold text-xs text-gray-900">{pal.name}</h3>
+                        {isSelected && (
+                          <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-gray-500 leading-tight">
+                        {pal.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-mono text-gray-600">
+                      <span className="font-bold">{pal.primary}</span>
+                      <span className={`text-[10px] uppercase font-bold ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
+                        {isSelected ? 'Ativa' : 'Selecionar'}
+                      </span>
                     </div>
                   </div>
+                );
+              })}
+            </div>
 
-                  {/* Bullet features */}
-                  <ul className="space-y-1 pt-1">
-                    {layout.features.map((feat, fIdx) => (
-                      <li key={fIdx} className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ========================================================= */}
-        {/* 2. PALETA DE CORES INSTITUCIONAL (4 OPÇÕES + AJUSTE FINO) */}
-        {/* ========================================================= */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-theme-primary text-white flex items-center justify-center shadow-xs">
-                <Palette className="w-5 h-5 text-white" />
-              </div>
+            {/* Ajuste Fino da Cor Primária */}
+            <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span>2. Paleta de Cores do Site</span>
-                  <span className="text-[10px] bg-theme-light text-theme-primary font-bold px-2 py-0.5 rounded-full border border-theme-primary/30">
-                    Identidade Visual
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-500">Transforme botões, badges e elementos visuais da loja instantaneamente</p>
+                <label className="block text-xs font-bold text-gray-800">
+                  Ajuste Fino da Cor Primária
+                </label>
+                <p className="text-[11px] text-gray-500">
+                  Personalize o código hexadecimal exato da identidade da sua marca
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => handleCustomColorChange(e.target.value)}
+                  className="w-10 h-10 rounded-xl cursor-pointer border border-gray-300 p-0.5 bg-white shrink-0"
+                />
+                <input
+                  type="text"
+                  value={primaryColor}
+                  onChange={(e) => handleCustomColorChange(e.target.value)}
+                  placeholder="#FF1493"
+                  className="w-28 text-xs sm:text-sm px-3 py-2 bg-white border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 font-mono font-bold"
+                />
               </div>
             </div>
+
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(Object.keys(COLOR_PALETTES) as ColorPaletteType[]).map((paletteKey) => {
-              const pal = COLOR_PALETTES[paletteKey];
-              const isSelected = colorPalette === paletteKey;
-
-              return (
-                <div
-                  key={paletteKey}
-                  onClick={() => handlePaletteSelect(paletteKey)}
-                  className={`p-4 rounded-3xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                    isSelected
-                      ? 'border-black bg-slate-50/80 shadow-md ring-2 ring-black/5'
-                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/40'
-                  }`}
-                >
-                  <div>
-                    {/* Amostras de Cores */}
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <span 
-                        className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
-                        style={{ backgroundColor: pal.primary }} 
-                        title={`Cor Primária: ${pal.primary}`}
-                      />
-                      <span 
-                        className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
-                        style={{ backgroundColor: pal.accent }} 
-                        title={`Cor de Destaque: ${pal.accent}`}
-                      />
-                      <span 
-                        className="w-7 h-7 rounded-xl shadow-xs border border-slate-300" 
-                        style={{ backgroundColor: pal.primaryLight }} 
-                        title={`Cor Suave: ${pal.primaryLight}`}
-                      />
-                      <span 
-                        className="w-7 h-7 rounded-xl shadow-xs border border-black/10" 
-                        style={{ backgroundColor: pal.headerBg }} 
-                        title={`Fundo do Cabeçalho: ${pal.headerBg}`}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-bold text-xs text-slate-900">{pal.name}</h4>
-                      {isSelected && (
-                        <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-[11px] text-slate-500 leading-tight">
-                      {pal.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-200/80 flex items-center justify-between text-[11px] font-mono text-slate-600">
-                    <span className="font-bold">{pal.primary}</span>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">Ativar</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Ajuste Fino da Cor Principal (Color Picker e Hex) */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800">
-                Ajuste Fino da Cor Primária
-              </label>
-              <p className="text-[11px] text-slate-500">
-                Você pode personalizar o código hexadecimal exato da sua marca caso possua uma cor específica
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={primaryColor}
-                onChange={(e) => handleCustomColorChange(e.target.value)}
-                className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300 p-0.5 bg-white shrink-0"
-              />
-              <input
-                type="text"
-                value={primaryColor}
-                onChange={(e) => handleCustomColorChange(e.target.value)}
-                placeholder="#FF1493"
-                className="w-28 text-xs sm:text-sm px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-black font-mono font-bold"
-              />
-            </div>
-          </div>
         </div>
+      )}
 
-        {/* ========================================================= */}
-        {/* 3. BOTÕES DE DESTAQUE DA VITRINE (TOPO DA LOJA) */}
-        {/* ========================================================= */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-[#00a8e8] text-white flex items-center justify-center shadow-xs">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                3. Botões de Destaque da Vitrine (Topo da Loja)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Personalize os 3 botões circulares e a barra de destaque azul exibidos acima dos produtos. Se deixar o campo em branco, o botão correspondente não aparecerá na vitrine pública.
-              </p>
-            </div>
-          </div>
+      {/* ========================================================= */}
+      {/* ABA 2: BOTÕES E DESTAQUES (TOPO + CTA AZUL + RODAPÉ) */}
+      {/* ========================================================= */}
+      {activeTab === 'botoes' && (
+        <div className="space-y-6">
 
-          {/* Subseção A: 3 Botões Redondos */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-black inline-block"></span>
-                3 Botões Circulares em Destaque
-              </h4>
-              <span className="text-[11px] text-slate-400 font-medium">Deixe o título vazio para ocultar o botão</span>
+          {/* Subseção A: 3 Botões Circulares do Topo da Vitrine */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                  <Layers size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">3 Botões Circulares em Destaque</h2>
+                  <p className="text-xs text-gray-500">Exibidos no topo da vitrine. Deixe o título em branco para ocultar o botão correspondente.</p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -931,32 +988,30 @@ export const ButtonsLayoutManager: React.FC = () => {
                 const IconComponent = selectedIconObj.icon;
 
                 return (
-                  <div key={feat.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3 shadow-2xs">
+                  <div key={feat.id || idx} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold">
+                      <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">
                           {idx + 1}
                         </span>
                         Botão {idx + 1}
                       </span>
 
                       {/* Mini Live Preview */}
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center shadow-xs">
-                          <IconComponent className="w-4 h-4 text-white" />
-                        </div>
+                      <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-xs">
+                        <IconComponent className="w-4 h-4 text-white" />
                       </div>
                     </div>
 
                     <div className="space-y-2.5">
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
                           Ícone
                         </label>
                         <select
                           value={feat.icon}
                           onChange={(e) => handleFeatureChange(idx, 'icon', e.target.value)}
-                          className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800 font-medium cursor-pointer"
+                          className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800 font-medium cursor-pointer"
                         >
                           {AVAILABLE_FEATURE_ICONS.map((item) => (
                             <option key={item.value} value={item.value}>
@@ -967,7 +1022,7 @@ export const ButtonsLayoutManager: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
                           Texto Principal (Título)
                         </label>
                         <input
@@ -975,12 +1030,12 @@ export const ButtonsLayoutManager: React.FC = () => {
                           value={feat.title}
                           onChange={(e) => handleFeatureChange(idx, 'title', e.target.value)}
                           placeholder="Ex: Arquivos Editáveis (vazio = ocultar)"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
                           Subtítulo / Linha 2 (Opcional)
                         </label>
                         <input
@@ -988,12 +1043,12 @@ export const ButtonsLayoutManager: React.FC = () => {
                           value={feat.subtitle || ''}
                           onChange={(e) => handleFeatureChange(idx, 'subtitle', e.target.value)}
                           placeholder="Ex: Editáveis"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
                           Link de Redirecionamento (Opcional)
                         </label>
                         <input
@@ -1001,7 +1056,7 @@ export const ButtonsLayoutManager: React.FC = () => {
                           value={feat.link || ''}
                           onChange={(e) => handleFeatureChange(idx, 'link', e.target.value)}
                           placeholder="Ex: #produtos ou /categoria/canva"
-                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
                         />
                       </div>
                     </div>
@@ -1012,13 +1067,17 @@ export const ButtonsLayoutManager: React.FC = () => {
           </div>
 
           {/* Subseção B: Barra / Botão Principal de Destaque Azul */}
-          <div className="pt-4 border-t border-slate-200/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-md bg-[#00a8e8] inline-block"></span>
-                Botão Principal de Destaque (Barra Azul)
-              </h4>
-              <span className="text-[11px] text-slate-400 font-medium">Deixe vazio para ocultar na vitrine</span>
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#00a8e8]/15 text-[#00a8e8] flex items-center justify-center font-bold text-xs">
+                  <Zap size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Botão Principal de Destaque (Barra Azul)</h2>
+                  <p className="text-xs text-gray-500">Barra de aviso ou promoção logo acima do catálogo. Deixe vazio para ocultar.</p>
+                </div>
+              </div>
             </div>
 
             {/* Live Preview da Barra Azul */}
@@ -1028,25 +1087,25 @@ export const ButtonsLayoutManager: React.FC = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/90">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Texto do Botão Azul *
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                  Texto do Botão Azul
                 </label>
                 <input
                   type="text"
                   value={mainCtaText}
                   onChange={(e) => setMainCtaText(e.target.value)}
                   placeholder="Ex: Toda loja com Download imediato!"
-                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  💡 Deixe em branco caso prefira não exibir este botão na sua vitrine.
+                <p className="text-[10px] text-gray-500 mt-1">
+                  💡 Deixe em branco se preferir não exibir esta barra.
                 </p>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">
                   Link de Redirecionamento (Opcional)
                 </label>
                 <input
@@ -1054,259 +1113,315 @@ export const ButtonsLayoutManager: React.FC = () => {
                   value={mainCtaLink}
                   onChange={(e) => setMainCtaLink(e.target.value)}
                   placeholder="Ex: #produtos ou /promocoes"
-                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  💡 Se preenchido, o cliente será levado a esse link ao clicar no botão.
+                <p className="text-[10px] text-gray-500 mt-1">
+                  💡 Redireciona o cliente para este destino ao clicar na barra.
                 </p>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ========================================================= */}
-        {/* 4. OS 4 BOTÕES DE BENEFÍCIOS DO RODAPÉ */}
-        {/* ========================================================= */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                4. 4 Botões Informativos de Destaque (Rodapé)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Configure os títulos, textos e ícones que aparecem nos 4 botões no rodapé da loja
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {benefitCards.map((card, idx) => {
-              const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
-              const IconComponent = selectedIconObj.icon;
-
-              return (
-                <div key={card.id || idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold">
-                        {idx + 1}
-                      </span>
-                      Botão {idx + 1}
-                    </span>
-                    
-                    {/* Live Preview Badge */}
-                    <div className="flex items-center gap-2 px-2.5 py-1 bg-zinc-900 rounded-xl text-white text-xs border border-zinc-800">
-                      <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
-                      <span className="truncate max-w-[130px] font-medium text-[11px]">{card.title || `Botão ${idx + 1}`}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Ícone
-                      </label>
-                      <select
-                        value={card.icon}
-                        onChange={(e) => handleBenefitChange(idx, 'icon', e.target.value)}
-                        className="w-full text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800 font-medium cursor-pointer"
-                      >
-                        {AVAILABLE_BENEFIT_ICONS.map((item) => (
-                          <option key={item.value} value={item.value}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Título Principal *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={card.title}
-                        onChange={(e) => handleBenefitChange(idx, 'title', e.target.value)}
-                        placeholder="Ex: Arquivos Digitais"
-                        className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Subtítulo / Descrição
-                      </label>
-                      <input
-                        type="text"
-                        value={card.description}
-                        onChange={(e) => handleBenefitChange(idx, 'description', e.target.value)}
-                        placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
-                        className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-black text-slate-800"
-                      />
-                      {idx === 3 && (
-                        <p className="text-[10px] text-slate-500 mt-1 leading-tight">
-                          💡 Dica: Se mantiver "SeuWhatsAppWhatsApp" ou deixar em branco, o sistema exibirá automaticamente o número de WhatsApp configurado na sua loja.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+          {/* Subseção C: 4 Botões Informativos de Benefícios (Rodapé) */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">
+                  <Sparkles size={18} />
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ========================================================= */}
-        {/* 5. BOTÃO DE ATENDIMENTO WHATSAPP & MENSAGEM */}
-        {/* ========================================================= */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-[#25D366] text-white flex items-center justify-center shadow-xs">
-              <MessageCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                5. Mensagem Padrão do WhatsApp
-              </h3>
-              <p className="text-xs text-slate-500">Texto inicial pré-preenchido ao clicar no suporte ou no card de atendimento</p>
-            </div>
-          </div>
-
-          <div>
-            <input
-              type="text"
-              value={whatsappDefaultMessage}
-              onChange={(e) => setWhatsappDefaultMessage(e.target.value)}
-              placeholder="Ex: Olá! Gostaria de mais informações sobre os produtos da loja."
-              className="w-full text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-slate-800"
-            />
-          </div>
-        </div>
-
-        {/* ========================================================= */}
-        {/* 6. PRÉ-VISUALIZAÇÃO AO VIVO INTEGRADA */}
-        {/* ========================================================= */}
-        <div className="bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-zinc-800 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-white" />
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Pré-visualização em Tempo Real da Sua Loja
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <span className="px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-200 text-[11px] font-semibold border border-zinc-700">
-                Layout: <strong>{activeLayoutObj.name}</strong>
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-200 text-[11px] font-semibold border border-zinc-700 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: primaryColor }} />
-                <span>{activePaletteObj.name.split('/')[0]}</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Destaque do Topo da Vitrine (3 Botões Redondos + Barra Azul) */}
-          <div className="space-y-4 pt-1">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-              Destaques do Topo da Vitrine
-            </span>
-
-            {/* 3 Botões Redondos */}
-            <div className="flex items-center justify-center gap-4 sm:gap-8 py-2">
-              {storeFeatures.filter(f => f.title && f.title.trim()).map((feat, idx) => {
-                const selectedIconObj = AVAILABLE_FEATURE_ICONS.find((i) => i.value === feat.icon) || AVAILABLE_FEATURE_ICONS[0];
-                const IconComponent = selectedIconObj.icon;
-
-                return (
-                  <div key={idx} className="flex flex-col items-center space-y-1.5 text-center">
-                    <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center shadow-md border border-zinc-800">
-                      <IconComponent className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-bold text-zinc-200 leading-tight block max-w-[80px] truncate">
-                      {feat.title}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Barra Azul / CTA */}
-            {mainCtaText && mainCtaText.trim().length > 0 && (
-              <div className="w-full max-w-md mx-auto py-2.5 px-4 bg-[#00a8e8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md text-center">
-                <span>{mainCtaText}</span>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">4 Botões Informativos de Destaque (Rodapé)</h2>
+                  <p className="text-xs text-gray-500">Configure os títulos, descrições e ícones que aparecem nos 4 cards no rodapé</p>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Cards Informativos do Rodapé com Estilo da Paleta */}
-          <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-              Botões Informativos do Rodapé
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {benefitCards.map((card, idx) => {
                 const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
                 const IconComponent = selectedIconObj.icon;
-                const isWhatsAppCard = card.icon === 'message' || card.id === 'card_4';
-                const displayDesc = isWhatsAppCard && (!card.description || card.description === 'SeuWhatsAppWhatsApp')
-                  ? (storeConfig.whatsappDisplay || '(21) 99999-9999')
-                  : card.description;
 
                 return (
-                  <div key={card.id || idx} className="flex items-center gap-3 p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800">
-                    <div 
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: `${primaryColor}25` }}
-                    >
-                      <IconComponent className="w-5 h-5" style={{ color: primaryColor }} />
+                  <div key={card.id || idx} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold">
+                          {idx + 1}
+                        </span>
+                        Botão {idx + 1}
+                      </span>
+                      
+                      {/* Live Preview Badge */}
+                      <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-900 rounded-lg text-white text-xs">
+                        <IconComponent className={`w-3.5 h-3.5 ${selectedIconObj.color}`} />
+                        <span className="truncate max-w-[130px] font-medium text-[11px]">{card.title || `Botão ${idx + 1}`}</span>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-white truncate">{card.title || `Botão ${idx + 1}`}</h4>
-                      <p className="text-[11px] text-zinc-400 truncate">{displayDesc}</p>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Ícone
+                        </label>
+                        <select
+                          value={card.icon}
+                          onChange={(e) => handleBenefitChange(idx, 'icon', e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800 font-medium cursor-pointer"
+                        >
+                          {AVAILABLE_BENEFIT_ICONS.map((item) => (
+                            <option key={item.value} value={item.value}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Título Principal *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={card.title}
+                          onChange={(e) => handleBenefitChange(idx, 'title', e.target.value)}
+                          placeholder="Ex: Arquivos Digitais"
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Subtítulo / Descrição
+                        </label>
+                        <input
+                          type="text"
+                          value={card.description}
+                          onChange={(e) => handleBenefitChange(idx, 'description', e.target.value)}
+                          placeholder={idx === 3 ? "Ex: SeuWhatsAppWhatsApp (ou telefone de atendimento)" : "Ex: Modelos prontos para impressão"}
+                          className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 text-gray-800"
+                        />
+                        {idx === 3 && (
+                          <p className="text-[10px] text-gray-500 mt-1 leading-tight">
+                            💡 Dica: Se mantiver "SeuWhatsAppWhatsApp" ou deixar em branco, o sistema exibirá automaticamente o número de WhatsApp cadastrado.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
 
-        {/* Botão de Salvar Tudo */}
-        <div className="pt-2 flex items-center justify-between">
-          <div className="text-xs">
-            {saveSuccess && (
-              <span className="text-emerald-600 font-bold flex items-center gap-1.5 animate-in fade-in">
-                <Check className="w-4 h-4" />
-                Preferências salvas com sucesso em site_settings e no banco de dados!
-              </span>
-            )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* ABA 3: WHATSAPP (MENSAGEM PADRÃO) */}
+      {/* ========================================================= */}
+      {activeTab === 'whatsapp' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#25D366] flex items-center justify-center font-bold text-xs">
+                  <MessageCircle size={18} />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Mensagem Padrão do WhatsApp</h2>
+                  <p className="text-xs text-gray-500">Texto inicial que é enviado no WhatsApp quando o cliente clica para falar com o suporte</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-gray-700">
+                Texto da Mensagem Inicial
+              </label>
+              <textarea
+                rows={3}
+                value={whatsappDefaultMessage}
+                onChange={(e) => setWhatsappDefaultMessage(e.target.value)}
+                placeholder="Ex: Olá! Gostaria de mais informações sobre os produtos da loja."
+                className="w-full text-xs sm:text-sm p-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 text-gray-800 transition-all resize-none"
+              />
+              <p className="text-[11px] text-gray-500">
+                💡 Quando o cliente clica no botão do WhatsApp da sua loja, essa frase já estará pronta no chat dele, bastando apenas enviar.
+              </p>
+            </div>
+
+            {/* Simulação Visual de Conversa WhatsApp */}
+            <div className="mt-4 p-4 rounded-xl bg-[#e5ddd5] border border-gray-300 max-w-md">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-300/60">
+                <div className="w-7 h-7 rounded-full bg-[#25D366] text-white flex items-center justify-center text-xs font-bold">
+                  W
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-gray-900 block leading-tight">Atendimento WhatsApp</span>
+                  <span className="text-[10px] text-emerald-700 font-semibold">Online</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <div className="bg-[#dcf8c6] p-3 rounded-xl rounded-tr-xs shadow-xs text-xs text-gray-800 max-w-[85%]">
+                  <p>{whatsappDefaultMessage || 'Olá! Gostaria de mais informações sobre os produtos da loja.'}</p>
+                  <span className="text-[9px] text-gray-500 block text-right mt-1">12:00 ✓✓</span>
+                </div>
+              </div>
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => handleSave()}
-            disabled={isSaving}
-            className="px-8 py-3.5 bg-black hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md flex items-center gap-2.5 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                <span>Salvando Configurações...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 text-white" />
-                <span>Salvar Layout e Cores</span>
-              </>
-            )}
-          </button>
         </div>
+      )}
 
+      {/* ========================================================= */}
+      {/* MODAL DE PRÉ-VISUALIZAÇÃO AO VIVO (POPUP COM 'X') */}
+      {/* ========================================================= */}
+      {showPreview && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
+          <div className="bg-gray-950 text-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-gray-800 shadow-2xl p-6 sm:p-8 space-y-6">
+            
+            {/* Header do Modal */}
+            <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-purple-600 text-white">
+                  <Eye size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white">Pré-visualização da Sua Vitrine</h3>
+                  <p className="text-xs text-gray-400">Veja como seus destaques, cores e layout aparecerão para os clientes</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-gray-800 transition-colors cursor-pointer"
+                title="Fechar Prévia"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Badges de Configuração Ativa */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="px-3 py-1 rounded-full bg-gray-900 border border-gray-800 text-gray-200">
+                Layout: <strong>{activeLayoutObj.name}</strong>
+              </span>
+              <span className="px-3 py-1 rounded-full bg-gray-900 border border-gray-800 text-gray-200 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
+                <span>Paleta: <strong>{activePaletteObj.name.split('/')[0]}</strong></span>
+              </span>
+            </div>
+
+            {/* Simulação: Destaques do Topo da Vitrine */}
+            <div className="bg-gray-900/70 p-5 rounded-2xl border border-gray-800 space-y-4">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                Topo da Loja: 3 Botões Circulares
+              </span>
+
+              <div className="flex items-center justify-center gap-4 sm:gap-8 py-2">
+                {storeFeatures.filter(f => f.title && f.title.trim()).map((feat, idx) => {
+                  const selectedIconObj = AVAILABLE_FEATURE_ICONS.find((i) => i.value === feat.icon) || AVAILABLE_FEATURE_ICONS[0];
+                  const IconComponent = selectedIconObj.icon;
+
+                  return (
+                    <div key={idx} className="flex flex-col items-center space-y-1.5 text-center">
+                      <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center shadow-md border border-gray-700">
+                        <IconComponent className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-200 leading-tight block max-w-[90px] truncate">
+                        {feat.title}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Barra Azul / CTA */}
+              {mainCtaText && mainCtaText.trim().length > 0 && (
+                <div className="w-full max-w-lg mx-auto py-2.5 px-4 bg-[#00a8e8] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md text-center">
+                  <span>{mainCtaText}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Simulação: Cards Informativos do Rodapé */}
+            <div className="bg-gray-900/70 p-5 rounded-2xl border border-gray-800 space-y-3">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                Rodapé da Loja: 4 Botões de Benefícios
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                {benefitCards.map((card, idx) => {
+                  const selectedIconObj = AVAILABLE_BENEFIT_ICONS.find((i) => i.value === card.icon) || AVAILABLE_BENEFIT_ICONS[0];
+                  const IconComponent = selectedIconObj.icon;
+                  const isWhatsAppCard = card.icon === 'message' || card.id === 'card_4';
+                  const displayDesc = isWhatsAppCard && (!card.description || card.description === 'SeuWhatsAppWhatsApp')
+                    ? (storeConfig.whatsappDisplay || '(21) 99999-9999')
+                    : card.description;
+
+                  return (
+                    <div key={card.id || idx} className="flex items-center gap-3 p-3 rounded-xl bg-gray-950 border border-gray-800">
+                      <div 
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${primaryColor}25` }}
+                      >
+                        <IconComponent className="w-5 h-5" style={{ color: primaryColor }} />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-white truncate">{card.title || `Botão ${idx + 1}`}</h4>
+                        <p className="text-[11px] text-gray-400 truncate">{displayDesc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="flex justify-end pt-2 border-t border-gray-800">
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="px-5 py-2 bg-gray-800 hover:bg-gray-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Fechar Prévia
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* BARRA FIXA DE AÇÃO INFERIOR */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-20 flex justify-between items-center max-w-5xl mx-auto rounded-t-2xl shadow-lg sm:px-6">
+        <button 
+          type="button"
+          onClick={() => setShowPreview(true)}
+          className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+        >
+          <Eye size={18} />
+          <span>Ver Prévia</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSave()}
+          disabled={isSaving}
+          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 sm:px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-98 cursor-pointer disabled:opacity-50"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              <span>Salvando Alterações...</span>
+            </>
+          ) : (
+            <>
+              <Save size={18} />
+              <span>Salvar Alterações</span>
+            </>
+          )}
+        </button>
       </div>
 
     </div>
@@ -1314,3 +1429,4 @@ export const ButtonsLayoutManager: React.FC = () => {
 };
 
 export default ButtonsLayoutManager;
+
