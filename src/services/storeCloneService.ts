@@ -4,6 +4,7 @@ import { fetchAllProducts, createProductInSupabase } from './productService';
 import { fetchAllBanners, createBannerInSupabase } from './bannerService';
 import { saveStoreConfigInSupabase } from './storeConfigService';
 import { StoreConfig } from '../types';
+import { DEFAULT_TEMPLATE_CATEGORIES, DEFAULT_TEMPLATE_PRODUCTS } from '../data/storeConfig';
 
 export interface CloneResult {
   success: boolean;
@@ -209,90 +210,138 @@ export async function cloneStoreTemplate(
       console.warn('[storeCloneService] Aviso ao atualizar site_settings:', siteErr);
     }
 
-    // 3. Clona Categorias Reais da Matriz AJPSTORE
+    // 3. Cadastra as 4 Categorias Padrão (Categoria 1 a 4) ou clona da matriz AJPSTORE
     let catsCloned = 0;
-    const categoryIdMap = new Map<string, string>(); // oldId -> newId
+    const categoryIdMap = new Map<string, string>(); // name/id -> newId
 
     const { data: categoriasMatriz } = await supabase
       .from('categories')
       .select('*')
-      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null`)
+      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore`)
       .order('name', { ascending: true });
 
+    let categoriesListToUse: Array<{ id?: string; name: string; icon?: string; subcategories?: any }> = [];
+
     if (categoriasMatriz && categoriasMatriz.length > 0) {
-      console.log(`[storeCloneService] 📂 Clonando ${categoriasMatriz.length} categorias originais da matriz AJPSTORE...`);
-      const seenNames = new Set<string>();
-
-      for (let i = 0; i < categoriasMatriz.length; i++) {
-        try {
-          const cat = categoriasMatriz[i];
-          const cleanName = (cat.name || '').trim().toLowerCase();
-          if (!cleanName) continue;
-          if (seenNames.has(cleanName)) continue;
-          seenNames.add(cleanName);
-
-          const newCatId = `cat_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`;
-          categoryIdMap.set(String(cat.id), newCatId);
-          const rawSubcats = normalizeSubcategoryArray(cat.subcategories);
-
-          const { error: catErr } = await supabase.from('categories').insert([{
-            id: newCatId,
-            store_id: targetStoreId,
-            name: cat.name.trim(),
-            icon: cat.icon || 'Gift',
-            subcategories: rawSubcats,
-            created_at: new Date().toISOString()
-          }]);
-
-          if (!catErr) {
-            catsCloned++;
-          }
-        } catch (catEx) {
-          console.warn('[storeCloneService] Aviso ao clonar categoria individual:', catEx);
-        }
-      }
-      console.log(`[storeCloneService] ✅ ${catsCloned} categorias clonadas da matriz.`);
+      categoriesListToUse = categoriasMatriz.map(c => ({
+        id: c.id,
+        name: c.name.trim(),
+        icon: c.icon || 'ShoppingBag',
+        subcategories: normalizeSubcategoryArray(c.subcategories)
+      }));
+    } else {
+      categoriesListToUse = DEFAULT_TEMPLATE_CATEGORIES.map(c => ({
+        name: c.name,
+        icon: c.icon,
+        subcategories: []
+      }));
     }
 
-    // 4. Clona Produtos Reais da Matriz AJPSTORE (preservando imagens, preços, categorias, etc.)
+    // Garante a existência das 4 categorias padrão
+    const currentCatNames = new Set(categoriesListToUse.map(c => c.name.toLowerCase()));
+    for (const defCat of DEFAULT_TEMPLATE_CATEGORIES) {
+      if (!currentCatNames.has(defCat.name.toLowerCase())) {
+        categoriesListToUse.push({
+          name: defCat.name,
+          icon: defCat.icon,
+          subcategories: []
+        });
+      }
+    }
+
+    console.log(`[storeCloneService] 📂 Registrando ${categoriesListToUse.length} categorias para a loja "${targetStoreId}"...`);
+    for (let i = 0; i < categoriesListToUse.length; i++) {
+      try {
+        const cat = categoriesListToUse[i];
+        const cleanName = (cat.name || '').trim();
+        if (!cleanName) continue;
+
+        const newCatId = `cat_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`;
+        if (cat.id) categoryIdMap.set(String(cat.id), newCatId);
+        categoryIdMap.set(cleanName.toLowerCase(), newCatId);
+
+        const { error: catErr } = await supabase.from('categories').insert([{
+          id: newCatId,
+          store_id: targetStoreId,
+          name: cleanName,
+          icon: cat.icon || 'ShoppingBag',
+          subcategories: cat.subcategories || [],
+          created_at: new Date().toISOString()
+        }]);
+
+        if (!catErr) {
+          catsCloned++;
+        }
+      } catch (catEx) {
+        console.warn('[storeCloneService] Aviso ao cadastrar categoria individual:', catEx);
+      }
+    }
+    console.log(`[storeCloneService] ✅ ${catsCloned} categorias registradas para a nova loja.`);
+
+    // 4. Cadastra OBRIGATORIAMENTE os 4 Produtos Padrão ("PRODUTO 1", "PRODUTO 2", "PRODUTO 3", "PRODUTO 4")
     let prodsCloned = 0;
+    console.log(`[storeCloneService] 📦 Cadastrando os 4 produtos padrão para a nova loja "${targetStoreId}"...`);
+
+    // Busca se a matriz AJPSTORE possui esses 4 produtos para herdar eventuais fotos ou dados reais
     const { data: produtosMatriz } = await supabase
       .from('products')
       .select('*')
-      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null`);
+      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore`)
+      .order('price', { ascending: true });
 
+    const matrizProductMap = new Map<string, any>();
     if (produtosMatriz && produtosMatriz.length > 0) {
-      console.log(`[storeCloneService] 📦 Clonando ${produtosMatriz.length} produtos da matriz AJPSTORE...`);
-      for (const prod of produtosMatriz) {
-        try {
-          const { id, ...prodData } = prod;
-          const remappedCatId = prod.category_id && categoryIdMap.has(String(prod.category_id))
-            ? categoryIdMap.get(String(prod.category_id))
-            : undefined;
-
-          await createProductInSupabase({
-            ...prodData,
-            category: (prod.category || '').trim(),
-            subcategory: prod.subcategory ? prod.subcategory.trim() : undefined,
-            category_id: remappedCatId,
-            slug: `${prod.slug || prod.name}-${Math.random().toString(36).substring(2, 6)}`,
-            store_id: targetStoreId
-          }, targetStoreId);
-
-          prodsCloned++;
-        } catch (prodEx) {
-          console.warn('[storeCloneService] Aviso ao clonar produto individual:', prodEx);
-        }
+      for (const p of produtosMatriz) {
+        const key = (p.name || '').trim().toUpperCase();
+        matrizProductMap.set(key, p);
       }
-      console.log(`[storeCloneService] ✅ ${prodsCloned} produtos clonados para a nova loja.`);
     }
+
+    for (const defProd of DEFAULT_TEMPLATE_PRODUCTS) {
+      try {
+        const prodKey = defProd.name.toUpperCase();
+        const matrizMatch = matrizProductMap.get(prodKey);
+
+        const finalImageUrl = (
+          matrizMatch?.image_url || 
+          matrizMatch?.imageUrl || 
+          matrizMatch?.image || 
+          defProd.imageUrl || 
+          '/default-product.jpg'
+        ).trim();
+
+        const catId = categoryIdMap.get(defProd.category.toLowerCase()) || undefined;
+
+        await createProductInSupabase({
+          name: defProd.name,
+          price: matrizMatch?.price !== undefined && matrizMatch?.price !== null ? Number(matrizMatch.price) : defProd.price,
+          category: defProd.category,
+          category_id: catId,
+          imageUrl: finalImageUrl,
+          image_url: finalImageUrl,
+          description: matrizMatch?.description || defProd.description,
+          inStock: true,
+          unitSuffix: defProd.unitSuffix || '/Un',
+          tags: defProd.tags || ['Destaque'],
+          isCustomizable: false,
+          slug: `${defProd.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 6)}`,
+          store_id: targetStoreId
+        }, targetStoreId);
+
+        prodsCloned++;
+      } catch (prodEx) {
+        console.warn(`[storeCloneService] Aviso ao cadastrar produto padrão ${defProd.name}:`, prodEx);
+      }
+    }
+
+    console.log(`[storeCloneService] ✅ ${prodsCloned} produtos padrão cadastrados com sucesso para a nova loja "${targetStoreId}".`);
 
     // 5. Clona Banners Reais da Matriz AJPSTORE
     let bannersCloned = 0;
     const { data: bannersMatriz } = await supabase
       .from('banners')
       .select('*')
-      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null`);
+      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore`);
 
     if (bannersMatriz && bannersMatriz.length > 0) {
       console.log(`[storeCloneService] 🖼️ Clonando ${bannersMatriz.length} banners da matriz AJPSTORE...`);

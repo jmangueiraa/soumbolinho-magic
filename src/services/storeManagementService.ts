@@ -128,7 +128,21 @@ export async function ensureMatrizStoreExists(): Promise<Store> {
           monthly_fee: 0.00,
           updated_at: new Date().toISOString()
         })
-        .eq('id', existingStore.id);
+      // Garante que a Matriz AJPSTORE possua os 4 produtos padrão cadastrados
+      try {
+        const { data: existingProds } = await supabase
+          .from('products')
+          .select('id')
+          .or(`store_id.eq.${existingStore.id},store_id.eq.ajpstore,store_id.eq.store_ajpstore`)
+          .limit(1);
+
+        if (!existingProds || existingProds.length === 0) {
+          console.log('[storeManagementService] 🏬 Matriz AJPSTORE sem produtos. Cadastrando os 4 produtos padrão...');
+          await cloneStoreTemplate('ajpstore', existingStore.id, 'AJPSTORE');
+        }
+      } catch (prodErr) {
+        console.warn('[storeManagementService] Aviso ao verificar produtos da matriz:', prodErr);
+      }
 
       return {
         ...existingStore,
@@ -177,6 +191,9 @@ export async function ensureMatrizStoreExists(): Promise<Store> {
     if (insertedStore) {
       await supabase.from('stores').update({ is_matriz: false }).neq('id', insertedStore.id);
       console.log('[storeManagementService] ✅ Loja AJPSTORE cadastrada como Matriz:', insertedStore.id);
+      try {
+        await cloneStoreTemplate('ajpstore', insertedStore.id, 'AJPSTORE');
+      } catch {}
       return insertedStore as Store;
     }
   } catch (err) {

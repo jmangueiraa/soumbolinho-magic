@@ -398,5 +398,23 @@ BEGIN
 END $$;
 
 
--- 12. RECARREGAR O SCHEMA CACHE DA API IMEDIATAMENTE
+-- 12. PRODUTOS E CATEGORIAS PADRÃO (AJPSTORE MATRIZ & TEMPLATE DE NOVAS LOJAS)
+INSERT INTO public.categories (id, store_id, name, icon)
+VALUES 
+    ('cat_ajp_1', 'store_ajpstore', 'Categoria 1', 'ShoppingBag'),
+    ('cat_ajp_2', 'store_ajpstore', 'Categoria 2', 'Gift'),
+    ('cat_ajp_3', 'store_ajpstore', 'Categoria 3', 'Sparkles'),
+    ('cat_ajp_4', 'store_ajpstore', 'Categoria 4', 'Star')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.products (id, store_id, name, slug, price, category, image_url, description, in_stock, unit_suffix)
+VALUES
+    ('prod_ajp_1', 'store_ajpstore', 'PRODUTO 1', 'produto-1', 1.00, 'Categoria 1', '/default-product.jpg', 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.', true, '/Un'),
+    ('prod_ajp_2', 'store_ajpstore', 'PRODUTO 2', 'produto-2', 2.00, 'Categoria 2', '/default-product.jpg', 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.', true, '/Un'),
+    ('prod_ajp_3', 'store_ajpstore', 'PRODUTO 3', 'produto-3', 3.00, 'Categoria 3', '/default-product.jpg', 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.', true, '/Un'),
+    ('prod_ajp_4', 'store_ajpstore', 'PRODUTO 4', 'produto-4', 4.00, 'Categoria 4', '/default-product.jpg', 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.', true, '/Un')
+ON CONFLICT (id) DO NOTHING;
+
+
+-- 13. RECARREGAR O SCHEMA CACHE DA API IMEDIATAMENTE
 NOTIFY pgrst, 'reload schema';

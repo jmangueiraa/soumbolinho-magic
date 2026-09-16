@@ -73,3 +73,70 @@ export const STORE_CONFIG: StoreConfig = {
   logoUrl: '/ajpstore-logo.png',
 };
 
+export interface DefaultCategoryTemplate {
+  name: string;
+  icon: string;
+}
+
+export const DEFAULT_TEMPLATE_CATEGORIES: DefaultCategoryTemplate[] = [
+  { name: 'Categoria 1', icon: 'ShoppingBag' },
+  { name: 'Categoria 2', icon: 'Gift' },
+  { name: 'Categoria 3', icon: 'Sparkles' },
+  { name: 'Categoria 4', icon: 'Star' },
+];
+
+export interface DefaultProductTemplate {
+  name: string;
+  price: number;
+  category: string;
+  imageUrl: string;
+  description: string;
+  inStock: boolean;
+  unitSuffix: string;
+  tags?: string[];
+}
+
+export const DEFAULT_TEMPLATE_PRODUCTS: DefaultProductTemplate[] = [
+  {
+    name: 'PRODUTO 1',
+    price: 1.00,
+    category: 'Categoria 1',
+    imageUrl: '/default-product.jpg',
+    description: 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.',
+    inStock: true,
+    unitSuffix: '/Un',
+    tags: ['Destaque']
+  },
+  {
+    name: 'PRODUTO 2',
+    price: 2.00,
+    category: 'Categoria 2',
+    imageUrl: '/default-product.jpg',
+    description: 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.',
+    inStock: true,
+    unitSuffix: '/Un',
+    tags: ['Destaque']
+  },
+  {
+    name: 'PRODUTO 3',
+    price: 3.00,
+    category: 'Categoria 3',
+    imageUrl: '/default-product.jpg',
+    description: 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.',
+    inStock: true,
+    unitSuffix: '/Un',
+    tags: ['Destaque']
+  },
+  {
+    name: 'PRODUTO 4',
+    price: 4.00,
+    category: 'Categoria 4',
+    imageUrl: '/default-product.jpg',
+    description: 'Produto de exemplo configurado para sua loja. Você pode editar nome, imagem, valor e descrição a qualquer momento no Painel Admin.',
+    inStock: true,
+    unitSuffix: '/Un',
+    tags: ['Destaque']
+  },
+];
+
+
