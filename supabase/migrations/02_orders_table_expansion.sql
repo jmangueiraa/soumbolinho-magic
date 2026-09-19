@@ -6,7 +6,7 @@
 -- 1. Cria a tabela orders caso ainda não exista
 CREATE TABLE IF NOT EXISTS public.orders (
     id TEXT PRIMARY KEY,
-    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
+    store_id TEXT,
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
     customer_phone TEXT,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 );
 
 -- 2. Garante a existência de todas as colunas mesmo se a tabela já existia antes
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS store_id TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_phone TEXT;

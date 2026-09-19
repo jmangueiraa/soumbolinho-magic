@@ -201,6 +201,32 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
                 <ExternalLink className="w-3 h-3 text-sky-500 group-hover:translate-x-0.5 transition-transform" />
               </a>
             )}
+
+            {/* BOTÃO PROEMINENTE DE ACESSO AO GERENCIADOR DE PEDIDOS */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('orders');
+                window.location.hash = 'orders';
+                if (typeof window !== 'undefined' && window.history.pushState) {
+                  try { window.history.pushState(null, '', `${adminBasePath}/orders`); } catch {}
+                }
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'orders'
+                  ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300'
+                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-2xs'
+              }`}
+              title="Acessar Gerenciador de Pedidos"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Pedidos</span>
+              <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-md uppercase tracking-wider ${
+                activeTab === 'orders' ? 'bg-indigo-800 text-white' : 'bg-indigo-200 text-indigo-800'
+              }`}>
+                Novo
+              </span>
+            </button>
           </div>
 
           {/* Lado Direito: Ações Rápidas (Ver Catálogo & Logout) */}
@@ -224,6 +250,61 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
             </button>
           </div>
 
+        </div>
+
+        {/* 1.1. Barra de Navegação Horizontal Rápida para Telas Menores (Tablet / Mobile) */}
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar lg:hidden">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('dashboard'); window.location.hash = 'dashboard'; }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'dashboard' ? 'bg-black text-white' : 'bg-white text-slate-700 border border-slate-200'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Métricas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('orders'); window.location.hash = 'orders'; }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'orders' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+            }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Pedidos</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('products'); window.location.hash = 'products'; }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'products' ? 'bg-black text-white' : 'bg-white text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>Produtos</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('coupons'); window.location.hash = 'coupons'; }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'coupons' ? 'bg-black text-white' : 'bg-white text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Ticket className="w-3.5 h-3.5" />
+            <span>Cupons</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('settings'); window.location.hash = 'settings'; }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'settings' ? 'bg-black text-white' : 'bg-white text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>Configurações</span>
+          </button>
         </div>
       </header>
 
