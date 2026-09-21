@@ -93,10 +93,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
 
   const [activeTab, setActiveTab] = useState<AdminTab>(getTabFromLocation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const isBaseStore = 
+  const isExemptFromBlock = 
+    Boolean(currentStore?.is_matriz) ||
+    currentStore?.slug === 'ajpstore' || 
+    currentStore?.id === 'store_ajpstore' ||
     currentStore?.slug === 'suamarcaaqui' || 
     currentStore?.id === 'suamarcaaqui' || 
-    currentStore?.id === 'store_default';
+    currentStore?.id === 'store_default' ||
+    currentStore?.slug === 'editaveisdocanva' ||
+    currentStore?.slug === 'editaveis-do-canva' ||
+    currentStore?.id === 'store_editaveisdocanva' ||
+    Boolean(currentStore?.custom_domain && currentStore.custom_domain.toLowerCase().includes('editaveisdocanva'));
 
   // Sincroniza abas com mudança de rota/hash na URL
   useEffect(() => {
@@ -139,8 +146,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
     );
   }
 
-  // Se a mensalidade estiver vencida, bloqueia totalmente o painel do comprador (NUNCA a loja matriz vitalícia)
-  if (!isBaseStore && isExpired) {
+  // Se a mensalidade estiver vencida, bloqueia totalmente o painel do comprador (NUNCA a loja matriz vitalícia nem a loja Editáveis do Canva)
+  if (!isExemptFromBlock && isExpired) {
     return <SubscriptionBlockedScreen onBackToStore={onBackToStore} />;
   }
 

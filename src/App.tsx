@@ -6,6 +6,7 @@ import { FilterProvider } from './context/FilterContext';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from './lib/router';
 import { supabase } from './lib/supabase';
 import { Store } from './types';
+import { EDITAVEIS_MONTHLY_STORE_DATA } from './services/storeManagementService';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -108,6 +109,12 @@ export const StoreFront: React.FC = () => {
       if (!isMounted) return;
 
       if (error || !data) {
+        if (cleanSlug === 'editaveisdocanva' || cleanSlug === 'editaveis-do-canva') {
+          console.log('[StoreFront] 🏬 Fallback automático para loja Editáveis do Canva.');
+          setNotFound(false);
+          switchStore(EDITAVEIS_MONTHLY_STORE_DATA as Store);
+          return;
+        }
         console.warn('[StoreFront] Loja não encontrada para slug:', cleanSlug);
         setNotFound(true);
       } else {
@@ -329,6 +336,11 @@ const DynamicTitleHandler: React.FC = () => {
 const RootRouteHandler: React.FC = () => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isRoot = isPlatformRootHostname(hostname);
+
+  // Se o hostname for o domínio oficial editaveisdocanva.com.br, renderiza SEMPRE a vitrine da loja!
+  if (hostname.toLowerCase().includes('editaveisdocanva')) {
+    return <StoreFront />;
+  }
 
   // Se for o domínio raiz da plataforma, NUNCA renderiza a vitrine de uma loja cliente, renderiza estritamente a Landing Page de Marketing!
   if (isRoot) {

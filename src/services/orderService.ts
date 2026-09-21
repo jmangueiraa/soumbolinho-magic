@@ -223,8 +223,10 @@ export async function fetchStoreOrders(
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (resolvedStoreId === 'suamarcaaqui') {
-      query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+    if (resolvedStoreId === 'suamarcaaqui' || resolvedStoreId === 'ajpstore' || resolvedStoreId === 'store_ajpstore') {
+      query = query.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+    } else if (resolvedStoreId === 'store_editaveisdocanva' || resolvedStoreId === 'editaveisdocanva' || resolvedStoreId === 'editaveis-do-canva') {
+      query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva,store_id.eq.matriz');
     } else {
       query = query.eq('store_id', resolvedStoreId);
     }

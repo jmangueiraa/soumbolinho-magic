@@ -331,6 +331,9 @@ export async function ensureEditaveisMonthlyStoreExists(): Promise<Store> {
 
     if (insertedStore) {
       console.log('[storeManagementService] ✅ Loja mensal Editáveis do Canva cadastrada com sucesso no Supabase:', insertedStore.id);
+      try {
+        await cloneStoreTemplate('ajpstore', insertedStore.id, 'Editáveis do Canva');
+      } catch {}
       return insertedStore as Store;
     }
   } catch (err) {
@@ -341,7 +344,7 @@ export async function ensureEditaveisMonthlyStoreExists(): Promise<Store> {
 }
 
 /**
- * 1. Lista todas as lojas cadastradas no SaaS para o Painel Master (incluindo a Loja Matriz Oficial SUAMARCAAQUI e a Loja Mensal Editáveis do Canva)
+ * 1. Lista todas as lojas cadastradas no SaaS para o Painel Master (incluindo a Loja Matriz Oficial AJPSTORE e a Loja Mensal Editáveis do Canva)
  */
 export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error: string | null }> {
   try {
@@ -380,11 +383,23 @@ export async function fetchAllStores(): Promise<{ data: StoreWithStats[]; error:
         const created = await ensureEditaveisMonthlyStoreExists();
         if (created) {
           allStores.push(created);
+        } else {
+          allStores.push(EDITAVEIS_MONTHLY_STORE_DATA as Store);
         }
       } catch (e) {
         console.warn('Fallback para Editáveis do Canva:', e);
         allStores.push(EDITAVEIS_MONTHLY_STORE_DATA as Store);
       }
+    }
+
+    // Garante que a matriz oficial AJPSTORE esteja na listagem
+    const hasAjp = allStores.some((s) => {
+      const sSlug = (s.slug || '').toLowerCase();
+      const sName = (s.name || s.store_name || '').toLowerCase();
+      return sSlug === 'ajpstore' || sName.includes('ajpstore') || s.id === 'store_ajpstore';
+    });
+    if (!hasAjp) {
+      allStores.unshift(MATRIZ_DEFAULT_STORE_DATA as Store);
     }
 
     // Busca contagem de produtos por loja

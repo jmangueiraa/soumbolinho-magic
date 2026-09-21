@@ -273,7 +273,7 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     if (isRootMatriz) {
       mapped = mapped.filter(p => {
         const sId = (p.store_id || '').toLowerCase().trim();
-        return sId === 'matriz' || sId === 'store_editaveisdocanva' || sId === 'editaveisdocanva';
+        return sId === 'matriz' || sId === 'store_editaveisdocanva' || sId === 'editaveisdocanva' || sId === 'editaveis-do-canva';
       });
     } else if (currentStoreId) {
       mapped = mapped.filter(p => {

@@ -477,8 +477,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         .ilike('name', cleanName)
         .neq('id', currentProductId || '');
 
-      if (currentStoreId === 'matriz' || currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva') {
-        checkQuery = checkQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva');
+      if (currentStoreId === 'matriz' || currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva' || currentStoreId === 'editaveis-do-canva') {
+        checkQuery = checkQuery.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva');
       } else if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
         checkQuery = checkQuery.or('store_id.eq.suamarcaaqui,store_id.eq.store_default');
       } else {

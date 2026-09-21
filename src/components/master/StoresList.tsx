@@ -62,9 +62,15 @@ export const StoresList: React.FC<StoresListProps> = ({
   const [isSavingDays, setIsSavingDays] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Contagens para os filtros (exclui a Matriz permanente AJPSTORE da contagem de clientes)
+  // Contagens para os filtros (exclui apenas a Matriz permanente AJPSTORE da contagem de clientes)
   const safeList = Array.isArray(stores) ? stores.filter(Boolean) : [];
-  const isMatrizOrBase = (s: Store) => Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore' || s.slug === 'suamarcaaqui' || s.id === 'store_default';
+  const isEditaveisStore = (s: Store) => 
+    s.slug === 'editaveisdocanva' || 
+    s.slug === 'editaveis-do-canva' || 
+    s.id === 'store_editaveisdocanva' ||
+    Boolean(s.custom_domain && s.custom_domain.toLowerCase().includes('editaveisdocanva')) ||
+    Boolean((s.name || s.store_name || '').toLowerCase().includes('editaveis'));
+  const isMatrizOrBase = (s: Store) => !isEditaveisStore(s) && (Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore');
   const trialCount = safeList.filter(s => (s.subscription_status === 'trial' || s.isTrial) && !isMatrizOrBase(s)).length;
   const activeCount = safeList.filter(s => s.subscription_status === 'active' && !s.isExpired && !isMatrizOrBase(s)).length;
   const expiredCount = safeList.filter(s => s.isExpired && !isMatrizOrBase(s)).length;

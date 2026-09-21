@@ -326,8 +326,9 @@ export const ApiDomainManager: React.FC = () => {
     const cleanHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase().trim().replace(/^www\./, '') : '';
     const isEditaveisContext = 
       cleanHostname.includes('editaveisdocanva') || 
-      (storeDomain && storeDomain.toLowerCase().includes('editaveisdocanva')) ||
+      Boolean(storeDomain && storeDomain.toLowerCase().includes('editaveisdocanva')) ||
       storeSlug === 'editaveisdocanva' ||
+      storeSlug === 'editaveis-do-canva' ||
       storeKey === 'store_editaveisdocanva';
 
     try {
@@ -480,6 +481,7 @@ export const ApiDomainManager: React.FC = () => {
       cleanHostname.includes('editaveisdocanva') || 
       (storeDomain && storeDomain.toLowerCase().includes('editaveisdocanva')) ||
       storeSlug === 'editaveisdocanva' ||
+      storeSlug === 'editaveis-do-canva' ||
       storeKey === 'store_editaveisdocanva';
 
     // Salva configuração do Melhor Envio via shippingService

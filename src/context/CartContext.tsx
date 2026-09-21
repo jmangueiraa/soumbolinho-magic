@@ -45,9 +45,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Filtra estritamente itens que pertençam a esta loja
       return parsed.filter((item) => {
         const itemStoreId = (item.product.store_id || 'suamarcaaqui').toLowerCase();
+        const isEditaveis = sId === 'store_editaveisdocanva' || sId === 'editaveisdocanva' || sId === 'editaveis-do-canva';
         return isBase 
           ? (itemStoreId === 'suamarcaaqui' || itemStoreId === 'store_default')
-          : (itemStoreId === sId || (sId === 'store_editaveisdocanva' && itemStoreId === 'matriz'));
+          : (itemStoreId === sId || (isEditaveis && (itemStoreId === 'matriz' || itemStoreId === 'store_editaveisdocanva' || itemStoreId === 'editaveisdocanva' || itemStoreId === 'editaveis-do-canva')));
       });
     } catch (e) {
       console.error('Falha ao recuperar carrinho do localStorage', e);

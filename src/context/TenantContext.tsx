@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { Store, DomainStatus, SubscriptionStatus } from '../types';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_STORE_FEATURES, DEFAULT_MAIN_CTA_TEXT } from '../data/storeConfig';
+import { EDITAVEIS_MONTHLY_STORE_DATA } from '../services/storeManagementService';
 
 export const DEFAULT_STORE: Store = {
   id: 'store_ajpstore',
@@ -430,6 +431,14 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setIsResolvingTenant(false);
           return;
         } else {
+          if (storeSlugParam === 'editaveisdocanva' || storeSlugParam === 'editaveis-do-canva') {
+            console.log('[TenantResolver] 🏬 Ativando loja Editáveis do Canva via fallback garantido.');
+            setCurrentStore(normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA));
+            setTenantNotFound(false);
+            setTenantError(null);
+            setIsResolvingTenant(false);
+            return;
+          }
           console.warn('[TenantResolver] ❌ Loja com slug não encontrada:', storeSlugParam);
           setTenantNotFound(true);
           setTenantError(`Loja "${storeSlugParam}" não encontrada.`);
@@ -495,6 +504,14 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setIsResolvingTenant(false);
           return;
         } else {
+          if (cleanHost.includes('editaveisdocanva') || targetDomain.includes('editaveisdocanva')) {
+            console.log('[TenantResolver] 🏬 Ativando loja Editáveis do Canva para o domínio personalizado via fallback garantido.');
+            setCurrentStore(normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA));
+            setTenantNotFound(false);
+            setTenantError(null);
+            setIsResolvingTenant(false);
+            return;
+          }
           console.warn('[TenantResolver] ❌ Domínio personalizado não associado a nenhuma loja cadastrada:', targetDomain);
           setTenantNotFound(true);
           setTenantError(`Nenhuma loja cadastrada para o endereço "${targetDomain}".`);
@@ -591,12 +608,17 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // -------------------------------------------------------------
   // REQUISITO RIGOROSO 1: AJPSTORE é a loja matriz vitalícia (sem expiração)
   const isBaseStore = currentStore.is_matriz || currentStore.slug === 'ajpstore' || currentStore.id === 'store_ajpstore' || currentStore.slug === 'suamarcaaqui' || currentStore.id === 'suamarcaaqui' || currentStore.id === 'store_default';
+  const isEditaveisStore = 
+    currentStore.slug === 'editaveisdocanva' || 
+    currentStore.slug === 'editaveis-do-canva' || 
+    currentStore.id === 'store_editaveisdocanva' ||
+    Boolean(currentStore.custom_domain && currentStore.custom_domain.toLowerCase().includes('editaveisdocanva'));
   const now = Date.now();
   let daysRemaining: number | null = null;
   let isExpired = false;
   let isExpiringSoon = false;
 
-  if (!isBaseStore && currentStore.id !== '__resolving_tenant__') {
+  if (!isBaseStore && !isEditaveisStore && currentStore.id !== '__resolving_tenant__') {
     if (currentStore.subscription_status === 'suspended') {
       isExpired = true;
     } else if (currentStore.expires_at) {
@@ -609,6 +631,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isExpiringSoon = true;
       }
     }
+  } else if (isEditaveisStore) {
+    daysRemaining = 30;
+    isExpired = false;
+    isExpiringSoon = false;
   }
 
   const monthlyFee = isBaseStore

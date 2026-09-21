@@ -84,8 +84,16 @@ export const MasterLayout: React.FC = () => {
     );
   }
 
-  // Estatísticas de Assinatura e Lojas (exclui a loja matriz vitalícia AJPSTORE das métricas de clientes)
-  const isBase = (s: StoreType) => Boolean(s && (s.is_matriz || s.slug === 'ajpstore' || s.id === 'store_ajpstore' || s.slug === 'suamarcaaqui' || s.id === 'suamarcaaqui' || s.id === 'store_default'));
+  // Estatísticas de Assinatura e Lojas (exclui apenas a loja matriz vitalícia AJPSTORE das métricas de clientes)
+  const isEditaveisStore = (s: StoreType) => 
+    s && (
+      s.slug === 'editaveisdocanva' || 
+      s.slug === 'editaveis-do-canva' || 
+      s.id === 'store_editaveisdocanva' ||
+      Boolean(s.custom_domain && s.custom_domain.toLowerCase().includes('editaveisdocanva')) ||
+      Boolean((s.name || s.store_name || '').toLowerCase().includes('editaveis'))
+    );
+  const isBase = (s: StoreType) => Boolean(s && !isEditaveisStore(s) && (s.is_matriz || s.slug === 'ajpstore' || s.id === 'store_ajpstore'));
   const safeStores = Array.isArray(stores) ? stores.filter(Boolean) : [];
   const totalStores = safeStores.length;
   const trialStores = safeStores.filter((s) => (s.subscription_status === 'trial' || s.isTrial) && !s.isExpired && !isBase(s)).length;

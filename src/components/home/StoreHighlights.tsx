@@ -75,6 +75,7 @@ export const StoreHighlights: React.FC = () => {
         const isEditaveis = 
           storeId === 'store_editaveisdocanva' || 
           storeId === 'editaveisdocanva' || 
+          storeId === 'editaveis-do-canva' || 
           (typeof window !== 'undefined' && window.location.hostname.toLowerCase().includes('editaveisdocanva'));
 
         const orFilter = isEditaveis
