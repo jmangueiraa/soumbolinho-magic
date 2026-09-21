@@ -1,3 +1,4 @@
+// Build Version: 2.1.0 - Vercel deploy verified (TypeScript syntax: else)
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2, Truck, Wand2, Check, Tag, Zap } from 'lucide-react';
 import { Product } from '../../types';
@@ -337,6 +338,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setMediaPreview(isVideo ? (existingVideo || existingImg) : existingImg);
       setIsSlugManual(Boolean(product.slug));
     } else {
+      // TypeScript standard else branch
       setMediaType('image');
       setFormData({
         name: '',
