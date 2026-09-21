@@ -74,20 +74,47 @@ export function isPlatformRootHostname(hostname: string): boolean {
 }
 
 /**
+ * Lista oficial de subdomínios reservados do sistema que NUNCA devem ser tratados como lojas clientes:
+ * - www: redirecionamento e domínio raiz
+ * - app: aplicação / painel de controle
+ * - admin: painel administrativo
+ * - api: endpoints e integrações
+ * - painel: área de gestão
+ * - master: painel mestre SaaS
+ * - portal: Portal do Cliente (portal.ajpstore.com.br)
+ */
+export const RESERVED_SUBDOMAINS = ['www', 'app', 'admin', 'api', 'painel', 'master', 'portal'];
+
+/**
+ * Verifica se o host é especificamente o subdomínio do Portal do Cliente (portal.ajpstore.com.br).
+ */
+export function isPortalHostname(hostname: string): boolean {
+  if (!hostname) return false;
+  const clean = hostname.toLowerCase().trim().replace(/:\d+$/, '');
+  return (
+    clean === 'portal.ajpstore.com.br' ||
+    clean === 'www.portal.ajpstore.com.br' ||
+    clean === 'portal.localhost' ||
+    clean.startsWith('portal.')
+  );
+}
+
+/**
  * Extrai subdomínio de loja válido se houver (ex: 'lilika.ajpstore.com.br' -> 'lilika').
+ * Ignora e retorna null para subdomínios reservados como 'portal', 'www', 'admin', 'master', etc.
  */
 export function extractStoreSubdomain(hostname: string): string | null {
   if (!hostname) return null;
   const clean = hostname.toLowerCase().trim().replace(/:\d+$/, '');
 
-  if (isPlatformRootHostname(clean)) {
+  if (isPlatformRootHostname(clean) || isPortalHostname(clean)) {
     return null;
   }
 
   if (clean.endsWith('.ajpstore.com.br')) {
     const sub = clean.slice(0, -'.ajpstore.com.br'.length).trim();
     const cleanSub = sub.replace(/^www\./, '');
-    if (cleanSub && !['www', 'app', 'admin', 'api', 'painel', 'master'].includes(cleanSub)) {
+    if (cleanSub && !RESERVED_SUBDOMAINS.includes(cleanSub)) {
       return cleanSub;
     }
     return null;
@@ -96,7 +123,7 @@ export function extractStoreSubdomain(hostname: string): string | null {
   if (clean.endsWith('.localhost')) {
     const sub = clean.slice(0, -'.localhost'.length).trim();
     const cleanSub = sub.replace(/^www\./, '');
-    if (cleanSub && cleanSub !== 'www') {
+    if (cleanSub && !RESERVED_SUBDOMAINS.includes(cleanSub)) {
       return cleanSub;
     }
     return null;
@@ -111,7 +138,7 @@ export function extractStoreSubdomain(hostname: string): string | null {
 export function isCustomStoreDomain(hostname: string): boolean {
   if (!hostname) return false;
   const clean = hostname.toLowerCase().trim().replace(/:\d+$/, '');
-  if (isPlatformRootHostname(clean)) return false;
+  if (isPlatformRootHostname(clean) || isPortalHostname(clean)) return false;
   if (clean.endsWith('.ajpstore.com.br')) return false;
   if (clean.endsWith('.localhost')) return false;
   return true;
@@ -119,10 +146,10 @@ export function isCustomStoreDomain(hostname: string): boolean {
 
 /**
  * Retorna true se a requisição é proveniente de um subdomínio válido ou domínio personalizado de loja.
- * Retorna estritamente FALSE para o domínio raiz principal da plataforma (ajpstore.com.br, www.ajpstore.com.br, localhost, vercel.app).
+ * Retorna estritamente FALSE para o domínio raiz e subdomínios reservados (portal, www, etc.).
  */
 export function isTenantHost(hostname: string): boolean {
-  if (!hostname || isPlatformRootHostname(hostname)) {
+  if (!hostname || isPlatformRootHostname(hostname) || isPortalHostname(hostname)) {
     return false;
   }
   return Boolean(extractStoreSubdomain(hostname) || isCustomStoreDomain(hostname));
@@ -131,6 +158,7 @@ export function isTenantHost(hostname: string): boolean {
 export function checkIsTenantRoute(): boolean {
   if (typeof window === 'undefined') return false;
   const hostname = window.location.hostname.toLowerCase().trim();
+  if (isPortalHostname(hostname)) return false;
   const isRoot = isPlatformRootHostname(hostname);
   const pathname = window.location.pathname.toLowerCase();
   const hash = window.location.hash.toLowerCase();
@@ -288,6 +316,7 @@ interface TenantContextType {
   detectedHost: string;
   isLocalhost: boolean;
   isMasterHost: boolean;
+  isPortalHost: boolean;
   isSuperAdmin: boolean;
   superAdminEmail: string;
   // Mensalidade & Controle de 30 dias / Trial
@@ -317,6 +346,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [detectedHost, setDetectedHost] = useState<string>('');
   const [isLocalhost, setIsLocalhost] = useState<boolean>(false);
   const [isMasterHost, setIsMasterHost] = useState<boolean>(false);
+  const [isPortalHost, setIsPortalHost] = useState<boolean>(false);
 
   // Super admin session state
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(() => {
@@ -377,14 +407,30 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const previewStoreId = typeof window !== 'undefined' ? sessionStorage.getItem('preview_store_id') : null;
 
       const isRootPlatform = isPlatformRootHostname(hostname);
+      const isPortal = isPortalHostname(hostname);
       const storeSubdomain = extractStoreSubdomain(hostname);
       const isCustomDomain = isCustomStoreDomain(hostname);
 
       setIsLocalhost(hostname === 'localhost' || hostname === '127.0.0.1');
       setDetectedHost(hostname);
       setIsMasterHost(isRootPlatform);
+      setIsPortalHost(isPortal);
 
-      console.log(`[TenantResolver] 🌐 Resolvendo tenant para host: "${hostname}" | isRoot: ${isRootPlatform} | subdomínio: "${storeSubdomain || ''}" | custom: ${isCustomDomain} | param: "${storeSlugParam || ''}"`);
+      console.log(`[TenantResolver] 🌐 Resolvendo tenant para host: "${hostname}" | isRoot: ${isRootPlatform} | isPortal: ${isPortal} | subdomínio: "${storeSubdomain || ''}" | custom: ${isCustomDomain} | param: "${storeSlugParam || ''}"`);
+
+      // =========================================================================
+      // REGRA 0: Subdomínio reservado do Portal do Cliente (portal.ajpstore.com.br)
+      // Se a requisição vier de portal.ajpstore.com.br, o sistema NÃO consulta a tabela 'stores'
+      // e direciona diretamente para o Portal do Cliente sem gerar erro de 'Loja não encontrada'!
+      // =========================================================================
+      if (isPortal) {
+        console.log(`[TenantResolver] 🛡️ Subdomínio reservado Portal do Cliente detectado (${hostname}). Tabela 'stores' ignorada com sucesso.`);
+        setCurrentStore(DEFAULT_STORE);
+        setTenantNotFound(false);
+        setTenantError(null);
+        setIsResolvingTenant(false);
+        return;
+      }
 
       // =========================================================================
       // REGRA 1: Domínio Raiz da Plataforma (ajpstore.com.br, www.ajpstore.com.br ou localhost)
@@ -654,6 +700,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         detectedHost,
         isLocalhost,
         isMasterHost,
+        isPortalHost,
         isSuperAdmin,
         superAdminEmail,
         isTrial,

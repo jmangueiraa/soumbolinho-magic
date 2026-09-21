@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TenantProvider, useTenant, isTenantHost, isPlatformRootHostname } from './context/TenantContext';
+import { TenantProvider, useTenant, isTenantHost, isPlatformRootHostname, isPortalHostname } from './context/TenantContext';
 import { StoreDataProvider, useStoreData } from './context/StoreDataContext';
 import { CartProvider } from './context/CartContext';
 import { FilterProvider } from './context/FilterContext';
@@ -11,6 +11,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { FloatingWhatsApp } from './components/layout/FloatingWhatsApp';
+import { ClientPortal } from './components/portal/ClientPortal';
 import { SidebarFilters } from './components/filters/SidebarFilters';
 import { ProductGrid } from './components/products/ProductGrid';
 import { ProductDetails } from './components/products/ProductDetails';
@@ -290,9 +291,12 @@ const DynamicTitleHandler: React.FC = () => {
 
       const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
       const isRoot = isPlatformRootHostname(hostname);
+      const isPortal = isPortalHostname(hostname);
       const isTenant = isTenantHost(hostname);
 
-      if (isRoot && (path === '/' || path === '' || path === '/index.html')) {
+      if (isPortal || fullRoute.includes('/portal') || fullRoute.includes('/meus-pedidos') || fullRoute.includes('/cliente')) {
+        document.title = 'Portal do Cliente | AJPSTORE';
+      } else if (isRoot && (path === '/' || path === '' || path === '/index.html')) {
         document.title = 'AJPSTORE — Crie seu sistema para seu negócio em minutos';
       } else if (fullRoute.includes('/master') || fullRoute.includes('/super-admin')) {
         document.title = `Painel Master | ${siteName}`;
@@ -328,21 +332,26 @@ const DynamicTitleHandler: React.FC = () => {
 
 /**
  * Roteador Raiz Inteligente Multi-Tenant:
- * Se o hostname for o domínio principal (ajpstore.com.br, www.ajpstore.com.br, localhost ou vercel.app),
- * renderiza estritamente a Landing Page de Marketing principal da plataforma.
- * A vitrine da loja só carrega se a requisição vier de um subdomínio válido (ex: slug.ajpstore.com.br)
- * ou de um domínio personalizado mapeado.
+ * - Se o hostname for portal.ajpstore.com.br, renderiza diretamente o Portal do Cliente.
+ * - Se o hostname for o domínio principal (ajpstore.com.br, www.ajpstore.com.br, localhost ou vercel.app),
+ *   renderiza estritamente a Landing Page de Marketing principal da plataforma.
+ * - Se for editaveisdocanva.com.br ou um subdomínio válido de loja (slug.ajpstore.com.br), renderiza a vitrine.
  */
 const RootRouteHandler: React.FC = () => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isRoot = isPlatformRootHostname(hostname);
 
-  // Se o hostname for o domínio oficial editaveisdocanva.com.br, renderiza SEMPRE a vitrine da loja!
+  // 1. Se for o subdomínio reservado do Portal do Cliente (portal.ajpstore.com.br), renderiza o Portal do Cliente
+  if (isPortalHostname(hostname)) {
+    return <ClientPortal />;
+  }
+
+  // 2. Se o hostname for o domínio oficial editaveisdocanva.com.br, renderiza SEMPRE a vitrine da loja!
   if (hostname.toLowerCase().includes('editaveisdocanva')) {
     return <StoreFront />;
   }
 
-  // Se for o domínio raiz da plataforma, NUNCA renderiza a vitrine de uma loja cliente, renderiza estritamente a Landing Page de Marketing!
+  // 3. Se for o domínio raiz da plataforma, NUNCA renderiza a vitrine de uma loja cliente, renderiza estritamente a Landing Page de Marketing!
   if (isRoot) {
     return <MarketingLandingPage />;
   }
@@ -368,8 +377,19 @@ const NavigationRouter: React.FC = () => {
     <>
       <DynamicTitleHandler />
       <Routes>
-        {/* 1. Rota Raiz Inteligente (Marketing na Raiz / Vitrine nos Subdomínios) */}
+        {/* 1. Rota Raiz Inteligente (Marketing na Raiz / Vitrine nos Subdomínios / Portal no subdomínio portal) */}
         <Route path="/" element={<RootRouteHandler />} />
+
+        {/* 1.0. Rotas Oficiais do Portal do Cliente (portal.ajpstore.com.br) */}
+        <Route path="/portal" element={<ClientPortal />} />
+        <Route path="/portal/pedidos" element={<ClientPortal initialTab="pedidos" />} />
+        <Route path="/portal/arquivos" element={<ClientPortal initialTab="arquivos" />} />
+        <Route path="/portal/lojista" element={<ClientPortal initialTab="lojista" />} />
+        <Route path="/portal/ajuda" element={<ClientPortal initialTab="ajuda" />} />
+        <Route path="/meus-pedidos" element={<ClientPortal initialTab="pedidos" />} />
+        <Route path="/cliente" element={<ClientPortal />} />
+        <Route path="/cliente/pedidos" element={<ClientPortal initialTab="pedidos" />} />
+        <Route path="/cliente/arquivos" element={<ClientPortal initialTab="arquivos" />} />
 
         {/* 1.1. Página de Marketing & Onboarding (7 Dias Grátis) */}
         <Route path="/cadastro" element={<MarketingLandingPage />} />
