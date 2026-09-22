@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       process.env.PROJECT_ID || 
       process.env.VERCEL_PROJECT_ID || 
       process.env.VERCEL_PROJECT_ID_ENV || 
-      ''
+      'soumbolinho-magic'
     ).trim();
 
     const teamId = (
@@ -75,13 +75,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ''
     ).trim();
 
-    if (!vercelToken || !projectId) {
-      console.warn('[add-vercel-domain] ⚠️ Variáveis VERCEL_AUTH_TOKEN e/ou PROJECT_ID ausentes no ambiente.');
+    if (!vercelToken) {
+      console.warn('[add-vercel-domain] ⚠️ Variável VERCEL_AUTH_TOKEN ausente no ambiente da Vercel.');
       return res.status(200).json({
         success: false,
         notConfigured: true,
         domain: cleanDomain,
-        message: 'Variáveis VERCEL_AUTH_TOKEN e PROJECT_ID não configuradas no ambiente da Vercel. O domínio foi salvo no banco de dados, mas adicione as variáveis no painel da Vercel para automação completa.',
+        message: 'Variável VERCEL_AUTH_TOKEN não configurada na Vercel. O domínio foi salvo no banco, mas adicione VERCEL_AUTH_TOKEN no painel da Vercel para automação completa.',
       });
     }
 
@@ -91,56 +91,83 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       vercelApiUrl += `?teamId=${encodeURIComponent(teamId)}`;
     }
 
-    console.log(`[add-vercel-domain] 🚀 Enviando domínio "${cleanDomain}" para projeto Vercel "${projectId}"...`);
+    // Determina domínios a registrar (garante registro tanto de www quanto da raiz apex)
+    const domainsToRegister = [cleanDomain];
+    if (cleanDomain.startsWith('www.')) {
+      const apex = cleanDomain.replace(/^www\./, '');
+      if (apex && !domainsToRegister.includes(apex)) {
+        domainsToRegister.push(apex);
+      }
+    } else if (!cleanDomain.startsWith('www.') && !cleanDomain.includes('.ajpstore.')) {
+      const withWww = `www.${cleanDomain}`;
+      if (!domainsToRegister.includes(withWww)) {
+        domainsToRegister.push(withWww);
+      }
+    }
 
-    const vercelResponse = await fetch(vercelApiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${vercelToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: cleanDomain,
-      }),
-    });
+    console.log(`[add-vercel-domain] 🚀 Enviando domínios [${domainsToRegister.join(', ')}] para projeto Vercel "${projectId}"...`);
 
-    const responseData = await vercelResponse.json();
+    let primaryResult: any = null;
+    let anySuccess = false;
+    let anyAlreadyExists = false;
+    let lastError: any = null;
 
-    // 1. Sucesso ao adicionar o domínio
-    if (vercelResponse.ok) {
-      console.log(`[add-vercel-domain] ✅ Domínio "${cleanDomain}" adicionado à Vercel com sucesso!`);
+    for (const targetDomain of domainsToRegister) {
+      try {
+        const vercelResponse = await fetch(vercelApiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${vercelToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: targetDomain,
+          }),
+        });
+
+        const responseData = await vercelResponse.json();
+        const errCode = responseData?.error?.code;
+        const errMsg = responseData?.error?.message || '';
+
+        if (vercelResponse.ok) {
+          console.log(`[add-vercel-domain] ✅ Domínio "${targetDomain}" adicionado à Vercel com sucesso!`);
+          anySuccess = true;
+          if (!primaryResult) primaryResult = responseData;
+        } else if (
+          vercelResponse.status === 409 || 
+          errCode === 'domain_already_in_use' || 
+          errCode === 'domain_already_exists' || 
+          errMsg.toLowerCase().includes('already')
+        ) {
+          console.log(`[add-vercel-domain] ℹ️ Domínio "${targetDomain}" já estava registrado no projeto.`);
+          anyAlreadyExists = true;
+          if (!primaryResult) primaryResult = responseData;
+        } else {
+          console.warn(`[add-vercel-domain] ⚠️ Resposta Vercel para "${targetDomain}":`, responseData);
+          lastError = responseData?.error?.message || 'Falha ao registrar domínio na Vercel';
+        }
+      } catch (callErr: any) {
+        console.warn(`[add-vercel-domain] Erro na chamada para "${targetDomain}":`, callErr);
+        lastError = callErr?.message;
+      }
+    }
+
+    if (anySuccess || anyAlreadyExists) {
       return res.status(200).json({
         success: true,
+        alreadyExists: anyAlreadyExists && !anySuccess,
         domain: cleanDomain,
+        domainsAdded: domainsToRegister,
         storeId,
-        vercel: responseData,
-        message: `Domínio "${cleanDomain}" adicionado com sucesso ao seu projeto na Vercel!`,
+        vercel: primaryResult,
+        message: `Domínio(s) [${domainsToRegister.join(', ')}] configurado(s) com sucesso na Vercel!`,
       });
     }
 
-    // 2. Caso o domínio já pertença ou já tenha sido adicionado a este projeto (409 Conflict ou código domain_already_in_use)
-    const errCode = responseData?.error?.code;
-    const errMsg = responseData?.error?.message || '';
-
-    if (vercelResponse.status === 409 || errCode === 'domain_already_in_use' || errCode === 'domain_already_exists' || errMsg.toLowerCase().includes('already')) {
-      console.log(`[add-vercel-domain] ℹ️ Domínio "${cleanDomain}" já estava registrado no projeto.`);
-      return res.status(200).json({
-        success: true,
-        alreadyExists: true,
-        domain: cleanDomain,
-        storeId,
-        message: `O domínio "${cleanDomain}" já está ativo no seu projeto na Vercel.`,
-      });
-    }
-
-    // 3. Outros erros da API da Vercel (401 unauthorized, 403 forbidden, 404 project not found, etc.)
-    console.error(`[add-vercel-domain] ❌ Erro da Vercel API (${vercelResponse.status}):`, responseData);
     return res.status(200).json({
       success: false,
       domain: cleanDomain,
-      status: vercelResponse.status,
-      error: responseData?.error?.message || 'Falha ao comunicar com a API da Vercel.',
-      code: errCode,
+      error: lastError || 'Não foi possível cadastrar o domínio na Vercel.',
     });
 
   } catch (error: any) {

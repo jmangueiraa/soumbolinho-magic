@@ -242,9 +242,18 @@ export const StoresList: React.FC<StoresListProps> = ({
   const handleSaveDomain = async (storeId: string) => {
     setIsUpdatingDomain(true);
     let clean = domainInput.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-    await updateStoreDomain(storeId, clean || null);
+    const res = await updateStoreDomain(storeId, clean || null);
     setIsUpdatingDomain(false);
     setEditingDomainId(null);
+
+    if (res.success && res.vercelResult?.message) {
+      alert(`✅ ${res.vercelResult.message}`);
+    } else if (res.success && res.vercelResult?.notConfigured) {
+      alert(`ℹ️ Domínio salvo no banco! (Nota: Adicione VERCEL_AUTH_TOKEN no painel da Vercel para cadastrar automaticamente sem intervenção manual).`);
+    } else if (!res.success && res.error) {
+      alert(`❌ Erro ao salvar domínio: ${res.error}`);
+    }
+
     onRefresh();
   };
 

@@ -848,6 +848,20 @@ export async function createStoreWithClient(
       aRecord: '76.76.21.21'
     };
 
+    // Sincroniza automaticamente o domínio próprio com o projeto na Vercel API
+    if (isCustomExternalDomain && domainToSave && typeof window !== 'undefined') {
+      try {
+        console.log(`[storeManagementService] 🌐 Sincronizando novo domínio próprio "${domainToSave}" com a Vercel API...`);
+        fetch('/api/add-vercel-domain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: domainToSave, storeId: newStoreId }),
+        }).catch((e) => console.warn('[storeManagementService] Aviso ao sincronizar com Vercel:', e));
+      } catch (e) {
+        console.warn('[storeManagementService] Erro ao disparar sincronização com Vercel:', e);
+      }
+    }
+
     return { 
       store: insertedStore as Store, 
       error: null,
