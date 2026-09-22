@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/check-payment-status",
+      "destination": "/api/check-payment"
+    },
+    {
+      "source": "/api/notify-telegram",
+      "destination": "/api/notify-abandoned-cart"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
