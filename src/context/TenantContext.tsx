@@ -3,6 +3,7 @@ import { Store, DomainStatus, SubscriptionStatus } from '../types';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_STORE_FEATURES, DEFAULT_MAIN_CTA_TEXT } from '../data/storeConfig';
 import { EDITAVEIS_MONTHLY_STORE_DATA } from '../services/storeManagementService';
+import { COLOR_PALETTES } from '../utils/theme';
 
 export const DEFAULT_STORE: Store = {
   id: 'store_ajpstore',
@@ -194,17 +195,13 @@ export function normalizeStore(s: any): Store {
     ? (s.id || 'store_ajpstore') 
     : (isSuamarcaaqui 
         ? (s.id || 'suamarcaaqui') 
-        : (isEditaveis 
-            ? (s.id || 'store_editaveisdocanva') 
-            : (s.id || 'default')));
+        : (s.id || 'default'));
 
   const resolvedSlug = isAjpStore 
     ? (s.slug || 'ajpstore') 
     : (isSuamarcaaqui 
         ? 'suamarcaaqui' 
-        : (isEditaveis 
-            ? (s.slug || 'editaveisdocanva') 
-            : (s.slug || s.id || 'loja')));
+        : (s.slug || s.id || 'loja'));
 
   const resolvedName = s.name || s.store_name || (isAjpStore ? 'AJPSTORE' : (isEditaveis ? 'Editáveis do Canva' : (isSuamarcaaqui ? 'SUAMARCAAQUI' : 'Loja')));
   const isBase = isAjpStore || isSuamarcaaqui;
@@ -236,7 +233,7 @@ export function normalizeStore(s: any): Store {
         cachedLayout = lsL;
       }
       const lsP = localStorage.getItem(`store_${resolvedId}_color_palette`) || localStorage.getItem('soumbolinho_color_palette');
-      if (lsP && ['pink_pastel', 'blue_corporate', 'purple_elegant', 'green_nature'].includes(lsP)) {
+      if (lsP && ['pink_pastel', 'blue_corporate', 'purple_elegant', 'green_nature', 'blue_cyan'].includes(lsP)) {
         cachedPalette = lsP;
       }
       const lsC = localStorage.getItem(`store_${resolvedId}_primary_color`) || localStorage.getItem('soumbolinho_primary_color');
@@ -252,8 +249,9 @@ export function normalizeStore(s: any): Store {
   const dbPalette = s.color_palette || stTheme.color_palette;
   const resolvedPalette = dbPalette || cachedPalette || 'pink_pastel';
 
+  const defaultPalettePrimary = COLOR_PALETTES[resolvedPalette as keyof typeof COLOR_PALETTES]?.primary || '#FF1493';
   const dbPrimary = s.primary_color || stTheme.primary_color;
-  const resolvedPrimary = dbPrimary || cachedPrimary || '#FF1493';
+  const resolvedPrimary = dbPrimary || cachedPrimary || defaultPalettePrimary;
 
   return {
     ...s,

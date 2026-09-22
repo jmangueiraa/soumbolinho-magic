@@ -284,55 +284,49 @@ export async function cloneStoreTemplate(
     let prodsCloned = 0;
     console.log(`[storeCloneService] 📦 Cadastrando os 4 produtos padrão para a nova loja "${targetStoreId}"...`);
 
-    // Busca se a matriz AJPSTORE possui esses 4 produtos para herdar eventuais fotos ou dados reais
+    // Busca os produtos reais cadastrados na Matriz AJPSTORE
     const { data: produtosMatriz } = await supabase
       .from('products')
       .select('*')
-      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore`)
+      .or(`store_id.eq.${matrizId},store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null`)
       .order('price', { ascending: true });
 
-    const matrizProductMap = new Map<string, any>();
-    if (produtosMatriz && produtosMatriz.length > 0) {
-      for (const p of produtosMatriz) {
-        const key = (p.name || '').trim().toUpperCase();
-        matrizProductMap.set(key, p);
-      }
-    }
+    const listToClone = (produtosMatriz && produtosMatriz.length > 0)
+      ? produtosMatriz
+      : DEFAULT_TEMPLATE_PRODUCTS;
 
-    for (const defProd of DEFAULT_TEMPLATE_PRODUCTS) {
+    for (let pIdx = 0; pIdx < listToClone.length; pIdx++) {
       try {
-        const prodKey = defProd.name.toUpperCase();
-        const matrizMatch = matrizProductMap.get(prodKey);
-
+        const prod = listToClone[pIdx];
         const finalImageUrl = (
-          matrizMatch?.image_url || 
-          matrizMatch?.imageUrl || 
-          matrizMatch?.image || 
-          defProd.imageUrl || 
+          prod.image_url || 
+          prod.imageUrl || 
+          prod.image || 
           '/default-product.jpg'
         ).trim();
 
-        const catId = categoryIdMap.get(defProd.category.toLowerCase()) || undefined;
+        const catName = String(prod.category || 'Categoria 1').trim();
+        const catId = categoryIdMap.get(catName.toLowerCase()) || undefined;
 
         await createProductInSupabase({
-          name: defProd.name,
-          price: matrizMatch?.price !== undefined && matrizMatch?.price !== null ? Number(matrizMatch.price) : defProd.price,
-          category: defProd.category,
+          name: prod.name,
+          price: prod.price !== undefined && prod.price !== null ? Number(prod.price) : 1.00,
+          category: catName,
           category_id: catId,
           imageUrl: finalImageUrl,
           image_url: finalImageUrl,
-          description: matrizMatch?.description || defProd.description,
+          description: prod.description || 'Produto de exemplo configurado para sua loja.',
           inStock: true,
-          unitSuffix: defProd.unitSuffix || '/Un',
-          tags: defProd.tags || ['Destaque'],
+          unitSuffix: prod.unit_suffix || prod.unitSuffix || '/Un',
+          tags: prod.tags || ['Destaque'],
           isCustomizable: false,
-          slug: `${defProd.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 6)}`,
+          slug: `${(prod.name || 'produto').toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 6)}`,
           store_id: targetStoreId
         }, targetStoreId);
 
         prodsCloned++;
       } catch (prodEx) {
-        console.warn(`[storeCloneService] Aviso ao cadastrar produto padrão ${defProd.name}:`, prodEx);
+        console.warn(`[storeCloneService] Aviso ao cadastrar produto clonado:`, prodEx);
       }
     }
 

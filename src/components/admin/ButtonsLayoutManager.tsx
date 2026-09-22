@@ -289,6 +289,11 @@ export const ButtonsLayoutManager: React.FC = () => {
           setMainCtaLink(freshCtaLink);
         }
 
+        const finalP = (freshPalette && COLOR_PALETTES[freshPalette as ColorPaletteType]) ? (freshPalette as ColorPaletteType) : colorPalette;
+        const finalC = (freshPrimary && freshPrimary.startsWith('#')) ? freshPrimary : (COLOR_PALETTES[finalP]?.primary || primaryColor);
+        const finalL = (freshLayout && ['classic', 'modern', 'minimal', 'featured_grid'].includes(freshLayout)) ? (freshLayout as ThemeLayoutType) : themeLayout;
+        applyThemeToDocument(finalP, finalC, finalL);
+
         hasLoadedRef.current = true;
       } catch (err) {
         console.warn('[ButtonsLayoutManager] Aviso ao carregar configurações frescas:', err);
@@ -304,7 +309,7 @@ export const ButtonsLayoutManager: React.FC = () => {
     const chosen = COLOR_PALETTES[paletteId];
     if (chosen) {
       setPrimaryColor(chosen.primary);
-      document.documentElement.style.setProperty('--primary-color', chosen.primary);
+      applyThemeToDocument(paletteId, chosen.primary, themeLayout);
     }
   };
 

@@ -224,39 +224,31 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     const hostname = (typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '');
     const isSpecificStoreRoute = pathname.includes('/loja/') || hash.includes('/loja/');
 
-    // REQUISITO 1: Se a página acessada for a raiz (editaveisdocanva.com.br ou sem slug de loja)
-    const isEditaveisHost = hostname.includes('editaveisdocanva.com.br') || hostname.includes('soumbolinho');
-    const isEditaveisStore = currentStoreId === 'matriz' || currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva' || currentStoreId === 'editaveis-do-canva';
-    const isBaseStore = currentStoreId === 'ajpstore' || currentStoreId === 'store_ajpstore' || currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default';
+    // Identifica se a loja é a Matriz fixa AJPSTORE
+    const isBaseStore = 
+      currentStoreId === 'ajpstore' || 
+      currentStoreId === 'store_ajpstore' || 
+      currentStoreId === 'suamarcaaqui' || 
+      currentStoreId === 'store_default' ||
+      (!currentStoreId && (hostname.includes('ajpstore.com.br') || hostname === 'localhost' || hostname === '127.0.0.1'));
 
-    // A matriz oficial só é assumida se estivermos no domínio da matriz ou se a loja for a matriz
-    const isRootMatriz = !isSpecificStoreRoute && (isEditaveisStore || (isEditaveisHost && !isBaseStore));
-
-    console.log(`[productService] 📦 Buscando produtos no Supabase (currentStoreId: "${currentStoreId}" | isRootMatriz: ${isRootMatriz})...`);
+    console.log(`[productService] 📦 Buscando produtos no Supabase (currentStoreId: "${currentStoreId}" | isBaseStore: ${isBaseStore})...`);
     
     let query = supabase
       .from('products')
       .select('*')
       .order('created_at', { ascending: false });
 
-    // REQUISITO 1: Se a página acessada for a raiz (editaveisdocanva.com.br), busca produtos da loja
-    if (isRootMatriz) {
-      query = query.or('store_id.eq.matriz,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva');
-    } 
-    // REQUISITO 2: Quando a rota for de uma loja específica (ex: /loja/ajpstore, /loja/suamarcaaqui ou /loja/editaveisdocanva), filtra OBRIGATORIAMENTE por store_id
-    else if (currentStoreId) {
-      if (currentStoreId === 'ajpstore' || currentStoreId === 'store_ajpstore') {
-        query = query.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
-      } else if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
-        query = query.or('store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
-      } else if (currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva' || currentStoreId === 'editaveis-do-canva') {
-        query = query.or('store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva,store_id.eq.matriz');
+    if (isBaseStore) {
+      query = query.or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null');
+    } else if (currentStoreId) {
+      const isEditaveisAlias = currentStoreId.includes('editaveis') || hostname.includes('editaveis');
+      if (isEditaveisAlias) {
+        query = query.or(`store_id.eq.${currentStoreId},store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva`);
       } else {
         query = query.eq('store_id', currentStoreId);
       }
-    } 
-    else {
-      // Se por acaso o storeId não carregar, impede que traga tudo da base
+    } else {
       query = query.eq('store_id', 'INEXISTENTE'); 
     }
 
@@ -269,29 +261,58 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
 
     let mapped = (products || []).map(mapSupabaseProduct);
 
-    // Proteção rigorosa e isolamento estrito em memória
-    if (isRootMatriz) {
-      mapped = mapped.filter(p => {
-        const sId = (p.store_id || '').toLowerCase().trim();
-        return sId === 'matriz' || sId === 'store_editaveisdocanva' || sId === 'editaveisdocanva' || sId === 'editaveis-do-canva';
-      });
-    } else if (currentStoreId) {
-      mapped = mapped.filter(p => {
-        const sId = (p.store_id || '').toLowerCase().trim();
-        if (currentStoreId === 'ajpstore' || currentStoreId === 'store_ajpstore') {
-          return sId === 'ajpstore' || sId === 'store_ajpstore' || sId === 'suamarcaaqui' || sId === 'store_default' || !sId;
+    // AUTO-CLONAGEM INSTANTÂNEA: Se uma loja cliente (como Editáveis do Canva ou qualquer cliente novo)
+    // não possuir produtos cadastrados, clona fielmente os produtos da Matriz AJPSTORE na hora!
+    if (!isBaseStore && currentStoreId && mapped.length === 0) {
+      console.log(`[productService] 🧬 Loja cliente "${currentStoreId}" sem produtos. Realizando auto-clonagem imediata da Matriz AJPSTORE...`);
+      
+      const { data: matrizProds } = await supabase
+        .from('products')
+        .select('*')
+        .or('store_id.eq.ajpstore,store_id.eq.store_ajpstore,store_id.eq.suamarcaaqui,store_id.eq.store_default,store_id.is.null')
+        .order('price', { ascending: true });
+
+      const prodsSource = (matrizProds && matrizProds.length > 0)
+        ? matrizProds
+        : [
+            { name: 'PRODUTO 1', price: 1.00, category: 'Categoria 1', description: 'Produto de exemplo configurado para sua loja.' },
+            { name: 'PRODUTO 2', price: 2.00, category: 'Categoria 2', description: 'Produto de exemplo configurado para sua loja.' },
+            { name: 'PRODUTO 3', price: 3.00, category: 'Categoria 3', description: 'Produto de exemplo configurado para sua loja.' },
+            { name: 'PRODUTO 4', price: 4.00, category: 'Categoria 4', description: 'Produto de exemplo configurado para sua loja.' },
+          ];
+
+      const clonedList: Product[] = [];
+      for (const p of prodsSource) {
+        try {
+          const img = (p.image_url || p.imageUrl || p.image || '/default-product.jpg').trim();
+          const { product: created } = await createProductInSupabase({
+            name: p.name,
+            price: Number(p.price) || 0,
+            category: p.category || 'Categoria 1',
+            imageUrl: img,
+            image_url: img,
+            description: p.description || '',
+            inStock: true,
+            unitSuffix: p.unit_suffix || p.unitSuffix || '/Un',
+            tags: p.tags || ['Destaque'],
+            isCustomizable: false,
+            slug: `${(p.name || 'produto').toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 6)}`,
+            store_id: currentStoreId
+          }, currentStoreId);
+
+          if (created) clonedList.push(created);
+        } catch (cloneErr) {
+          console.warn('[productService] Aviso ao clonar produto individual da matriz:', cloneErr);
         }
-        if (currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default') {
-          return sId === 'suamarcaaqui' || sId === 'store_default' || !sId;
-        }
-        if (currentStoreId === 'store_editaveisdocanva' || currentStoreId === 'editaveisdocanva' || currentStoreId === 'editaveis-do-canva') {
-          return sId === 'store_editaveisdocanva' || sId === 'editaveisdocanva' || sId === 'editaveis-do-canva' || sId === 'matriz';
-        }
-        return sId === currentStoreId.toLowerCase().trim();
-      });
+      }
+
+      if (clonedList.length > 0) {
+        console.log(`[productService] 🎉 ${clonedList.length} produtos clonados da Matriz para "${currentStoreId}".`);
+        return { data: clonedList, error: null };
+      }
     }
 
-    console.log(`[productService] ✅ ${mapped.length} produtos carregados estritamente para "${isRootMatriz ? 'matriz' : currentStoreId}".`);
+    console.log(`[productService] ✅ ${mapped.length} produtos carregados para "${currentStoreId}".`);
     return { data: mapped, error: null };
   } catch (err: any) {
     console.error('[productService] ❌ Falha na requisição de produtos:', err);

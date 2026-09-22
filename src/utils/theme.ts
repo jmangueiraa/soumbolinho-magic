@@ -155,5 +155,12 @@ export function applyThemeToDocument(
   if (document.body) {
     document.body.setAttribute('data-theme', colorPaletteId);
     document.body.setAttribute('data-layout', themeLayout);
+    document.body.style.setProperty('--primary-color', primary);
+    document.body.style.setProperty('--color-primary', primary);
+    document.body.style.setProperty('--color-primary-hover', palette.primaryHover);
+    document.body.style.setProperty('--color-primary-light', palette.primaryLight);
+    document.body.style.setProperty('--color-accent', palette.accent);
+    document.body.style.setProperty('--header-bg', palette.headerBg);
+    document.body.style.setProperty('--header-border', palette.headerBorder);
   }
 }

@@ -29,7 +29,7 @@ import { StoreHighlights } from './components/home/StoreHighlights';
 import { ArquivosPage } from './components/pages/ArquivosPage';
 import { CategoryPills } from './components/filters/CategoryPills';
 import { MarketingLandingPage } from './components/marketing/MarketingLandingPage';
-import { applyThemeToDocument } from './utils/theme';
+import { applyThemeToDocument, COLOR_PALETTES } from './utils/theme';
 import { ThemeLayoutType, ColorPaletteType } from './types';
 import { recordStoreVisit, recordProductView } from './services/analyticsService';
 
@@ -76,7 +76,9 @@ export const StoreFront: React.FC = () => {
   const activePrimary = 
     currentStore?.primary_color || 
     currentStore?.theme_settings?.primary_color || 
-    storeConfig.primaryColor;
+    storeConfig.primaryColor ||
+    COLOR_PALETTES[activePalette]?.primary ||
+    '#FF1493';
 
   // Injeção de variáveis CSS de tema em tempo real
   useEffect(() => {

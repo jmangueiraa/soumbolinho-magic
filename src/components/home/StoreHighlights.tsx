@@ -168,7 +168,10 @@ export const StoreHighlights: React.FC = () => {
             
             const ItemInner = (
               <div className="flex flex-col items-center justify-center space-y-2 group cursor-pointer">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black text-white flex items-center justify-center shadow-md p-3 relative transition-transform duration-300 group-hover:scale-105">
+                <div 
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full text-white flex items-center justify-center shadow-md p-3 relative transition-transform duration-300 group-hover:scale-105 border border-white/10"
+                  style={{ backgroundColor: 'var(--header-bg, #000000)' }}
+                >
                   <div className="relative flex items-center justify-center">
                     {renderFeatureIcon(feat.icon)}
                   </div>
@@ -210,7 +213,7 @@ export const StoreHighlights: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Barra Azul / Botão Principal de Destaque (100% Dinâmico e Editável) */}
+      {/* 2. Barra Principal de Destaque (100% Dinâmica com cor da Paleta) */}
       {hasCtaBar && (
         <div className="max-w-xl mx-auto">
           {mainCtaLink && mainCtaLink.trim().length > 0 ? (
@@ -220,12 +223,18 @@ export const StoreHighlights: React.FC = () => {
               rel={mainCtaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
               className="block no-underline group"
             >
-              <div className="w-full py-3.5 sm:py-4 px-6 bg-[#00a8e8] hover:bg-[#0095ce] text-white font-bold text-base sm:text-xl rounded-2xl shadow-md shadow-turquesa-500/20 text-center tracking-tight flex items-center justify-center transition-all duration-300 group-hover:scale-[1.01] cursor-pointer">
+              <div 
+                className="w-full py-3.5 sm:py-4 px-6 text-white font-bold text-base sm:text-xl rounded-2xl shadow-md text-center tracking-tight flex items-center justify-center transition-all duration-300 group-hover:scale-[1.01] cursor-pointer"
+                style={{ backgroundColor: 'var(--primary-color, #0062FF)' }}
+              >
                 <span>{mainCtaText}</span>
               </div>
             </a>
           ) : (
-            <div className="w-full py-3.5 sm:py-4 px-6 bg-[#00a8e8] text-white font-bold text-base sm:text-xl rounded-2xl shadow-md shadow-turquesa-500/20 text-center tracking-tight flex items-center justify-center">
+            <div 
+              className="w-full py-3.5 sm:py-4 px-6 text-white font-bold text-base sm:text-xl rounded-2xl shadow-md text-center tracking-tight flex items-center justify-center"
+              style={{ backgroundColor: 'var(--primary-color, #0062FF)' }}
+            >
               <span>{mainCtaText}</span>
             </div>
           )}
