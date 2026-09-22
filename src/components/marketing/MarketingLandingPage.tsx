@@ -56,6 +56,7 @@ export const MarketingLandingPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'iniciante' | 'escala'>('escala');
 
   // FAQ Accordion State (primeira dúvida aberta por padrão)
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -142,6 +143,11 @@ export const MarketingLandingPage: React.FC = () => {
         firstInputRef.current?.focus();
       }, 500);
     }
+  };
+
+  const handleChoosePlan = (plan: 'iniciante' | 'escala') => {
+    setSelectedPlan(plan);
+    scrollToRegistration();
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -266,7 +272,7 @@ export const MarketingLandingPage: React.FC = () => {
         is_matriz: false,
         domain_status: 'ativo',
         expires_at: trialEndsAt,
-        monthly_fee: 50.00,
+        monthly_fee: selectedPlan === 'iniciante' ? 30.00 : 50.00,
         layout_style: resolvedLayoutStyle,
         primary_color: resolvedPrimaryColor,
         color_palette: resolvedColorPalette,
@@ -582,7 +588,7 @@ export const MarketingLandingPage: React.FC = () => {
               {/* Mensagem de Apoio */}
               <p className="text-xs sm:text-sm text-slate-400 mt-4 flex items-center justify-center lg:justify-start gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Comece grátis. Se gostar, continue por apenas <strong>R$ 50/mês</strong>.</span>
+                <span>Comece grátis por 7 dias. Planos a partir de apenas <strong>R$ 30/mês</strong>.</span>
               </p>
             </div>
 
@@ -622,6 +628,45 @@ export const MarketingLandingPage: React.FC = () => {
                   {/* Formulário Principal */}
                   <form onSubmit={handleRegister} className="space-y-3.5">
                     
+                    {/* Escolha do Plano */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                        Plano Escolhido (7 Dias Grátis)
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlan('iniciante')}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            selectedPlan === 'iniciante'
+                              ? 'bg-cyan-500/15 border-cyan-400 text-white ring-1 ring-cyan-400/60 shadow-xs'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs">Iniciante</span>
+                            <span className="text-[11px] font-black text-cyan-400 font-mono">R$ 30/mês</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">Até 50 produtos</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlan('escala')}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            selectedPlan === 'escala'
+                              ? 'bg-emerald-500/15 border-emerald-400 text-white ring-1 ring-emerald-400/60 shadow-xs'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs">Escala</span>
+                            <span className="text-[11px] font-black text-emerald-400 font-mono">R$ 50/mês</span>
+                          </div>
+                          <span className="text-[10px] text-emerald-400/90 font-medium block mt-0.5">Ilimitado</span>
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Campo 1: Nome Completo */}
                     <div>
                       <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
@@ -1405,106 +1450,260 @@ export const MarketingLandingPage: React.FC = () => {
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* 9. SEÇÃO DE PREÇO SIMPLES E JUSTO */}
+      {/* 9. SEÇÃO DE PREÇOS E BENEFÍCIOS (PLANO INICIANTE & PLANO ESCALA) */}
       {/* ------------------------------------------------------------- */}
-      <section id="precos" className="py-16 sm:py-20 bg-slate-900/40 border-y border-slate-800/70 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="precos" className="py-16 sm:py-24 bg-slate-900/40 border-y border-slate-800/70 relative">
+        {/* Glows de fundo decorativos */}
+        <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3">
+          <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3 shadow-xs">
               <Star className="w-3.5 h-3.5 text-cyan-400" />
-              <span>⭐ PREÇO SIMPLES E JUSTO</span>
+              <span>⭐ PLANOS TRANSPARENTES & SEM TAXAS</span>
             </div>
-            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-              Comece grátis. Continue por apenas R$ 50/mês.
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+              Escolha o plano ideal para a sua loja
             </h2>
-            <p className="text-slate-300 text-sm sm:text-base mt-3">
-              Teste todos os recursos por 7 dias. Não precisa cadastrar cartão de crédito.
+            <p className="text-slate-300 text-sm sm:text-base mt-3 max-w-2xl mx-auto leading-relaxed">
+              Comece com 7 dias de teste grátis em qualquer plano. Sem taxas sobre as suas vendas (0% de comissão) e sem cartão de crédito para testar.
             </p>
           </div>
 
-          {/* Cartão de Preço Principal */}
-          <div className="max-w-lg mx-auto">
-            <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-400 via-blue-500 to-purple-600 shadow-2xl shadow-cyan-950/70">
-              <div className="bg-slate-950 rounded-[22px] p-7 sm:p-9 text-center">
+          {/* Grid de Preços: 2 Planos Lado a Lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto items-stretch">
+            
+            {/* PLANO 1: INICIANTE (R$ 30/mês) */}
+            <div className="relative rounded-3xl p-1 bg-gradient-to-b from-slate-700/80 via-slate-800 to-slate-900 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-950/40 flex flex-col justify-between group">
+              <div className="bg-slate-950 rounded-[22px] p-6 sm:p-9 flex flex-col justify-between h-full">
                 
-                <span className="inline-block px-4 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-black uppercase tracking-wider mb-4 border border-cyan-500/20">
-                  PLANO PRO COMPLETO
-                </span>
+                <div>
+                  {/* Topo do Card */}
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <span className="inline-block px-3.5 py-1 rounded-full bg-slate-800/90 text-slate-300 text-xs font-black tracking-wider uppercase border border-slate-700">
+                      Plano Iniciante
+                    </span>
+                    <span className="text-[11px] font-semibold text-cyan-400 bg-cyan-950/50 px-3 py-1 rounded-md border border-cyan-500/20">
+                      Ideal para Começar
+                    </span>
+                  </div>
 
-                <div className="flex items-baseline justify-center gap-2 mb-2">
-                  <span className="text-slate-400 text-lg font-bold">R$</span>
-                  <span className="text-5xl sm:text-6xl font-black text-white tracking-tight">50,00</span>
-                  <span className="text-slate-400 text-sm font-semibold">/ mês</span>
+                  <p className="text-xs sm:text-sm text-slate-400 mb-5 leading-relaxed">
+                    Perfeito para quem está iniciando seu catálogo ou validando suas primeiras vendas online com estrutura profissional.
+                  </p>
+
+                  {/* Preço */}
+                  <div className="flex items-baseline gap-1.5 mb-2">
+                    <span className="text-slate-400 text-lg font-bold">R$</span>
+                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">30,00</span>
+                    <span className="text-slate-400 text-xs sm:text-sm font-semibold">/ mês</span>
+                  </div>
+
+                  <div className="mb-6 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                    <span>🎁 7 Dias de Teste Grátis</span>
+                  </div>
+
+                  {/* Limite de Produtos */}
+                  <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/25 mb-6 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/20">
+                      <ShoppingBag className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs sm:text-sm font-bold text-white block">Limite de até 50 produtos</span>
+                      <span className="text-[11px] text-slate-400">Catálogo ágil, focado em conversão direta</span>
+                    </div>
+                  </div>
+
+                  {/* Lista de Benefícios Inclusos */}
+                  <div className="space-y-3.5 text-left mb-8 text-xs sm:text-sm text-slate-200 border-t border-slate-800/80 pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-200">Suporte a Produtos Físicos e Digitais</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-200">Landing Page Automática</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-200">Personalização completa da página (cores e logo)</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-200">Gerenciador de Pedidos integrado</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-200">Sem taxas sobre as vendas (0% de comissão)</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-200">Uso de Domínio Próprio</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-                  <span>🎁 7 DIAS DE ACESSO TOTAL GRÁTIS</span>
+                {/* Botão de Ação */}
+                <div>
+                  <button
+                    onClick={() => handleChoosePlan('iniciante')}
+                    className="w-full py-4 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm tracking-wide border border-slate-700 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 group"
+                  >
+                    <span>Começar no Plano Iniciante</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  <p className="text-[11px] text-slate-400 text-center mt-3">
+                    Sem cartão de crédito • 7 dias grátis
+                  </p>
                 </div>
-
-                {/* Lista de Inclusões */}
-                <div className="space-y-3 text-left mb-8 text-xs sm:text-sm text-slate-300 border-y border-slate-800/80 py-6">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Sem comissão por pedido da AJPSTORE</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Domínio próprio</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Checkout Mercado Pago</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Pix e cartão</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Landing pages</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Upsell</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Recuperação de carrinho</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Notificações</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Gestão pelo celular</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <span>Painel administrativo</span>
-                  </div>
-                </div>
-
-                {/* Botão de Teste */}
-                <button
-                  onClick={scrollToRegistration}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Rocket className="w-4 h-4" />
-                  <span>🚀 Criar minha loja grátis por 7 dias</span>
-                </button>
-
-                <p className="text-xs text-slate-400 mt-4">
-                  Sem cartão de crédito • 7 dias grátis
-                </p>
-
-                <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
-                  A AJPSTORE não cobra comissão sobre suas vendas. As tarifas eventualmente aplicadas pelo meio de pagamento são cobradas pelo próprio Mercado Pago.
-                </p>
 
               </div>
             </div>
+
+            {/* PLANO 2: ESCALA (R$ 50/mês) - DESTAQUE */}
+            <div className="relative rounded-3xl p-1 bg-gradient-to-b from-cyan-400 via-blue-500 to-emerald-500 shadow-2xl shadow-cyan-950/70 flex flex-col justify-between">
+              
+              {/* Badge Flutuante no Topo */}
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
+                <span className="px-4 py-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-lg flex items-center gap-1.5 whitespace-nowrap">
+                  <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                  <span>MAIS POPULAR • PRODUTOS ILIMITADOS</span>
+                </span>
+              </div>
+
+              <div className="bg-slate-950 rounded-[22px] p-6 sm:p-9 flex flex-col justify-between h-full pt-8 sm:pt-10">
+                
+                <div>
+                  {/* Topo do Card */}
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <span className="inline-block px-3.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-black tracking-wider uppercase border border-cyan-500/30">
+                      Plano Escala
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/50 px-3 py-1 rounded-md border border-emerald-500/20">
+                      Potência Total
+                    </span>
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-slate-400 mb-5 leading-relaxed">
+                    Para lojas em expansão que precisam de escala máxima, catálogo sem limites e alta performance de vendas.
+                  </p>
+
+                  {/* Preço */}
+                  <div className="flex items-baseline gap-1.5 mb-2">
+                    <span className="text-slate-400 text-lg font-bold">R$</span>
+                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">50,00</span>
+                    <span className="text-slate-400 text-xs sm:text-sm font-semibold">/ mês</span>
+                  </div>
+
+                  <div className="mb-6 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                    <span>🎁 7 Dias de Acesso Total Grátis</span>
+                  </div>
+
+                  {/* Limite de Produtos: Ilimitados */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-cyan-950/40 border border-emerald-500/30 mb-6 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs sm:text-sm font-bold text-white block">Produtos Ilimitados</span>
+                      <span className="text-[11px] text-emerald-400/90 font-medium">Cadastre quantos produtos e variações desejar</span>
+                    </div>
+                  </div>
+
+                  {/* Lista de Benefícios Inclusos */}
+                  <div className="space-y-3.5 text-left mb-8 text-xs sm:text-sm text-slate-200 border-t border-slate-800/80 pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                        <Check className="w-3.5 h-3.5 font-bold" />
+                      </div>
+                      <span className="font-medium text-white">Suporte a Produtos Físicos e Digitais</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                        <Check className="w-3.5 h-3.5 font-bold" />
+                      </div>
+                      <span className="font-medium text-white">Landing Page Automática</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                        <Check className="w-3.5 h-3.5 font-bold" />
+                      </div>
+                      <span className="font-medium text-white">Personalização completa da página (cores e logo)</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                        <Check className="w-3.5 h-3.5 font-bold" />
+                      </div>
+                      <span className="font-medium text-white">Gerenciador de Pedidos integrado</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                        <Check className="w-3.5 h-3.5 font-bold" />
+                      </div>
+                      <span className="font-medium text-white">Sem taxas sobre as vendas (0% de comissão)</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                        <Check className="w-3.5 h-3.5 font-bold" />
+                      </div>
+                      <span className="font-medium text-white">Uso de Domínio Próprio</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botão de Ação */}
+                <div>
+                  <button
+                    onClick={() => handleChoosePlan('escala')}
+                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Rocket className="w-4 h-4" />
+                    <span>🚀 Começar no Plano Escala</span>
+                  </button>
+
+                  <p className="text-[11px] text-slate-400 text-center mt-3">
+                    Sem cartão de crédito • 7 dias de acesso total
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          {/* Rodapé informativo */}
+          <div className="mt-12 text-center max-w-2xl mx-auto space-y-2">
+            <p className="text-xs sm:text-sm text-slate-400">
+              A AJPSTORE não cobra comissão sobre suas vendas. As tarifas eventualmente aplicadas pelo meio de pagamento são cobradas diretamente pelo próprio Mercado Pago.
+            </p>
+            <p className="text-[11px] text-emerald-400/90 font-medium">
+              ✓ Migre de plano a qualquer momento diretamente pelo seu painel administrativo.
+            </p>
           </div>
 
         </div>
@@ -1553,7 +1752,7 @@ export const MarketingLandingPage: React.FC = () => {
               },
               {
                 q: "Quanto custa depois dos 7 dias grátis?",
-                a: "Depois do período gratuito, o plano custa R$ 50,00 por mês."
+                a: "Após os 7 dias grátis, você pode escolher o Plano Iniciante por R$ 30,00/mês (até 50 produtos) ou o Plano Escala por R$ 50,00/mês (produtos ilimitados). Ambos incluem todos os recursos e 0% de comissão sobre suas vendas."
               }
             ].map((item, idx) => (
               <div 
