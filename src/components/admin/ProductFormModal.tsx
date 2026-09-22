@@ -276,9 +276,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const isVideo = product.mediaType === 'video' || isVideoUrl(existingVideo) || isVideoUrl(existingImg);
       const isDigital = Boolean(
         (product as any).product_type === 'digital' ||
-        (product as any).is_digital ?? 
-        (product as any).isDigital ?? 
-        Boolean(product.delivery_url || (product as any).deliveryUrl)
+        ((product as any).is_digital ?? 
+          (product as any).isDigital ?? 
+          Boolean(product.delivery_url || (product as any).deliveryUrl))
       );
       const productType: 'digital' | 'fisico' = (product as any).product_type || (isDigital ? 'digital' : 'fisico');
 
@@ -623,6 +623,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         bonuses: '',
         checkout_url: '',
         guarantee_days: 7,
+        product_type: 'fisico',
         is_digital: false,
         delivery_url: '',
         image: '',

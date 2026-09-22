@@ -1,6 +1,7 @@
 export interface Product {
   id: string;
   store_id?: string;
+  category_id?: string;
   name: string;
   slug?: string;
   category: string;
@@ -11,6 +12,7 @@ export interface Product {
   imageUrl?: string;
   image?: string;
   image_url?: string;
+  images?: string[];
   photo_url?: string;
   videoUrl?: string;
   video_url?: string;
@@ -256,11 +258,16 @@ export interface Store {
     whatsapp_api_token?: string | null;
     whatsapp_notify_phone?: string | null;
     shipping_config?: StoreShippingConfig;
+    only_logo?: boolean;
+    onlyLogo?: boolean;
+    slogan?: string;
   };
   layout_style?: ThemeLayoutType | string;
   theme_layout?: ThemeLayoutType;
   primary_color?: string;
   color_palette?: ColorPaletteType;
+  only_logo?: boolean;
+  onlyLogo?: boolean;
   is_active: boolean;
   is_matriz?: boolean;
   subscription_status?: SubscriptionStatus;
