@@ -15,6 +15,7 @@ export interface Product {
   videoUrl?: string;
   video_url?: string;
   mediaType?: 'image' | 'video';
+  product_type?: 'digital' | 'fisico';
   is_digital?: boolean;
   isDigital?: boolean;
   delivery_url?: string;

@@ -618,7 +618,11 @@ const NavigationRouter: React.FC = () => {
       {/* 4. Rota Interna de Arquivos */}
       <Route path="/arquivos" element={<ArquivosPage />} />
 
-      {/* 5. Rotas Dinâmicas de Landing Page do Produto */}
+      {/* 5. Rotas Dinâmicas de Página de Produto (Landing Page para Digital / E-commerce para Físico) */}
+      <Route path="/:slug/produto/:productId" element={<ProductDetails />} />
+      <Route path="/:slug/produto/:id" element={<ProductDetails />} />
+      <Route path="/:slug/p/:productId" element={<ProductDetails />} />
+      <Route path="/:slug/p/:id" element={<ProductDetails />} />
       <Route path="/loja/:slug/produto/:productId" element={<ProductDetails />} />
       <Route path="/loja/:storeSlug/produto/:productId" element={<ProductDetails />} />
       <Route path="/loja/:slug/p/:productId" element={<ProductDetails />} />

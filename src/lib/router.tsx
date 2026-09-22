@@ -132,6 +132,16 @@ export function useParams<T extends Record<string, string | undefined> = Record<
       return { storeSlug, slug: prodSlug, id: prodSlug, productId: prodSlug } as unknown as T;
     }
 
+    // 1.5. Rota dinâmica direta de loja + produto: /:storeSlug/produto/:slug ou /:storeSlug/p/:id
+    const directStoreProdMatch = path.match(/^\/([^/?#]+)\/(?:produto|p)\/([^/?#]+)/i) || h.match(/^#?\/?([^/?#]+)\/(?:produto|p)\/([^/?#]+)/i);
+    if (directStoreProdMatch && directStoreProdMatch[1] && directStoreProdMatch[2]) {
+      const storeSlug = decodeURIComponent(directStoreProdMatch[1]);
+      const prodSlug = decodeURIComponent(directStoreProdMatch[2]);
+      if (!RESERVED_ROUTES.includes(storeSlug.toLowerCase())) {
+        return { storeSlug, slug: prodSlug, id: prodSlug, productId: prodSlug } as unknown as T;
+      }
+    }
+
     // 2. Rota dinâmica direta: /produto/:slug ou /p/:id (pathname ou hash)
     const prodMatch = path.match(/\/(?:produto|p)\/([^/?#]+)/i) || h.match(/(?:produto|p)\/([^/?#]+)/i);
     if (prodMatch && prodMatch[1]) {
@@ -253,11 +263,20 @@ export const Routes: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         continue;
       }
 
-      // 3. Rota dinâmica aninhada de produto em loja: /loja/:storeSlug/produto/:slug ou /loja/:storeSlug/p/:id
-      if (cleanTarget.startsWith('/loja/:') && (cleanTarget.includes('/produto/:') || cleanTarget.includes('/p/:'))) {
+      // 3. Rota dinâmica de produto em loja:
+      // Suporta /loja/:storeSlug/produto/:slug, /:slug/produto/:productId, /:slug/p/:id, etc.
+      if (
+        (cleanTarget.startsWith('/loja/:') || cleanTarget.startsWith('/:slug/produto/') || cleanTarget.startsWith('/:storeslug/produto/') || cleanTarget.startsWith('/:slug/p/') || cleanTarget.startsWith('/:storeslug/p/')) &&
+        (cleanTarget.includes('/produto/') || cleanTarget.includes('/p/'))
+      ) {
         const hasLojaProd = (cleanPath.startsWith('/loja/') && (cleanPath.includes('/produto/') || cleanPath.includes('/p/'))) ||
           (cleanHash.startsWith('/loja/') && (cleanHash.includes('/produto/') || cleanHash.includes('/p/')));
         if (hasLojaProd) {
+          return element;
+        }
+
+        const directProdMatch = cleanPath.match(/^\/([^/?#]+)\/(?:produto|p)\/([^/?#]+)/i) || cleanHash.match(/^#?\/?([^/?#]+)\/(?:produto|p)\/([^/?#]+)/i);
+        if (directProdMatch && directProdMatch[1] && !RESERVED_ROUTES.includes(directProdMatch[1].toLowerCase())) {
           return element;
         }
         continue;

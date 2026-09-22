@@ -8,7 +8,7 @@ interface ProductDetailPageProps {
 }
 
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, onBack }) => {
-  return <ProductDetails productId={product?.id} onBack={onBack} />;
+  return <ProductDetails product={product} productId={product?.id} onBack={onBack} />;
 };
 
 export default ProductDetailPage;

@@ -88,6 +88,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     bonuses: '',
     checkout_url: '',
     guarantee_days: 7,
+    product_type: 'fisico' as 'digital' | 'fisico',
     is_digital: false,
     delivery_url: '',
     image: '',
@@ -274,10 +275,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const existingVideo = product.videoUrl || product.video_url || '';
       const isVideo = product.mediaType === 'video' || isVideoUrl(existingVideo) || isVideoUrl(existingImg);
       const isDigital = Boolean(
+        (product as any).product_type === 'digital' ||
         (product as any).is_digital ?? 
         (product as any).isDigital ?? 
         Boolean(product.delivery_url || (product as any).deliveryUrl)
       );
+      const productType: 'digital' | 'fisico' = (product as any).product_type || (isDigital ? 'digital' : 'fisico');
 
       const rawGallery = product.galleryImages || product.gallery_images || [];
       const galleryStr = Array.isArray(rawGallery) ? rawGallery.join('\n') : String(rawGallery || '');
@@ -320,6 +323,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         bonuses: bonusesStr,
         checkout_url: product.checkout_url || product.checkoutUrl || '',
         guarantee_days: product.guarantee_days || 7,
+        product_type: productType,
         is_digital: isDigital,
         delivery_url: product.delivery_url || product.deliveryUrl || '',
         image: existingImg,
@@ -353,6 +357,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         bonuses: '',
         checkout_url: '',
         guarantee_days: 7,
+        product_type: 'fisico',
         is_digital: false,
         delivery_url: '',
         image: '',
@@ -569,6 +574,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         photo_url: finalMediaUrl,
         videoUrl: isVideo ? finalMediaUrl : undefined,
         video_url: isVideo ? finalMediaUrl : undefined,
+        product_type: formData.product_type || (isDigital ? 'digital' : 'fisico'),
         is_digital: isDigital,
         isDigital: isDigital,
         delivery_url: deliveryUrlClean || undefined,
@@ -1060,56 +1066,83 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             )}
           </div>
 
-          {/* Flag / Alternador: Produto Digital */}
-          <div className="pt-3 border-t border-slate-200">
-            <div className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-200 transition-colors">
-              <label 
-                htmlFor="is-digital-toggle" 
-                className="flex items-center gap-3 cursor-pointer flex-1 select-none pr-3"
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors shrink-0 ${
-                  formData.is_digital 
-                    ? 'bg-emerald-500 text-white shadow-xs' 
-                    : 'bg-sky-500 text-white shadow-xs'
-                }`}>
-                  {formData.is_digital ? <Download className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm font-bold text-slate-900">
-                      Tipo: {formData.is_digital ? 'Arquivo Digital (Download Imediato)' : 'Produto Físico (Envio / Frete)'}
-                    </span>
-                    {formData.is_digital ? (
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wide">
-                        Download Ativo
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 uppercase tracking-wide">
-                        Entrega Física
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {formData.is_digital 
-                      ? 'Produto digital para download imediato (Canva, Google Drive, PDF, etc.). Não cobra frete.' 
-                      : 'Produto físico para envio/entrega. O checkout solicitará CEP/endereço e cobrará o frete.'}
-                  </p>
-                </div>
+          {/* Seletor de Tipo de Produto: Físico vs Digital */}
+          <div className="pt-3 border-t border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800">
+                Tipo de Produto *
               </label>
+              <span className="text-[11px] text-slate-500">
+                Define a página de exibição e cálculo de frete
+              </span>
+            </div>
 
-              <label 
-                htmlFor="is-digital-toggle" 
-                className="relative inline-flex items-center cursor-pointer shrink-0"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Opção 1: Produto Físico */}
+              <div
+                onClick={() => setFormData((prev) => ({ ...prev, product_type: 'fisico', is_digital: false }))}
+                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 select-none ${
+                  formData.product_type === 'fisico' || !formData.is_digital
+                    ? 'border-sky-500 bg-sky-50/70 ring-2 ring-sky-500/20 shadow-xs'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100/60'
+                }`}
               >
                 <input
-                  id="is-digital-toggle"
-                  type="checkbox"
-                  checked={formData.is_digital}
-                  onChange={(e) => setFormData({ ...formData, is_digital: e.target.checked })}
-                  className="sr-only peer"
+                  type="radio"
+                  id="prod-type-fisico"
+                  name="product_type_selection"
+                  checked={formData.product_type === 'fisico' || !formData.is_digital}
+                  onChange={() => setFormData((prev) => ({ ...prev, product_type: 'fisico', is_digital: false }))}
+                  className="mt-1 h-4 w-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                 />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-              </label>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-sky-600" />
+                    <span className="text-xs sm:text-sm font-black text-slate-900">
+                      Produto Físico
+                    </span>
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sky-200/80 text-sky-800 uppercase">
+                      Correios/Frete
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-snug">
+                    Renderiza a <strong>Página de E-commerce Tradicional</strong> com cálculo de frete por CEP no checkout.
+                  </p>
+                </div>
+              </div>
+
+              {/* Opção 2: Produto Digital */}
+              <div
+                onClick={() => setFormData((prev) => ({ ...prev, product_type: 'digital', is_digital: true }))}
+                className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 select-none ${
+                  formData.product_type === 'digital' || formData.is_digital
+                    ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/20 shadow-xs'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100/60'
+                }`}
+              >
+                <input
+                  type="radio"
+                  id="prod-type-digital"
+                  name="product_type_selection"
+                  checked={formData.product_type === 'digital' && formData.is_digital}
+                  onChange={() => setFormData((prev) => ({ ...prev, product_type: 'digital', is_digital: true }))}
+                  className="mt-1 h-4 w-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Download className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs sm:text-sm font-black text-slate-900">
+                      Produto Digital
+                    </span>
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-200/80 text-emerald-800 uppercase">
+                      Download
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-snug">
+                    Renderiza a <strong>Landing Page Automática de Alta Conversão</strong> sem cobrança de frete e liberação imediata.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

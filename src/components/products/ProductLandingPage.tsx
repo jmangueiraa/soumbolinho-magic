@@ -52,13 +52,15 @@ import { ProductBonusItem } from '../../data/defaultBonuses';
 import { getAutomaticPackageItems, getAutomaticProductDescription, getAutomaticPlanDetails, getAutomaticTestimonials, getAutomaticProductFaq } from '../../utils/automaticProductContent';
 import { recordProductView, recordStoreVisit } from '../../services/analyticsService';
 
-interface ProductLandingPageProps {
+export interface ProductLandingPageProps {
   productId?: string;
+  product?: Product;
   onBack?: () => void;
 }
 
 export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({ 
   productId: propId, 
+  product: propProduct,
   onBack: propOnBack 
 }) => {
   const { slug: routeSlug, id: routeId, storeSlug, productId } = useParams<{ slug?: string; id?: string; storeSlug?: string; productId?: string }>();
@@ -69,8 +71,8 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
   const slug = (propId || routeSlug || routeId || productId || '').trim();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [product, setProduct] = useState<Product | null>(propProduct || null);
+  const [isLoading, setIsLoading] = useState<boolean>(!propProduct);
   const [quantity, setQuantity] = useState<number>(1);
   const [mediaError, setMediaError] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
@@ -97,6 +99,12 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     let isMounted = true;
 
     async function loadProduct() {
+      if (propProduct) {
+        setProduct(propProduct);
+        setIsLoading(false);
+        return;
+      }
+
       // Se não há slug ou é uma rota reservada do sistema, redireciona imediatamente para a home
       if (!slug || RESERVED_ROUTES.includes(slug.toLowerCase())) {
         if (isMounted) {

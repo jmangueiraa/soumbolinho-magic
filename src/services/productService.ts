@@ -167,8 +167,9 @@ export function mapSupabaseProduct(item: any): Product {
     videoUrl: rawVideo || undefined,
     video_url: rawVideo || undefined,
     mediaType: isVideo ? 'video' : 'image',
-    is_digital: item.is_digital !== undefined && item.is_digital !== null ? Boolean(item.is_digital) : Boolean(item.delivery_url || item.deliveryUrl),
-    isDigital: item.is_digital !== undefined && item.is_digital !== null ? Boolean(item.is_digital) : Boolean(item.delivery_url || item.deliveryUrl),
+    product_type: (item.product_type === 'digital' || item.is_digital === true || Boolean(item.delivery_url || item.deliveryUrl)) ? 'digital' : 'fisico',
+    is_digital: item.product_type === 'digital' || (item.is_digital !== undefined && item.is_digital !== null ? Boolean(item.is_digital) : Boolean(item.delivery_url || item.deliveryUrl)),
+    isDigital: item.product_type === 'digital' || (item.is_digital !== undefined && item.is_digital !== null ? Boolean(item.is_digital) : Boolean(item.delivery_url || item.deliveryUrl)),
     description: item.description || undefined,
     detailed_description: detailedDesc,
     detailedDescription: detailedDesc,
@@ -356,6 +357,7 @@ export async function createProductInSupabase(
     unit_suffix: String(productData.unitSuffix || '/Un').trim(),
     image_url: finalImg || null,
     image: finalImg || null,
+    product_type: (productData as any).product_type || (Boolean((productData as any).is_digital ?? (productData as any).isDigital ?? Boolean(finalDeliveryUrl)) ? 'digital' : 'fisico'),
     is_digital: Boolean((productData as any).is_digital ?? (productData as any).isDigital ?? Boolean(finalDeliveryUrl)),
     delivery_url: Boolean((productData as any).is_digital ?? (productData as any).isDigital ?? Boolean(finalDeliveryUrl)) ? (finalDeliveryUrl || null) : null,
     description: productData.description ? String(productData.description).trim() : null,
@@ -406,6 +408,7 @@ export async function createProductInSupabase(
       error.message.includes('slug') || 
       error.message.includes('upsell') || 
       error.message.includes('column') || 
+      error.message.includes('product_type') || 
       error.message.includes('is_digital') ||
       error.message.includes('detailed_description') ||
       error.message.includes('gallery_images') ||
@@ -419,6 +422,7 @@ export async function createProductInSupabase(
       console.warn('[productService] ⚠️ Coluna opcional ausente no Supabase. Gravando versão compatível:', error.message);
       const { 
         slug, 
+        product_type,
         upsell_product_id, 
         upsell_price, 
         upsell_discount_percent, 
@@ -494,8 +498,10 @@ export async function updateProductInSupabase(
     dbUpdatePayload.image_url = finalImg || null;
     dbUpdatePayload.image = finalImg || null;
   }
-  if ((updates as any).is_digital !== undefined || (updates as any).isDigital !== undefined) {
-    const isDigital = Boolean((updates as any).is_digital ?? (updates as any).isDigital);
+  if ((updates as any).product_type !== undefined || (updates as any).is_digital !== undefined || (updates as any).isDigital !== undefined) {
+    const isDigital = (updates as any).product_type === 'digital' || Boolean((updates as any).is_digital ?? (updates as any).isDigital);
+    const prodType = (updates as any).product_type || (isDigital ? 'digital' : 'fisico');
+    dbUpdatePayload.product_type = prodType;
     dbUpdatePayload.is_digital = isDigital;
     if (!isDigital) {
       dbUpdatePayload.delivery_url = null;
@@ -577,6 +583,7 @@ export async function updateProductInSupabase(
     if (error && error.message && (
       error.message.includes('upsell') || 
       error.message.includes('column') || 
+      error.message.includes('product_type') || 
       error.message.includes('is_digital') ||
       error.message.includes('detailed_description') ||
       error.message.includes('gallery_images') ||
@@ -589,6 +596,7 @@ export async function updateProductInSupabase(
     )) {
       console.warn('[productService] ⚠️ Colunas ausentes na atualização. Gravando sem opcionais:', error.message);
       const { 
+        product_type,
         upsell_product_id, 
         upsell_price, 
         upsell_discount_percent, 
