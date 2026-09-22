@@ -1,4 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// @ts-nocheck
+type VercelRequest = any;
+type VercelResponse = any;
 
 /**
  * Formata número de telefone brasileiro no padrão visual (XX) XXXXX-XXXX

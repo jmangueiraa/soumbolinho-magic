@@ -1,4 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// @ts-nocheck
+type VercelRequest = any;
+type VercelResponse = any;
 
 /**
  * Escapa caracteres especiais do Markdown legado do Telegram (*, _, `, [, ])

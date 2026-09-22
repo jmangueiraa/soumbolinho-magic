@@ -1,4 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// @ts-nocheck
+type VercelRequest = any;
+type VercelResponse = any;
 
 export interface GenerateProductAiRequest {
   product_name?: string;

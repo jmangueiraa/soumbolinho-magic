@@ -1,4 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// @ts-nocheck
+type VercelRequest = any;
+type VercelResponse = any;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS Headers

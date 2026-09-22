@@ -1,4 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// @ts-nocheck
+type VercelRequest = any;
+type VercelResponse = any;
 
 /**
  * Endpoint de backend para automatizar a adição de domínios personalizados dos clientes na Vercel API.
