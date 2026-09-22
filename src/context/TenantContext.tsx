@@ -220,23 +220,43 @@ export function normalizeStore(s: any): Store {
       .then();
   }
 
-  const stTheme = s.theme_settings || {};
+  let stTheme: any = {};
+  if (typeof s.theme_settings === 'string') {
+    try {
+      stTheme = JSON.parse(s.theme_settings);
+    } catch {
+      stTheme = {};
+    }
+  } else if (s.theme_settings && typeof s.theme_settings === 'object') {
+    stTheme = s.theme_settings;
+  }
+
   let cachedLayout: any = undefined;
   let cachedPalette: any = undefined;
   let cachedPrimary: string | undefined = undefined;
   if (typeof window !== 'undefined') {
     try {
       const lsL = localStorage.getItem(`store_${resolvedId}_theme_layout`) || 
+                  localStorage.getItem(`store_${s.id}_theme_layout`) ||
+                  (s.slug ? localStorage.getItem(`store_${s.slug}_theme_layout`) : null) ||
                   (isEditaveis ? localStorage.getItem('store_store_editaveisdocanva_theme_layout') || localStorage.getItem('store_editaveisdocanva_theme_layout') : null) ||
                   localStorage.getItem('soumbolinho_theme_layout');
       if (lsL && ['classic', 'modern', 'minimal', 'featured_grid'].includes(lsL)) {
         cachedLayout = lsL;
       }
-      const lsP = localStorage.getItem(`store_${resolvedId}_color_palette`) || localStorage.getItem('soumbolinho_color_palette');
+      const lsP = localStorage.getItem(`store_${resolvedId}_color_palette`) || 
+                  localStorage.getItem(`store_${s.id}_color_palette`) ||
+                  (s.slug ? localStorage.getItem(`store_${s.slug}_color_palette`) : null) ||
+                  (isEditaveis ? localStorage.getItem('store_store_editaveisdocanva_color_palette') || localStorage.getItem('store_editaveisdocanva_color_palette') : null) ||
+                  localStorage.getItem('soumbolinho_color_palette');
       if (lsP && ['pink_pastel', 'blue_corporate', 'purple_elegant', 'green_nature', 'blue_cyan'].includes(lsP)) {
         cachedPalette = lsP;
       }
-      const lsC = localStorage.getItem(`store_${resolvedId}_primary_color`) || localStorage.getItem('soumbolinho_primary_color');
+      const lsC = localStorage.getItem(`store_${resolvedId}_primary_color`) || 
+                  localStorage.getItem(`store_${s.id}_primary_color`) ||
+                  (s.slug ? localStorage.getItem(`store_${s.slug}_primary_color`) : null) ||
+                  (isEditaveis ? localStorage.getItem('store_store_editaveisdocanva_primary_color') || localStorage.getItem('store_editaveisdocanva_primary_color') : null) ||
+                  localStorage.getItem('soumbolinho_primary_color');
       if (lsC && lsC.startsWith('#')) {
         cachedPrimary = lsC;
       }
@@ -470,7 +490,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           try {
             sessionStorage.setItem('current_store_slug', storeBySlug.slug);
           } catch {}
-          setCurrentStore(normalizeStore(storeBySlug));
+          const normalized = normalizeStore(storeBySlug);
+          setCurrentStore(normalized);
+          applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           setTenantNotFound(false);
           setTenantError(null);
           setIsResolvingTenant(false);
@@ -478,7 +500,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } else {
           if (storeSlugParam === 'editaveisdocanva' || storeSlugParam === 'editaveis-do-canva') {
             console.log('[TenantResolver] 🏬 Ativando loja Editáveis do Canva via fallback garantido.');
-            setCurrentStore(normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA));
+            const normalized = normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA);
+            setCurrentStore(normalized);
+            applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
             setTenantNotFound(false);
             setTenantError(null);
             setIsResolvingTenant(false);
@@ -510,7 +534,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           } else {
             setTenantError(null);
           }
-          setCurrentStore(normalizeStore(storeBySubdomain));
+          const normalized = normalizeStore(storeBySubdomain);
+          setCurrentStore(normalized);
+          applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           setTenantNotFound(false);
           setIsResolvingTenant(false);
           return;
@@ -529,13 +555,29 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (isCustomDomain || domainParam) {
         const targetDomain = domainParam || hostname;
         const cleanHost = targetDomain.replace(/^www\./, '');
-        console.log(`[TenantResolver] 🌐 Domínio personalizado detectado: "${targetDomain}"`);
+        const domainBase = cleanHost.replace(/\.(com\.br|com|net|org|app|io|store|site)$/i, '').replace(/^www\./i, '');
+        console.log(`[TenantResolver] 🌐 Domínio personalizado detectado: "${targetDomain}" (base: "${domainBase}")`);
 
-        const { data: matchedStore } = await supabase
+        // Busca por custom_domain (%wildcard%), slug ou id da loja, ordenando pelas mais recentes
+        const { data: matchedStores } = await supabase
           .from('stores')
           .select('*')
-          .or(`custom_domain.ilike.${targetDomain},custom_domain.ilike.www.${cleanHost},custom_domain.ilike.${cleanHost}`)
-          .maybeSingle();
+          .or(`custom_domain.ilike.%${cleanHost}%,custom_domain.ilike.%${targetDomain}%,slug.ilike.${domainBase},slug.ilike.${cleanHost},id.eq.store_${domainBase},id.eq.${domainBase},id.eq.store_default`)
+          .order('updated_at', { ascending: false });
+
+        let matchedStore = (matchedStores && matchedStores.length > 0) ? matchedStores[0] : null;
+
+        // Se ainda não encontrou e for o domínio editaveisdocanva, tenta variações de slug no Supabase
+        if (!matchedStore && (cleanHost.includes('editaveis') || targetDomain.includes('editaveis'))) {
+          const { data: editStores } = await supabase
+            .from('stores')
+            .select('*')
+            .or('slug.ilike.editaveisdocanva,slug.ilike.editaveis-do-canva,id.eq.store_editaveisdocanva,id.eq.store_default,name.ilike.%editaveis%')
+            .order('updated_at', { ascending: false });
+          if (editStores && editStores.length > 0) {
+            matchedStore = editStores[0];
+          }
+        }
 
         if (matchedStore) {
           console.log('[TenantResolver] ✅ Loja identificada por domínio personalizado:', matchedStore.name);
@@ -544,14 +586,48 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           } else {
             setTenantError(null);
           }
-          setCurrentStore(normalizeStore(matchedStore));
+
+          // Busca complementar em site_settings para mesclar customizações de tema mais recentes
+          try {
+            const { data: siteTheme } = await supabase
+              .from('site_settings')
+              .select('*')
+              .or(`store_id.eq.${matchedStore.id},store_id.eq.${matchedStore.slug}`)
+              .limit(1)
+              .maybeSingle();
+
+            if (siteTheme) {
+              const isSiteThemeNewer = siteTheme.updated_at && matchedStore.updated_at
+                ? new Date(siteTheme.updated_at).getTime() >= new Date(matchedStore.updated_at).getTime()
+                : true;
+
+              if (isSiteThemeNewer) {
+                if (siteTheme.color_palette) matchedStore.color_palette = siteTheme.color_palette;
+                if (siteTheme.primary_color) matchedStore.primary_color = siteTheme.primary_color;
+                if (siteTheme.theme_layout) matchedStore.layout_style = siteTheme.theme_layout;
+              }
+              matchedStore.theme_settings = {
+                ...(typeof matchedStore.theme_settings === 'string' ? JSON.parse(matchedStore.theme_settings) : (matchedStore.theme_settings || {})),
+                color_palette: (isSiteThemeNewer && siteTheme.color_palette) ? siteTheme.color_palette : matchedStore.color_palette,
+                primary_color: (isSiteThemeNewer && siteTheme.primary_color) ? siteTheme.primary_color : matchedStore.primary_color,
+                theme_layout: (isSiteThemeNewer && siteTheme.theme_layout) ? siteTheme.theme_layout : matchedStore.layout_style,
+                layout_style: (isSiteThemeNewer && siteTheme.theme_layout) ? siteTheme.theme_layout : matchedStore.layout_style,
+              };
+            }
+          } catch (e) {}
+
+          const normalized = normalizeStore(matchedStore);
+          setCurrentStore(normalized);
+          applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           setTenantNotFound(false);
           setIsResolvingTenant(false);
           return;
         } else {
           if (cleanHost.includes('editaveisdocanva') || targetDomain.includes('editaveisdocanva')) {
             console.log('[TenantResolver] 🏬 Ativando loja Editáveis do Canva para o domínio personalizado via fallback garantido.');
-            setCurrentStore(normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA));
+            const normalized = normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA);
+            setCurrentStore(normalized);
+            applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
             setTenantNotFound(false);
             setTenantError(null);
             setIsResolvingTenant(false);
@@ -613,14 +689,23 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const updated = payload.new;
           if (!updated) return;
 
+          const isEditaveisTenant = 
+            storeId === 'store_editaveisdocanva' ||
+            storeId === 'store_default' ||
+            storeId?.includes('editaveis') ||
+            (typeof window !== 'undefined' && window.location.hostname.includes('editaveis'));
+
           const isMatch =
             updated.id === storeId ||
             (currentStore?.slug && updated.slug === currentStore.slug) ||
-            (currentStore?.is_matriz && (updated.slug === 'ajpstore' || updated.id === 'store_ajpstore' || updated.is_matriz));
+            (currentStore?.is_matriz && (updated.slug === 'ajpstore' || updated.id === 'store_ajpstore' || updated.is_matriz)) ||
+            (isEditaveisTenant && (updated.slug?.includes('editaveis') || updated.id?.includes('editaveis') || updated.id === 'store_default' || updated.custom_domain?.includes('editaveis')));
 
           if (isMatch) {
             console.log('[TenantContext] ⚡ Realtime: Tabela stores atualizada para a loja ativa:', updated.name, updated.id);
-            setCurrentStore(prev => normalizeStore({ ...prev, ...updated }));
+            const normalized = normalizeStore({ ...currentStore, ...updated });
+            setCurrentStore(normalized);
+            applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           }
         }
       )
@@ -630,6 +715,23 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       supabase.removeChannel(storesChannel);
     };
   }, [currentStore?.id, currentStore?.slug, currentStore?.is_matriz]);
+
+  // Aplica variáveis de tema e layout imediatamente sempre que currentStore for modificado
+  useEffect(() => {
+    if (currentStore && currentStore.id !== '__resolving_tenant__') {
+      applyThemeToDocument(
+        currentStore.color_palette as any,
+        currentStore.primary_color,
+        (currentStore.layout_style || currentStore.theme_layout) as any
+      );
+    }
+  }, [
+    currentStore?.id, 
+    currentStore?.color_palette, 
+    currentStore?.primary_color, 
+    currentStore?.layout_style, 
+    currentStore?.theme_layout
+  ]);
 
   const updateCurrentStore = useCallback((updates: Partial<Store>) => {
     setCurrentStore(prev => normalizeStore({ ...prev, ...updates }));

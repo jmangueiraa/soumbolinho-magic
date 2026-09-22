@@ -87,8 +87,32 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
   // Injeção de variáveis CSS de tema (--primary-color)
   useEffect(() => {
-    const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
-    const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || '#FF1493';
+    let cachedPalette: ColorPaletteType | null = null;
+    let cachedPrimary: string | null = null;
+    try {
+      if (typeof window !== 'undefined') {
+        const sId = currentStore?.id;
+        const sSlug = currentStore?.slug;
+        const p = (sId ? localStorage.getItem(`store_${sId}_color_palette`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_color_palette`) : null) ||
+                  (sId?.includes('editaveis') || sSlug?.includes('editaveis') || window.location.hostname.includes('editaveis')
+                    ? localStorage.getItem('store_editaveisdocanva_color_palette') || localStorage.getItem('store_store_editaveisdocanva_color_palette')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_color_palette');
+        if (p && COLOR_PALETTES[p as ColorPaletteType]) cachedPalette = p as ColorPaletteType;
+
+        const c = (sId ? localStorage.getItem(`store_${sId}_primary_color`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_primary_color`) : null) ||
+                  (sId?.includes('editaveis') || sSlug?.includes('editaveis') || window.location.hostname.includes('editaveis')
+                    ? localStorage.getItem('store_editaveisdocanva_primary_color') || localStorage.getItem('store_store_editaveisdocanva_primary_color')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_primary_color');
+        if (c && c.startsWith('#')) cachedPrimary = c;
+      }
+    } catch {}
+
+    const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || cachedPalette || storeConfig.colorPalette || 'pink_pastel';
+    const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || cachedPrimary || storeConfig.primaryColor || '#FF1493';
     const activeLayout = (currentStore?.layout_style as ThemeLayoutType) || currentStore?.theme_settings?.theme_layout || (currentStore?.theme_settings?.layout_style as ThemeLayoutType) || storeConfig.themeLayout || 'classic';
     document.documentElement.style.setProperty('--primary-color', activePrimary);
     applyThemeToDocument(activePalette, activePrimary, activeLayout);

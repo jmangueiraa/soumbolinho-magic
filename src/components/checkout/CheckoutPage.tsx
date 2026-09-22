@@ -704,6 +704,7 @@ export const CheckoutPage: React.FC = () => {
                     cartTotal={totalPrice}
                     storeId={currentStore?.id}
                     selectedOptionId={selectedShipping?.id}
+                    hideHeader={true}
                     onShippingSelected={(option, addr) => {
                       setSelectedShipping(option);
                       setShippingAddress(addr);

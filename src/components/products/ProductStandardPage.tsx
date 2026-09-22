@@ -68,7 +68,7 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(!propProduct);
   const [quantity, setQuantity] = useState<number>(1);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'shipping' | 'reviews'>('description');
+  const [activeTab, setActiveTab] = useState<'description' | 'shipping' | 'reviews'>('description');
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
@@ -76,8 +76,32 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
 
   // Sincronização de tema e cores (--primary-color)
   useEffect(() => {
-    const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
-    const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || '#FF1493';
+    let cachedPalette: ColorPaletteType | null = null;
+    let cachedPrimary: string | null = null;
+    try {
+      if (typeof window !== 'undefined') {
+        const sId = currentStore?.id;
+        const sSlug = currentStore?.slug;
+        const p = (sId ? localStorage.getItem(`store_${sId}_color_palette`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_color_palette`) : null) ||
+                  (sId?.includes('editaveis') || sSlug?.includes('editaveis') || window.location.hostname.includes('editaveis')
+                    ? localStorage.getItem('store_editaveisdocanva_color_palette') || localStorage.getItem('store_store_editaveisdocanva_color_palette')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_color_palette');
+        if (p && COLOR_PALETTES[p as ColorPaletteType]) cachedPalette = p as ColorPaletteType;
+
+        const c = (sId ? localStorage.getItem(`store_${sId}_primary_color`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_primary_color`) : null) ||
+                  (sId?.includes('editaveis') || sSlug?.includes('editaveis') || window.location.hostname.includes('editaveis')
+                    ? localStorage.getItem('store_editaveisdocanva_primary_color') || localStorage.getItem('store_store_editaveisdocanva_primary_color')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_primary_color');
+        if (c && c.startsWith('#')) cachedPrimary = c;
+      }
+    } catch {}
+
+    const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || cachedPalette || storeConfig.colorPalette || 'pink_pastel';
+    const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || cachedPrimary || storeConfig.primaryColor || '#FF1493';
     const activeLayout = (currentStore?.layout_style as ThemeLayoutType) || currentStore?.theme_settings?.theme_layout || storeConfig.themeLayout || 'classic';
     document.documentElement.style.setProperty('--primary-color', activePrimary);
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
@@ -366,12 +390,8 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
             {/* Foto Principal com Zoom */}
             <div className="relative bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden group aspect-square flex items-center justify-center">
               
-              {/* Badges de Destaque / Tipo Físico */}
+              {/* Badges de Destaque */}
               <div className="absolute top-4 left-4 z-10 flex flex-col gap-1.5">
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-900/90 backdrop-blur-md text-white text-[11px] font-bold rounded-lg shadow-sm">
-                  <Package className="w-3.5 h-3.5 text-amber-300" />
-                  Produto Físico
-                </span>
                 {hasDiscount && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white text-[11px] font-black rounded-lg shadow-sm">
                     {discountPercent}% OFF
@@ -501,17 +521,8 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
           {/* ---------------------------------------------------------- */}
           <div className="lg:col-span-6 space-y-6">
             
-            {/* Bloco de Título, Categoria e Avaliação */}
+            {/* Bloco de Título e Avaliação */}
             <div className="space-y-2 border-b border-slate-200 pb-5">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-theme-primary bg-theme-primary/10 px-2.5 py-1 rounded-md">
-                  {product.category || 'Geral'}
-                </span>
-                <span className="text-xs text-slate-400">
-                  Cód: {product.id ? product.id.slice(0, 8).toUpperCase() : 'PROD'}
-                </span>
-              </div>
-
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight leading-tight">
                 {product.name}
               </h1>
@@ -574,9 +585,6 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
                 <span className="inline-flex items-center gap-2 text-emerald-700 font-bold">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   Pronta Entrega • Envio Imediato
-                </span>
-                <span className="text-slate-400">
-                  Garantia de fábrica
                 </span>
               </div>
 
@@ -653,6 +661,7 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
                 cartTotal={price * quantity}
                 storeId={currentStore?.id}
                 isCompact={true}
+                hideHeader={true}
               />
             </div>
 
@@ -676,18 +685,6 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
               }`}
             >
               Descrição do Produto
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('specs')}
-              className={`py-4 px-4 sm:px-6 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'specs'
-                  ? 'border-theme-primary text-theme-primary'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Especificações Técnicas
             </button>
 
             <button
@@ -737,35 +734,6 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
                     </ul>
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'specs' && (
-              <div className="space-y-4">
-                <h3 className="text-base font-bold text-slate-900">Informações Técnicas</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">Tipo do Produto</span>
-                    <span className="text-slate-950 font-bold">Físico (Entrega via Correios/Transportadora)</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">Categoria</span>
-                    <span className="text-slate-950 font-bold">{product.category || 'Geral'}</span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">Código do Produto (SKU)</span>
-                    <span className="text-slate-950 font-mono font-bold">
-                      {product.id ? product.id.slice(0, 10).toUpperCase() : 'N/A'}
-                    </span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">Disponibilidade</span>
-                    <span className="text-emerald-600 font-bold">Em Estoque</span>
-                  </div>
-                </div>
               </div>
             )}
 

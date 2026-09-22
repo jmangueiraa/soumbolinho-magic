@@ -44,46 +44,123 @@ export const StoreFront: React.FC = () => {
   const navigate = useNavigate();
   const [notFound, setNotFound] = useState(false);
 
-  const cachedLayout = (() => {
+  const [themeVersion, setThemeVersion] = useState(0);
+
+  // Escuta atualizações de tema em tempo real (mesma aba ou outras abas)
+  useEffect(() => {
+    const handleThemeEvent = () => {
+      setThemeVersion((v) => v + 1);
+    };
+    window.addEventListener('storage', handleThemeEvent);
+    window.addEventListener('soumbolinho_theme_updated', handleThemeEvent);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('soumbolinho_theme_sync');
+      bc.onmessage = () => {
+        setThemeVersion((v) => v + 1);
+      };
+    } catch {}
+
+    return () => {
+      window.removeEventListener('storage', handleThemeEvent);
+      window.removeEventListener('soumbolinho_theme_updated', handleThemeEvent);
+      try {
+        bc?.close();
+      } catch {}
+    };
+  }, []);
+
+  const cachedPalette = (() => {
     try {
       if (typeof window !== 'undefined') {
-        const storeId = currentStore?.id;
-        const cached = (storeId ? localStorage.getItem(`store_${storeId}_theme_layout`) : null) || 
-                       (currentStore?.slug === 'editaveisdocanva' || storeId === 'store_editaveisdocanva' ? localStorage.getItem('store_store_editaveisdocanva_theme_layout') || localStorage.getItem('store_editaveisdocanva_theme_layout') : null) ||
-                       localStorage.getItem('soumbolinho_theme_layout');
-        if (cached && ['classic', 'modern', 'minimal', 'featured_grid'].includes(cached)) {
-          return cached as ThemeLayoutType;
-        }
+        const sId = currentStore?.id;
+        const sSlug = currentStore?.slug;
+        const isEdit = sId?.includes('editaveis') || sSlug?.includes('editaveis') || (typeof window !== 'undefined' && window.location.hostname.includes('editaveis'));
+        const p = (sId ? localStorage.getItem(`store_${sId}_color_palette`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_color_palette`) : null) ||
+                  (isEdit
+                    ? localStorage.getItem('store_store_default_color_palette') ||
+                      localStorage.getItem('store_store_editaveisdocanva_color_palette') || 
+                      localStorage.getItem('store_editaveisdocanva_color_palette') || 
+                      localStorage.getItem('store_editaveis-do-canva_color_palette')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_color_palette');
+        if (p && COLOR_PALETTES[p as ColorPaletteType]) return p as ColorPaletteType;
       }
     } catch {}
     return null;
   })();
 
-  const activeLayout: ThemeLayoutType = 
-    (currentStore?.layout_style as ThemeLayoutType) ||
-    currentStore?.theme_settings?.theme_layout ||
-    (currentStore?.theme_settings?.layout_style as ThemeLayoutType) ||
-    storeConfig.themeLayout ||
-    cachedLayout ||
-    'classic';
+  const cachedPrimary = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const sId = currentStore?.id;
+        const sSlug = currentStore?.slug;
+        const isEdit = sId?.includes('editaveis') || sSlug?.includes('editaveis') || (typeof window !== 'undefined' && window.location.hostname.includes('editaveis'));
+        const c = (sId ? localStorage.getItem(`store_${sId}_primary_color`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_primary_color`) : null) ||
+                  (isEdit
+                    ? localStorage.getItem('store_store_default_primary_color') ||
+                      localStorage.getItem('store_store_editaveisdocanva_primary_color') ||
+                      localStorage.getItem('store_editaveisdocanva_primary_color') ||
+                      localStorage.getItem('store_editaveis-do-canva_primary_color')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_primary_color');
+        if (c && c.startsWith('#')) return c;
+      }
+    } catch {}
+    return null;
+  })();
+
+  const cachedLayout = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const sId = currentStore?.id;
+        const sSlug = currentStore?.slug;
+        const isEdit = sId?.includes('editaveis') || sSlug?.includes('editaveis') || (typeof window !== 'undefined' && window.location.hostname.includes('editaveis'));
+        const l = (sId ? localStorage.getItem(`store_${sId}_theme_layout`) : null) ||
+                  (sSlug ? localStorage.getItem(`store_${sSlug}_theme_layout`) : null) ||
+                  (isEdit
+                    ? localStorage.getItem('store_store_default_theme_layout') ||
+                      localStorage.getItem('store_store_editaveisdocanva_theme_layout') ||
+                      localStorage.getItem('store_editaveisdocanva_theme_layout') ||
+                      localStorage.getItem('store_editaveis-do-canva_theme_layout')
+                    : null) ||
+                  localStorage.getItem('soumbolinho_theme_layout');
+        if (l && ['classic', 'modern', 'minimal', 'featured_grid'].includes(l)) return l as ThemeLayoutType;
+      }
+    } catch {}
+    return null;
+  })();
 
   const activePalette: ColorPaletteType = 
     (currentStore?.color_palette as ColorPaletteType) ||
     currentStore?.theme_settings?.color_palette ||
+    cachedPalette ||
     storeConfig.colorPalette || 
     'pink_pastel';
 
   const activePrimary = 
     currentStore?.primary_color || 
     currentStore?.theme_settings?.primary_color || 
+    cachedPrimary ||
     storeConfig.primaryColor ||
     COLOR_PALETTES[activePalette]?.primary ||
     '#FF1493';
 
+  const activeLayout: ThemeLayoutType = 
+    (currentStore?.layout_style as ThemeLayoutType) ||
+    currentStore?.theme_settings?.theme_layout ||
+    (currentStore?.theme_settings?.layout_style as ThemeLayoutType) ||
+    cachedLayout ||
+    storeConfig.themeLayout ||
+    'classic';
+
   // Injeção de variáveis CSS de tema em tempo real
   useEffect(() => {
     applyThemeToDocument(activePalette, activePrimary, activeLayout);
-  }, [activePalette, activePrimary, activeLayout]);
+  }, [activePalette, activePrimary, activeLayout, themeVersion]);
 
   // Registro de visita em tempo real para o painel de métricas
   useEffect(() => {

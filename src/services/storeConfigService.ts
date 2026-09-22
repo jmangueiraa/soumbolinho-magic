@@ -254,9 +254,9 @@ export async function fetchStoreConfig(storeId?: string): Promise<{ data: StoreC
           telegramBotToken: storeRow.telegram_bot_token || storeTheme.telegram_bot_token || (typeof window !== 'undefined' ? localStorage.getItem(`store_${storeRow.id}_telegram_bot_token`) || localStorage.getItem('encantando_festa_telegram_bot_token') : undefined) || undefined,
           telegramChatId: storeRow.telegram_chat_id || storeTheme.telegram_chat_id || (typeof window !== 'undefined' ? localStorage.getItem(`store_${storeRow.id}_telegram_chat_id`) || localStorage.getItem('encantando_festa_telegram_chat_id') : undefined) || undefined,
           benefitCards: resolvedBenefitCards,
-          primaryColor: siteThemeData?.primary_color || storeTheme.primary_color || undefined,
-          themeLayout: siteThemeData?.theme_layout || storeTheme.theme_layout || 'classic',
-          colorPalette: siteThemeData?.color_palette || storeTheme.color_palette || 'pink_pastel',
+          primaryColor: storeRow.primary_color || siteThemeData?.primary_color || storeTheme.primary_color || undefined,
+          themeLayout: storeRow.layout_style || storeRow.theme_layout || siteThemeData?.theme_layout || storeTheme.theme_layout || 'classic',
+          colorPalette: storeRow.color_palette || siteThemeData?.color_palette || storeTheme.color_palette || 'pink_pastel',
           whatsappDefaultMessage: storeTheme.whatsapp_default_message || undefined,
           logoUrl: siteThemeData?.logo_url || storeTheme.logo_url || storeRow.logo_url || undefined,
         };
@@ -722,38 +722,28 @@ export async function saveStoreConfigInSupabase(
       };
 
       console.log(`[storeConfigService] 🔄 Atualizando site_settings para loja store_id="${targetStoreId}"...`);
-      const { data: updatedRows, error: siteUpdateError } = await supabase
+      const siteOrFilter = isEditaveis
+        ? `store_id.eq.${targetStoreId},store_id.eq.store_default,store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,id.eq.${targetStoreId},id.eq.default`
+        : `store_id.eq.${targetStoreId},id.eq.${targetStoreId},id.eq.default`;
+
+      const { data: existingSites } = await supabase
         .from('site_settings')
-        .update(siteSettingsUpdate)
-        .eq('store_id', targetStoreId)
-        .select();
+        .select('id, store_id')
+        .or(siteOrFilter);
 
-      if (siteUpdateError || !updatedRows || updatedRows.length === 0) {
-        // Se ainda não existia registro para este store_id, faz upsert ou insert
-        console.log(`[storeConfigService] Registro não encontrado em site_settings para store_id="${targetStoreId}", executando upsert...`);
-        const { error: insertError } = await supabase
-          .from('site_settings')
-          .upsert([siteSettingsUpdate], { onConflict: 'store_id' });
-        if (insertError) {
-          console.warn('[storeConfigService] Aviso ao dar upsert em site_settings:', insertError.message);
-          await supabase.from('site_settings').insert([siteSettingsUpdate]);
-        } else {
-          console.log(`[storeConfigService] ✅ site_settings upsert realizado com sucesso para store_id="${targetStoreId}"!`);
+      if (existingSites && existingSites.length > 0) {
+        for (const sRow of existingSites) {
+          await supabase
+            .from('site_settings')
+            .update({ ...siteSettingsUpdate, store_id: sRow.store_id || targetStoreId })
+            .eq('id', sRow.id);
         }
+        console.log(`[storeConfigService] ✅ ${existingSites.length} registro(s) de site_settings atualizado(s) com sucesso!`);
       } else {
-        console.log(`[storeConfigService] ✅ site_settings atualizado com sucesso via .eq('store_id', '${targetStoreId}')!`);
-      }
-
-      // Se for Editáveis do Canva, atualiza também para as chaves alternativas
-      if (isEditaveis) {
-        for (const aliasId of ['store_editaveisdocanva', 'editaveisdocanva']) {
-          if (aliasId !== targetStoreId) {
-            await supabase
-              .from('site_settings')
-              .update({ ...siteSettingsUpdate, store_id: aliasId })
-              .eq('store_id', aliasId);
-          }
-        }
+        await supabase
+          .from('site_settings')
+          .insert([{ ...siteSettingsUpdate, id: `site_${targetStoreId}` }]);
+        console.log(`[storeConfigService] ✅ Novo registro de site_settings inserido com id="site_${targetStoreId}"!`);
       }
     } catch (siteEx) {
       console.warn('[storeConfigService] Exceção em site_settings:', siteEx);

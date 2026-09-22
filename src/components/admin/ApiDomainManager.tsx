@@ -797,11 +797,6 @@ export const ApiDomainManager: React.FC = () => {
     </button>
   );
 
-  const rawCustom = currentStore?.custom_domain;
-  const defaultSubdomain = currentStore?.slug ? `${currentStore.slug}.ajpstore.com.br` : 'sualoja.ajpstore.com.br';
-  const activeWebDomain = (rawCustom && !rawCustom.startsWith('seudominio')) ? rawCustom.replace(/^https?:\/\//, '') : defaultSubdomain;
-  const fullStoreUrl = `https://${activeWebDomain}`;
-
   return (
     <div className="min-h-screen bg-gray-50 pb-24 font-sans text-gray-800 relative">
       
@@ -830,57 +825,6 @@ export const ApiDomainManager: React.FC = () => {
         {/* ================= ABA 1: DOMÍNIOS ================= */}
         {activeTab === 'dominios' && (
           <div className="space-y-6 animate-in fade-in">
-            
-            {/* Card Moderno: Domínio Oficial */}
-            <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-lg relative overflow-hidden text-white">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-              
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <div className="flex items-center gap-3 text-white">
-                  <div className="bg-indigo-500/20 p-2.5 rounded-xl text-indigo-300">
-                    <Globe size={20} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-white text-base">Endereço Oficial</h2>
-                    <p className="text-[11px] text-slate-400">Subdomínio infraestrutura AJPSTORE</p>
-                  </div>
-                </div>
-                <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> Ativo e Online
-                </span>
-              </div>
-              
-              <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3.5 flex justify-between items-center relative z-10">
-                <span className="text-indigo-200 font-mono text-xs sm:text-sm truncate select-all">{activeWebDomain}</span>
-                <div className="flex items-center gap-1.5 ml-2">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      copyToClipboard(fullStoreUrl, 'official_url');
-                      showNotification('Link da loja copiado com sucesso!', 'success');
-                    }}
-                    className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer"
-                    title="Copiar Link"
-                  >
-                    {copiedKey === 'official_url' ? <Check size={16} className="text-emerald-400" /> : <Copy size={16}/>}
-                  </button>
-                  <a
-                    href={fullStoreUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer"
-                    title="Visitar Loja"
-                  >
-                    <ExternalLink size={16} />
-                  </a>
-                </div>
-              </div>
-              <div className="mt-3 text-[11px] text-slate-400 flex items-center gap-1.5 relative z-10">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>SSL Automático Ativo • Sem Taxas Adicionais</span>
-              </div>
-            </div>
-
             {/* Card: Domínio Personalizado */}
             <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 space-y-4">
               <div className="flex justify-between items-start mb-2">

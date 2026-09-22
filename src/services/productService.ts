@@ -245,7 +245,7 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
     } else if (currentStoreId) {
       const isEditaveisAlias = currentStoreId.includes('editaveis') || hostname.includes('editaveis');
       if (isEditaveisAlias) {
-        query = query.or(`store_id.eq.${currentStoreId},store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva`);
+        query = query.or(`store_id.eq.${currentStoreId},store_id.eq.store_editaveisdocanva,store_id.eq.editaveisdocanva,store_id.eq.editaveis-do-canva,store_id.eq.store_default`);
       } else {
         query = query.eq('store_id', currentStoreId);
       }
@@ -264,7 +264,7 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
 
     // AUTO-CLONAGEM INSTANTÂNEA: Se uma loja cliente (como Editáveis do Canva ou qualquer cliente novo)
     // não possuir produtos cadastrados, clona fielmente os produtos da Matriz AJPSTORE na hora!
-    if (!isBaseStore && currentStoreId && mapped.length === 0) {
+    if (currentStoreId && mapped.length === 0) {
       console.log(`[productService] 🧬 Loja cliente "${currentStoreId}" sem produtos. Realizando auto-clonagem imediata da Matriz AJPSTORE...`);
       
       const { data: matrizProds } = await supabase
@@ -310,6 +310,10 @@ export async function fetchAllProducts(storeId?: string): Promise<{ data: Produc
       if (clonedList.length > 0) {
         console.log(`[productService] 🎉 ${clonedList.length} produtos clonados da Matriz para "${currentStoreId}".`);
         return { data: clonedList, error: null };
+      } else if (prodsSource && prodsSource.length > 0) {
+        console.log(`[productService] 🛍️ Exibindo ${prodsSource.length} produtos da Matriz como catálogo visual para "${currentStoreId}".`);
+        const fallbackList = prodsSource.map(mapSupabaseProduct).map((p) => ({ ...p, store_id: currentStoreId }));
+        return { data: fallbackList, error: null };
       }
     }
 

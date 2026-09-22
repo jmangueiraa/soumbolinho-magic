@@ -955,6 +955,7 @@ export const CheckoutModal: React.FC = () => {
                       storeId={currentStore?.id}
                       selectedOptionId={selectedShipping?.id}
                       isCompact={true}
+                      hideHeader={true}
                       onShippingSelected={(option, addr) => {
                         setSelectedShipping(option);
                         setShippingAddress(addr);

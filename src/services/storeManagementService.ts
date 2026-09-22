@@ -87,11 +87,13 @@ export const EDITAVEIS_MONTHLY_STORE_DATA: Partial<Store> = {
   instagram: 'editaveisdocanva',
   slogan: 'Templates e Artes Editáveis no Canva',
   address: 'Rio de Janeiro, RJ',
-  working_hours: 'Segunda a Sábado, 09h às 19h',
+  layout_style: 'classic',
+  primary_color: '#FF1493',
+  color_palette: 'pink_pastel',
   theme_settings: {
-    primary_color: '#00c4cc',
-    secondary_color: '#7d2ae8',
-    color_palette: 'purple_elegant',
+    primary_color: '#FF1493',
+    secondary_color: '#00a8e8',
+    color_palette: 'pink_pastel',
     theme_layout: 'classic'
   }
 };
