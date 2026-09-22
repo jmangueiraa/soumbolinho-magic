@@ -93,13 +93,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
 
   const [activeTab, setActiveTab] = useState<AdminTab>(getTabFromLocation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const isExemptFromBlock = 
+  const isBaseStore = 
     Boolean(currentStore?.is_matriz) ||
     currentStore?.slug === 'ajpstore' || 
     currentStore?.id === 'store_ajpstore' ||
     currentStore?.slug === 'suamarcaaqui' || 
     currentStore?.id === 'suamarcaaqui' || 
-    currentStore?.id === 'store_default' ||
+    currentStore?.id === 'store_default';
+
+  const isExemptFromBlock = 
+    isBaseStore ||
     currentStore?.slug === 'editaveisdocanva' ||
     currentStore?.slug === 'editaveis-do-canva' ||
     currentStore?.id === 'store_editaveisdocanva' ||

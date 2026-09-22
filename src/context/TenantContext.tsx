@@ -319,6 +319,7 @@ interface TenantContextType {
   isPortalHost: boolean;
   isSuperAdmin: boolean;
   superAdminEmail: string;
+  isBaseStore: boolean;
   // Mensalidade & Controle de 30 dias / Trial
   isTrial: boolean;
   isExpired: boolean;
@@ -703,6 +704,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isPortalHost,
         isSuperAdmin,
         superAdminEmail,
+        isBaseStore,
         isTrial,
         isExpired,
         daysRemaining,
