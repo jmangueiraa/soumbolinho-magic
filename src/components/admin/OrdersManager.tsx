@@ -430,7 +430,9 @@ export const OrdersManager: React.FC = () => {
                               {order.tracking_code}
                             </span>
                             {order.shipping_label_url && (
-                              <Printer size={13} className="text-emerald-600" title="Etiqueta impressa disponível" />
+                              <span title="Etiqueta impressa disponível">
+                                <Printer size={13} className="text-emerald-600" aria-hidden="true" />
+                              </span>
                             )}
                           </div>
                         ) : order.shipping_method ? (

@@ -84,7 +84,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           // Aplicação imediata de cores da loja
           const activePalette = normalized.color_palette || normalized.theme_settings?.color_palette || 'pink_pastel';
           const activePrimary = normalized.primary_color || normalized.theme_settings?.primary_color || '#FF1493';
-          const activeLayout = normalized.layout_style || normalized.theme_settings?.theme_layout || 'classic';
+          const activeLayout = normalized.theme_layout || normalized.theme_settings?.theme_layout || 'classic';
           document.documentElement.style.setProperty('--primary-color', activePrimary);
           applyThemeToDocument(activePalette, activePrimary, activeLayout);
         }
