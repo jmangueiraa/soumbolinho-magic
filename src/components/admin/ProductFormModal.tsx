@@ -183,7 +183,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!found) return;
     const newItem: FormBonusItem = {
       title: found.name,
-      description: 'Arquivo digital completo liberado gratuitamente como bônus exclusivo.',
+      description: 'Item exclusivo liberado gratuitamente como bônus especial.',
       originalPrice: found.price ? String(found.price) : '29.90',
       imageUrl: found.image_url || found.imageUrl || found.image || '',
     };
