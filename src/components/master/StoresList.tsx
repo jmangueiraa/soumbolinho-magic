@@ -170,16 +170,12 @@ export const StoresList: React.FC<StoresListProps> = ({
   };
 
   const handleDelete = async (store: Store) => {
-    const input = window.prompt(
-      `⚠️ ATENÇÃO: Esta ação é irreversível!\n\nPara confirmar a exclusão da loja "${store.name}", digite o slug da loja abaixo:`
-    );
-    if (input !== store.slug) {
-      if (input !== null) alert('❌ Confirmação incorreta. A loja NÃO foi excluída.');
+    if (!window.confirm(`Tem certeza que deseja excluir permanentemente a loja "${store.name}"?`)) {
       return;
     }
 
     setDeletingId(store.id);
-    const { success, error } = await deleteStore(store.id);
+    const { success, error } = await deleteStore(store.id, store.slug);
     setDeletingId(null);
 
     if (success) {
