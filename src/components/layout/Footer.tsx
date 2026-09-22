@@ -327,8 +327,12 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-3">
               {/* Logo Circular do Rodapé */}
               <div 
-                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 hover:scale-105 hover:ring-emerald-400"
-                style={{ maxWidth: '56px', maxHeight: '56px' }}
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary shadow-lg bg-white transition-all duration-300 hover:scale-105"
+                style={{ 
+                  maxWidth: '56px', 
+                  maxHeight: '56px',
+                  boxShadow: '0 4px 14px var(--primary-color, rgba(16, 185, 129, 0.25))'
+                }}
               >
                 <img
                   src={finalFooterLogoUrl}
@@ -345,19 +349,62 @@ export const Footer: React.FC = () => {
               {!isOnlyLogo && storeDisplayName && (
                 <div className="flex flex-col text-left leading-none min-w-0">
                   <div className="flex items-center tracking-tight whitespace-nowrap">
-                    {storeDisplayName.toUpperCase() === 'AJPSTORE' ? (
-                      <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-lg md:text-xl font-black">
-                        <span className="text-[#0062FF]">AJP</span>
-                        <span className="text-[#00C853] ml-0.5">STORE</span>
-                      </div>
-                    ) : (
-                      <span className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate">
-                        {storeDisplayName}
-                      </span>
-                    )}
+                    {(() => {
+                      const clean = storeDisplayName.replace(/\s+/g, '').toUpperCase();
+                      if (clean === 'AJPSTORE') {
+                        return (
+                          <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-lg md:text-xl font-black">
+                            <span className="text-[#0062FF]">AJP</span>
+                            <span 
+                              className="ml-0.5 text-theme-primary" 
+                              style={{ color: 'var(--primary-color, #00C853)' }}
+                            >
+                              STORE
+                            </span>
+                          </div>
+                        );
+                      }
+                      if (clean === 'SUAMARCAAQUI') {
+                        return (
+                          <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-lg md:text-xl font-black">
+                            <span className="text-white">SUAMARCA</span>
+                            <span 
+                              className="ml-0.5 text-theme-primary" 
+                              style={{ color: 'var(--primary-color)' }}
+                            >
+                              AQUI
+                            </span>
+                          </div>
+                        );
+                      }
+                      const words = storeDisplayName.split(' ').filter(Boolean);
+                      if (words.length > 1) {
+                        const firstPart = words.slice(0, -1).join(' ').toUpperCase();
+                        const lastPart = words[words.length - 1].toUpperCase();
+                        return (
+                          <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-lg md:text-xl font-black">
+                            <span className="text-white">{firstPart}</span>
+                            <span 
+                              className="ml-1 text-theme-primary" 
+                              style={{ color: 'var(--primary-color)' }}
+                            >
+                              {lastPart}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <span className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate">
+                          {storeDisplayName}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {storeDisplaySlogan && (
-                    <span className="text-[9px] sm:text-[10px] font-bold text-emerald-400 tracking-wider uppercase mt-1 truncate">
+                    <span 
+                      className="text-[9px] sm:text-[10px] font-bold text-theme-primary tracking-wider uppercase mt-1 truncate"
+                      style={{ color: 'var(--primary-color)' }}
+                    >
                       {storeDisplaySlogan}
                     </span>
                   )}

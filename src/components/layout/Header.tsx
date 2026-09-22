@@ -220,10 +220,11 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
           >
             {/* Tag <img> para renderizar a logo circular no topo da página de forma responsiva */}
             <div 
-              className={`${isOnlyLogo ? 'w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16' : 'w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12'} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-3 ring-emerald-500/60 shadow-md shadow-emerald-500/20 bg-white transition-all duration-300 group-hover:scale-105 group-hover:ring-emerald-400`}
+              className={`${isOnlyLogo ? 'w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16' : 'w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12'} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-3 ring-theme-primary shadow-md bg-white transition-all duration-300 group-hover:scale-105`}
               style={{
                 maxWidth: isOnlyLogo ? '64px' : '48px',
                 maxHeight: isOnlyLogo ? '64px' : '48px',
+                boxShadow: '0 4px 14px var(--primary-color, rgba(16, 185, 129, 0.25))'
               }}
             >
               <img
@@ -243,19 +244,62 @@ export const Header: React.FC<HeaderProps> = ({ isSticky = true, className = '' 
             {!isOnlyLogo && storeDisplayName && (
               <div className="flex flex-col text-left leading-none min-w-0">
                 <div className="flex items-center tracking-tight whitespace-nowrap">
-                  {storeDisplayName.toUpperCase() === 'AJPSTORE' ? (
-                    <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-xl md:text-2xl font-black">
-                      <span className="text-[#0062FF]">AJP</span>
-                      <span className="text-[#00C853] ml-0.5">STORE</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm sm:text-lg md:text-xl font-black text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] uppercase truncate max-w-[120px] sm:max-w-[200px] md:max-w-none">
-                      {storeDisplayName}
-                    </span>
-                  )}
+                  {(() => {
+                    const clean = storeDisplayName.replace(/\s+/g, '').toUpperCase();
+                    if (clean === 'AJPSTORE') {
+                      return (
+                        <div className="flex items-center tracking-tight whitespace-nowrap text-base sm:text-xl md:text-2xl font-black">
+                          <span className="text-[#0062FF]">AJP</span>
+                          <span 
+                            className="ml-0.5 text-theme-primary" 
+                            style={{ color: 'var(--primary-color, #00C853)' }}
+                          >
+                            STORE
+                          </span>
+                        </div>
+                      );
+                    }
+                    if (clean === 'SUAMARCAAQUI') {
+                      return (
+                        <div className="flex items-center tracking-tight whitespace-nowrap text-sm sm:text-lg md:text-xl font-black">
+                          <span className="text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">SUAMARCA</span>
+                          <span 
+                            className="ml-0.5 text-theme-primary" 
+                            style={{ color: 'var(--primary-color)' }}
+                          >
+                            AQUI
+                          </span>
+                        </div>
+                      );
+                    }
+                    const words = storeDisplayName.split(' ').filter(Boolean);
+                    if (words.length > 1) {
+                      const firstPart = words.slice(0, -1).join(' ').toUpperCase();
+                      const lastPart = words[words.length - 1].toUpperCase();
+                      return (
+                        <div className="flex items-center tracking-tight whitespace-nowrap text-sm sm:text-lg md:text-xl font-black">
+                          <span className="text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">{firstPart}</span>
+                          <span 
+                            className="ml-1 text-theme-primary" 
+                            style={{ color: 'var(--primary-color)' }}
+                          >
+                            {lastPart}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <span className="text-sm sm:text-lg md:text-xl font-black text-white whitespace-nowrap drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] uppercase truncate max-w-[120px] sm:max-w-[200px] md:max-w-none">
+                        {storeDisplayName}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {storeDisplaySlogan && (
-                  <span className="text-[8px] sm:text-[10px] md:text-[11px] font-bold text-emerald-400 tracking-wider uppercase mt-0.5 sm:mt-1 whitespace-nowrap truncate max-w-[120px] sm:max-w-[200px] md:max-w-[280px]">
+                  <span 
+                    className="text-[8px] sm:text-[10px] md:text-[11px] font-bold text-theme-primary tracking-wider uppercase mt-0.5 sm:mt-1 whitespace-nowrap truncate max-w-[120px] sm:max-w-[200px] md:max-w-[280px]"
+                    style={{ color: 'var(--primary-color)' }}
+                  >
                     {storeDisplaySlogan}
                   </span>
                 )}

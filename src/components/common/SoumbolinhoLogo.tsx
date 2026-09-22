@@ -140,7 +140,12 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
     <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
       {/* Ícone da Marca: Imagem ou SVG Oficial AJPSTORE */}
       <div className="logo-container relative flex items-center justify-center shrink-0">
-        <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-emerald-500/60 shadow-lg shadow-emerald-500/25 bg-white transition-all duration-300 group-hover:ring-emerald-400 group-hover:scale-105`}>
+        <div 
+          className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary shadow-lg bg-white transition-all duration-300 group-hover:scale-105`}
+          style={{
+            boxShadow: '0 4px 14px var(--primary-color, rgba(16, 185, 129, 0.25))'
+          }}
+        >
           <img
             src={imageError ? AJP_OFFICIAL_LOGO_BASE64 : customLogoUrl}
             alt={resolvedName}
@@ -168,7 +173,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
                     <span className={`font-sans ${titleClasses} text-[#0062FF] font-black`}>
                       AJP
                     </span>
-                    <span className={`font-sans ${titleClasses} text-[#00C853] font-black ml-0.5`}>
+                    <span 
+                      className={`font-sans ${titleClasses} font-black ml-0.5 text-theme-primary`}
+                      style={{ color: 'var(--primary-color, #00C853)' }}
+                    >
                       STORE
                     </span>
                   </div>
@@ -182,7 +190,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
                     <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       SUAMARCA
                     </span>
-                    <span className={`font-sans ${titleClasses} text-[#00C853] ml-0.5`}>
+                    <span 
+                      className={`font-sans ${titleClasses} ml-0.5 text-theme-primary`}
+                      style={{ color: 'var(--primary-color)' }}
+                    >
                       AQUI
                     </span>
                   </div>
@@ -199,7 +210,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
                     <span className={`font-sans ${titleClasses} ${isLight ? 'text-white' : 'text-slate-900'}`}>
                       {firstPart}
                     </span>
-                    <span className={`font-sans ${titleClasses} text-[#00C853] ml-1`}>
+                    <span 
+                      className={`font-sans ${titleClasses} ml-1 text-theme-primary`}
+                      style={{ color: 'var(--primary-color)' }}
+                    >
                       {lastPart}
                     </span>
                   </div>
@@ -215,9 +229,10 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
             })()}
           </div>
           {resolvedSlogan && (
-            <span className={`${sloganClasses} uppercase mt-1 sm:mt-1.5 whitespace-nowrap truncate ${sloganMaxWClasses} ${
-              isLight ? 'text-emerald-400' : 'text-emerald-600'
-            }`}>
+            <span 
+              className={`${sloganClasses} uppercase mt-1 sm:mt-1.5 whitespace-nowrap truncate ${sloganMaxWClasses} text-theme-primary`}
+              style={{ color: 'var(--primary-color)' }}
+            >
               {resolvedSlogan}
             </span>
           )}
