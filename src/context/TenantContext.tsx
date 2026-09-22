@@ -3,7 +3,7 @@ import { Store, DomainStatus, SubscriptionStatus } from '../types';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_STORE_FEATURES, DEFAULT_MAIN_CTA_TEXT } from '../data/storeConfig';
 import { EDITAVEIS_MONTHLY_STORE_DATA } from '../services/storeManagementService';
-import { COLOR_PALETTES } from '../utils/theme';
+import { COLOR_PALETTES, applyThemeToDocument } from '../utils/theme';
 
 export const DEFAULT_STORE: Store = {
   id: 'store_ajpstore',
