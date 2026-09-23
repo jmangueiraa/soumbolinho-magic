@@ -13,8 +13,6 @@ import {
   AlertCircle, 
   CheckCircle2, 
   HelpCircle, 
-  Database, 
-  Sparkles,
   Key,
   Info
 } from 'lucide-react';
@@ -48,8 +46,6 @@ export const GlobalIntegrationsManager: React.FC = () => {
     message: string;
   } | null>(null);
 
-  const [copiedSql, setCopiedSql] = useState(false);
-  const [showSqlGuide, setShowSqlGuide] = useState(false);
 
   // Carrega configurações existentes
   const loadSettings = async () => {
@@ -154,27 +150,6 @@ export const GlobalIntegrationsManager: React.FC = () => {
     }
   };
 
-  const sqlCreateCode = `-- Criação da tabela de configurações globais no Supabase
-CREATE TABLE IF NOT EXISTS public.global_settings (
-  id TEXT PRIMARY KEY DEFAULT 'default',
-  mp_access_token TEXT,
-  mp_public_key TEXT,
-  telegram_bot_token TEXT,
-  telegram_chat_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Permissões de RLS seguras
-ALTER TABLE public.global_settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public read global_settings" ON public.global_settings FOR SELECT USING (true);
-CREATE POLICY "Allow upsert global_settings" ON public.global_settings FOR ALL USING (true);`;
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(sqlCreateCode);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2500);
-  };
 
   const isMpConfigured = Boolean(mpAccessToken && mpAccessToken.length > 15);
   const isTelegramConfigured = Boolean(telegramBotToken && telegramChatId);
@@ -239,44 +214,8 @@ CREATE POLICY "Allow upsert global_settings" ON public.global_settings FOR ALL U
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => setShowSqlGuide(!showSqlGuide)}
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer border border-gray-200"
-          >
-            <Database className="w-3.5 h-3.5 text-gray-600" />
-            <span>{showSqlGuide ? 'Ocultar SQL' : 'Estrutura SQL'}</span>
-          </button>
         </div>
       </div>
-
-      {/* Caixa Expansível com o Script SQL */}
-      {showSqlGuide && (
-        <div className="bg-slate-900 text-slate-100 p-5 rounded-2xl border border-slate-800 space-y-3 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-pink-400" />
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Tabela de Configurações no Supabase (global_settings)
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopySql}
-              className="px-3 py-1 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedSql ? 'Copiado!' : 'Copiar SQL'}</span>
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            O sistema salva automaticamente na tabela <code>global_settings</code> e espelha na matriz <code>stores</code>. Caso queira criar a tabela explicitamente no SQL Editor do Supabase, execute o código abaixo:
-          </p>
-          <pre className="p-3 bg-slate-950 rounded-xl text-[11px] font-mono text-emerald-400 overflow-x-auto border border-slate-800">
-            {sqlCreateCode}
-          </pre>
-        </div>
-      )}
 
       {/* GRID COM OS DOIS FORMULÁRIOS PRINCIPAIS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

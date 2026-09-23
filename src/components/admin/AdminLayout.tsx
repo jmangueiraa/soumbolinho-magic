@@ -106,12 +106,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
     currentStore?.id === 'suamarcaaqui' || 
     currentStore?.id === 'store_default';
 
-  const isExemptFromBlock = 
-    isBaseStore ||
-    currentStore?.slug === 'editaveisdocanva' ||
-    currentStore?.slug === 'editaveis-do-canva' ||
-    currentStore?.id === 'store_editaveisdocanva' ||
-    Boolean(currentStore?.custom_domain && currentStore.custom_domain.toLowerCase().includes('editaveisdocanva'));
+  const isExemptFromBlock = isBaseStore;
 
   // Sincroniza abas com mudança de rota/hash na URL
   useEffect(() => {
@@ -179,7 +174,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
 
   const expiryFormatted = expiresAt 
     ? new Date(expiresAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
-    : '';
+    : (daysRemaining !== null 
+        ? new Date(Date.now() + daysRemaining * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
+        : '');
   const monthlyFeeFormatted = (monthlyFee || 50).toFixed(2).replace('.', ',');
 
   return (

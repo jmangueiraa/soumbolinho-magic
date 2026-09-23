@@ -767,11 +767,6 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // -------------------------------------------------------------
   // REQUISITO RIGOROSO 1: AJPSTORE é a loja matriz vitalícia (sem expiração)
   const isBaseStore = currentStore.is_matriz || currentStore.slug === 'ajpstore' || currentStore.id === 'store_ajpstore' || currentStore.slug === 'suamarcaaqui' || currentStore.id === 'suamarcaaqui' || currentStore.id === 'store_default';
-  const isEditaveisStore = 
-    currentStore.slug === 'editaveisdocanva' || 
-    currentStore.slug === 'editaveis-do-canva' || 
-    currentStore.id === 'store_editaveisdocanva' ||
-    Boolean(currentStore.custom_domain && currentStore.custom_domain.toLowerCase().includes('editaveisdocanva'));
   const now = Date.now();
   let daysRemaining: number | null = null;
   let isExpired = false;
@@ -779,7 +774,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const rawExpiry = currentStore.expires_at || (currentStore as any).trial_ends_at || (currentStore as any).vence_em || (currentStore as any).trial_end || (currentStore as any).expiration_date;
 
-  if (!isBaseStore && !isEditaveisStore && currentStore.id !== '__resolving_tenant__') {
+  let computedExpiresAt: string | null = rawExpiry || null;
+
+  if (!isBaseStore && currentStore.id !== '__resolving_tenant__') {
     if (currentStore.subscription_status === 'suspended') {
       isExpired = true;
       daysRemaining = 0;
@@ -792,11 +789,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       } else if (daysRemaining <= 5) {
         isExpiringSoon = true;
       }
+    } else {
+      // Se a loja não tem data de expiração cadastrada no banco, assume 30 dias ativo
+      daysRemaining = 30;
+      isExpired = false;
+      isExpiringSoon = false;
+      computedExpiresAt = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
     }
-  } else if (isEditaveisStore) {
-    daysRemaining = 30;
-    isExpired = false;
-    isExpiringSoon = false;
   }
 
   const monthlyFee = isBaseStore
@@ -804,7 +803,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     : (currentStore.monthly_fee !== undefined && currentStore.monthly_fee !== null ? Number(currentStore.monthly_fee) : 50.00);
   const subscriptionStatus: SubscriptionStatus = isBaseStore ? 'active' : (currentStore.subscription_status || 'active');
   const isTrial = !isBaseStore && (currentStore.subscription_status === 'trial' || Boolean((currentStore as any).isTrial));
-  const expiresAt = isBaseStore ? null : (rawExpiry || null);
+  const expiresAt = isBaseStore ? null : computedExpiresAt;
 
   return (
     <TenantContext.Provider
