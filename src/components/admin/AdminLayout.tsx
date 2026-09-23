@@ -177,7 +177,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
     : (daysRemaining !== null 
         ? new Date(Date.now() + daysRemaining * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
         : '');
-  const monthlyFeeFormatted = (monthlyFee || 50).toFixed(2).replace('.', ',');
+  const monthlyFeeFormatted = monthlyFee 
+    ? (Number(monthlyFee) % 1 === 0 ? String(Math.round(Number(monthlyFee))) : Number(monthlyFee).toFixed(2).replace('.', ','))
+    : '50';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -358,8 +360,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
         {/* 3. Área de Conteúdo à Direita */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
 
-          {/* Card Oficial de Status do Plano Mensal (Conforme solicitado pelo usuário) */}
-          {!isExemptFromBlock && !isExpired && (
+          {/* Card Oficial de Status do Plano Mensal (Exibido para TODAS as lojas da plataforma) */}
+          {!isExpired && (
             <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-0">
               <div className="bg-[#E8F8EE] border border-[#BBECCD] rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
                 
