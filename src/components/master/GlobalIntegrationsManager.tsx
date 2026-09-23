@@ -166,6 +166,13 @@ export const GlobalIntegrationsManager: React.FC = () => {
       const res = await testTelegramNotification(telegramBotToken, telegramChatId);
       if (res.success) {
         showNotification('success', res.message);
+        // Salva automaticamente no banco e localStorage ao validar
+        saveGlobalSettings({
+          telegram_bot_token: telegramBotToken.trim(),
+          telegram_chat_id: telegramChatId.trim(),
+          mp_access_token: mpAccessToken.trim() || undefined,
+          mp_public_key: mpPublicKey.trim() || undefined,
+        }).catch(() => {});
       } else {
         showNotification('error', res.message);
       }
@@ -182,6 +189,9 @@ export const GlobalIntegrationsManager: React.FC = () => {
   const handleTestEvent = async (type: 'new_store' | 'payment' | 'expiring') => {
     setIsTestingTelegram(true);
     try {
+      const explicitToken = telegramBotToken.trim() || undefined;
+      const explicitChat = telegramChatId.trim() || undefined;
+
       if (type === 'new_store') {
         const res = await notifyNewStoreCreated({
           store_name: 'Loja Exemplo Modas',
@@ -189,7 +199,9 @@ export const GlobalIntegrationsManager: React.FC = () => {
           whatsapp_number: '19981356505',
           client_email: 'maria@exemplo.com.br',
           slug: 'exemplomodas',
-          status: 'Período de Testes (Trial)'
+          status: 'Período de Testes (Trial)',
+          telegram_bot_token: explicitToken,
+          telegram_chat_id: explicitChat
         });
         if (res.success) {
           showNotification('success', '🚀 Alerta de "Nova Loja Criada" enviado com sucesso para o Telegram!');
@@ -203,7 +215,9 @@ export const GlobalIntegrationsManager: React.FC = () => {
           whatsapp_number: '19981356505',
           valor: 50.00,
           forma: 'Pix',
-          data_renovada: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
+          data_renovada: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+          telegram_bot_token: explicitToken,
+          telegram_chat_id: explicitChat
         });
         if (res.success) {
           showNotification('success', '💰 Alerta de "Pagamento Confirmado" enviado com sucesso para o Telegram!');
@@ -217,7 +231,9 @@ export const GlobalIntegrationsManager: React.FC = () => {
           whatsapp_number: '19981356505',
           dias_restantes: 3,
           data_vencimento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
-          status: 'Plano Iniciante'
+          status: 'Plano Iniciante',
+          telegram_bot_token: explicitToken,
+          telegram_chat_id: explicitChat
         });
         if (res.success) {
           showNotification('success', '⚠️ Alerta de "Plano Vencendo" enviado com sucesso para o Telegram!');

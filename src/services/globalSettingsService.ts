@@ -42,7 +42,7 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
   }
 
   // 2. Se algum campo estiver vazio, busca na tabela stores (priorizando Matriz e varrendo todas as lojas)
-  if (!result.mp_access_token || !result.telegram_bot_token) {
+  if (!result.mp_access_token || !result.telegram_bot_token || !result.telegram_chat_id) {
     try {
       const { data: storeRows } = await supabase
         .from('stores')
@@ -71,7 +71,7 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
         }
 
         // Se ainda faltar algum campo, varre todas as lojas da plataforma procurando quem tem preenchido
-        if (!result.telegram_bot_token || !result.mp_access_token) {
+        if (!result.telegram_bot_token || !result.mp_access_token || !result.telegram_chat_id) {
           for (const s of storeRows) {
             const rowTgToken = s.telegram_bot_token || s.theme_settings?.telegram_bot_token;
             const rowTgChat = s.telegram_chat_id || s.theme_settings?.telegram_chat_id;
@@ -99,7 +99,7 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
   }
 
   // 2.1. Se ainda faltar, busca na tabela store_config
-  if (!result.mp_access_token || !result.telegram_bot_token) {
+  if (!result.mp_access_token || !result.telegram_bot_token || !result.telegram_chat_id) {
     try {
       const { data: cfgRows } = await supabase
         .from('store_config')
@@ -193,6 +193,32 @@ export async function saveGlobalSettings(
     updated_at: new Date().toISOString()
   };
 
+  // 0. Gravar no localStorage PRIMEIRO para garantia instantânea no cliente
+  if (typeof window !== 'undefined') {
+    try {
+      if (cleanSettings.telegram_bot_token) {
+        localStorage.setItem('global_telegram_bot_token', cleanSettings.telegram_bot_token);
+        localStorage.setItem('telegram_bot_token', cleanSettings.telegram_bot_token);
+        localStorage.setItem('encantando_festa_telegram_bot_token', cleanSettings.telegram_bot_token);
+      }
+      if (cleanSettings.telegram_chat_id) {
+        localStorage.setItem('global_telegram_chat_id', cleanSettings.telegram_chat_id);
+        localStorage.setItem('telegram_chat_id', cleanSettings.telegram_chat_id);
+        localStorage.setItem('encantando_festa_telegram_chat_id', cleanSettings.telegram_chat_id);
+      }
+      if (cleanSettings.mp_access_token) {
+        localStorage.setItem('global_mp_access_token', cleanSettings.mp_access_token);
+        localStorage.setItem('mp_access_token', cleanSettings.mp_access_token);
+      }
+      if (cleanSettings.mp_public_key) {
+        localStorage.setItem('global_mp_public_key', cleanSettings.mp_public_key);
+      }
+      console.log('[globalSettingsService] 💾 Credenciais salvas no localStorage com sucesso');
+    } catch (localErr) {
+      console.warn('[globalSettingsService] Falha ao gravar no localStorage:', localErr);
+    }
+  }
+
   let savedInDb = false;
   let lastErrorMessage = '';
 
@@ -223,57 +249,33 @@ export async function saveGlobalSettings(
     console.warn('[globalSettingsService] Exceção em global_settings:', err);
   }
 
-  // 2. Espelhar na loja Matriz e em stores para compatibilidade imediata
+  // 2. Espelhar na tabela stores (em TODAS as lojas para que qualquer consulta encontre)
   try {
     const { data: storeRows } = await supabase
       .from('stores')
       .select('id, slug, is_matriz, theme_settings')
-      .limit(20);
+      .limit(30);
 
-    let targetStore = storeRows?.find((s: any) => 
-      Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore'
-    ) || storeRows?.[0];
+    if (storeRows && storeRows.length > 0) {
+      for (const st of storeRows) {
+        const updatedTheme = {
+          ...(st.theme_settings || {}),
+          ...(cleanSettings.telegram_bot_token ? { telegram_bot_token: cleanSettings.telegram_bot_token } : {}),
+          ...(cleanSettings.telegram_chat_id ? { telegram_chat_id: cleanSettings.telegram_chat_id } : {}),
+          ...(cleanSettings.mp_access_token ? { mp_access_token: cleanSettings.mp_access_token } : {}),
+          ...(cleanSettings.mp_public_key ? { mp_public_key: cleanSettings.mp_public_key } : {}),
+        };
 
-    if (targetStore) {
-      const updatedTheme = {
-        ...(targetStore.theme_settings || {}),
-        ...(cleanSettings.telegram_bot_token ? { telegram_bot_token: cleanSettings.telegram_bot_token } : {}),
-        ...(cleanSettings.telegram_chat_id ? { telegram_chat_id: cleanSettings.telegram_chat_id } : {}),
-        ...(cleanSettings.mp_access_token ? { mp_access_token: cleanSettings.mp_access_token } : {}),
-        ...(cleanSettings.mp_public_key ? { mp_public_key: cleanSettings.mp_public_key } : {}),
-      };
-
-      const payloadToUpdate: any = {
-        is_matriz: true,
-        theme_settings: updatedTheme,
-        updated_at: cleanSettings.updated_at
-      };
-      if (cleanSettings.telegram_bot_token) payloadToUpdate.telegram_bot_token = cleanSettings.telegram_bot_token;
-      if (cleanSettings.telegram_chat_id) payloadToUpdate.telegram_chat_id = cleanSettings.telegram_chat_id;
-      if (cleanSettings.mp_access_token) payloadToUpdate.mp_access_token = cleanSettings.mp_access_token;
-      if (cleanSettings.mp_public_key) payloadToUpdate.mp_public_key = cleanSettings.mp_public_key;
-
-      let { error: storeErr } = await supabase
-        .from('stores')
-        .update(payloadToUpdate)
-        .eq('id', targetStore.id);
-
-      if (storeErr) {
-        console.warn('[globalSettingsService] Erro ao atualizar stores com colunas diretas, tentando apenas theme_settings:', storeErr.message);
-        const retryRes = await supabase
+        await supabase
           .from('stores')
           .update({
             theme_settings: updatedTheme,
             updated_at: cleanSettings.updated_at
           })
-          .eq('id', targetStore.id);
-        storeErr = retryRes.error;
+          .eq('id', st.id);
       }
-
-      if (!storeErr) {
-        savedInDb = true;
-        console.log('[globalSettingsService] ✅ Configurações espelhadas na loja Matriz (stores):', targetStore.id);
-      }
+      savedInDb = true;
+      console.log('[globalSettingsService] ✅ Configurações espelhadas em theme_settings das lojas');
     }
   } catch (errStore) {
     console.warn('[globalSettingsService] Aviso ao espelhar em stores:', errStore);

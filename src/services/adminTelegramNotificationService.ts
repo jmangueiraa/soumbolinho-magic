@@ -8,6 +8,8 @@ export interface TelegramNewStorePayload {
   client_email?: string | null;
   slug: string;
   status?: string | null;
+  telegram_bot_token?: string | null;
+  telegram_chat_id?: string | null;
 }
 
 export interface TelegramPaymentApprovedPayload {
@@ -102,15 +104,21 @@ function escapeTgMarkdown(text: any): string {
  */
 export async function sendTelegramAdminNotification(
   messageHtml: string,
-  eventType: string = 'general'
+  eventType: string = 'general',
+  explicitCredentials?: { token?: string; chatId?: string }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     console.log(`[adminTelegramNotification] 🚀 Disparo de notificação iniciado para o evento [${eventType}]...`);
 
-    // 1. Tenta recuperar credenciais do cliente/localStorage/banco
-    const globalSettings = await fetchGlobalSettings().catch(() => ({} as any));
-    let token = (globalSettings?.telegram_bot_token || '').trim();
-    let chatId = (globalSettings?.telegram_chat_id || '').trim();
+    // 1. Tenta usar credenciais explícitas ou recupera do cliente/localStorage/banco
+    let token = (explicitCredentials?.token || '').trim();
+    let chatId = (explicitCredentials?.chatId || '').trim();
+
+    if (!token || !chatId) {
+      const globalSettings = await fetchGlobalSettings().catch(() => ({} as any));
+      if (!token) token = (globalSettings?.telegram_bot_token || '').trim();
+      if (!chatId) chatId = (globalSettings?.telegram_chat_id || '').trim();
+    }
 
     // Se ainda estiver vazio, busca em chaves locais adicionais
     if (typeof window !== 'undefined') {
@@ -297,7 +305,13 @@ export async function notifyNewStoreCreated(data: TelegramNewStorePayload): Prom
 
     console.log('[adminTelegramNotification] 📦 Payload formatado para Nova Loja Criada:\n', message);
 
-    return await sendTelegramAdminNotification(message, 'new_store');
+    return await sendTelegramAdminNotification(
+      message, 
+      'new_store',
+      (data.telegram_bot_token && data.telegram_chat_id)
+        ? { token: data.telegram_bot_token, chatId: data.telegram_chat_id }
+        : undefined
+    );
   } catch (err: any) {
     console.error('[adminTelegramNotification] ❌ Erro ao disparar Nova Loja Criada:', err);
     return { success: false, error: err.message };
