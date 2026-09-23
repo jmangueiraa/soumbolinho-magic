@@ -18,16 +18,32 @@ import {
 } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
+import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/formatters';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
 import { ProductFormModal } from './ProductFormModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
 import { copyProductLink, getProductShareUrl } from '../../utils/share';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 
 export const ProductsManager: React.FC = () => {
   const { products, categories, deleteProduct, toggleProductStock, quickUpdatePrice, showNotification } = useStoreData();
+  const { currentStore, monthlyFee } = useTenant();
+
+  const isBaseStore = 
+    Boolean(currentStore?.is_matriz) ||
+    currentStore?.slug === 'ajpstore' || 
+    currentStore?.id === 'store_ajpstore' ||
+    currentStore?.slug === 'suamarcaaqui' || 
+    currentStore?.id === 'suamarcaaqui' || 
+    currentStore?.id === 'store_default';
+
+  const isPlan30 = !isBaseStore && Number(monthlyFee || 0) <= 30;
+  const isLimitReached = isPlan30 && products.length >= 50;
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -59,6 +75,11 @@ export const ProductsManager: React.FC = () => {
   });
 
   const handleOpenCreate = () => {
+    if (isLimitReached) {
+      showNotification('Limite de 50 produtos atingido no Plano Iniciante. Migre para o Plano Máximo para cadastrar produtos ilimitados!', 'warning');
+      setShowUpgradeModal(true);
+      return;
+    }
     setProductToEdit(null);
     setIsFormModalOpen(true);
   };
@@ -100,8 +121,12 @@ export const ProductsManager: React.FC = () => {
         <div>
           <h2 className="font-festive text-xl font-bold text-slate-900 flex items-center gap-2">
             <span>📦 Catálogo de Produtos</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-theme-light text-theme-primary font-bold">
-              {products.length} {products.length === 1 ? 'item' : 'itens'}
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+              isLimitReached
+                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                : 'bg-theme-light text-theme-primary'
+            }`}>
+              {products.length}{isPlan30 ? ' / 50 itens' : (products.length === 1 ? ' item' : ' itens')}
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -111,12 +136,52 @@ export const ProductsManager: React.FC = () => {
 
         <button
           onClick={handleOpenCreate}
-          className="px-5 py-2.5 bg-black hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border border-black"
+          className={`px-5 py-2.5 text-xs font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 border cursor-pointer ${
+            isLimitReached
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-amber-500'
+              : 'bg-black hover:bg-slate-800 text-white border-black'
+          }`}
+          title={isLimitReached ? 'Limite de 50 produtos atingido. Clique para migrar para o Plano Máximo' : 'Cadastrar Novo Produto'}
         >
-          <Plus className="w-4 h-4 text-white" />
-          <span>Cadastrar Novo Produto</span>
+          {isLimitReached ? <Sparkles className="w-4 h-4 text-yellow-200" /> : <Plus className="w-4 h-4 text-white" />}
+          <span>{isLimitReached ? 'Migrar para Plano Máximo' : 'Cadastrar Novo Produto'}</span>
         </button>
       </div>
+
+      {/* Card de Migração para Plano Máximo quando atinge o limite de 50 produtos */}
+      {isLimitReached && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-400 rounded-3xl p-5 sm:p-6 shadow-sm relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                <Sparkles className="w-6 h-6 text-yellow-100" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
+                    Limite de 50 Produtos Atingido
+                  </h3>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-2xs">
+                    50 / 50 produtos cadastrados
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
+                  Sua loja atingiu a capacidade máxima do <strong>Plano Iniciante (R$ 30/mês)</strong>. Para continuar adicionando novos produtos e expandir suas vendas, migre agora para o <strong>Plano Máximo (R$ 50/mês)</strong> com catálogo 100% ilimitado!
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowUpgradeModal(true)}
+              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer shrink-0 border border-amber-400"
+            >
+              <Sparkles className="w-4 h-4 text-yellow-200" />
+              <span>⚡ Migrar para o Plano Máximo (R$ 50)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search & Category Filter Inside Table */}
       <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -374,6 +439,15 @@ export const ProductsManager: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteModalState({ isOpen: false, product: null })}
       />
+
+      {/* Modal de Migração de Plano para o Plano Máximo (R$ 50) */}
+      {showUpgradeModal && (
+        <SubscriptionBlockedScreen
+          isHardLock={false}
+          onClose={() => setShowUpgradeModal(false)}
+          initialTargetPlan={50}
+        />
+      )}
 
     </div>
   );

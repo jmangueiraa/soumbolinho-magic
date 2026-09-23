@@ -68,7 +68,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onClose,
 }) => {
   const { products, categories, addProduct, updateProduct, showNotification } = useStoreData();
-  const { currentStore } = useTenant();
+  const { currentStore, monthlyFee } = useTenant();
   const currentStoreId = currentStore?.id || '';
   const isBaseStore = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default' || !currentStoreId;
   const product = productProp || productToEdit || null;
@@ -476,6 +476,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setIsSubmitting(true);
       const cleanName = String(formData.name).trim();
       const currentProductId = product?.id || '';
+
+      // Verificação de limite de 50 produtos no Plano Iniciante (R$ 30)
+      const isPlan30 = !isBaseStore && Number(monthlyFee || 0) <= 30;
+      if (!currentProductId && isPlan30 && products.length >= 50) {
+        setSubmitError('Você atingiu o limite de 50 produtos do Plano Iniciante. Faça o upgrade para o Plano Máximo (R$ 50/mês) para cadastrar produtos ilimitados!');
+        showNotification('Limite de 50 produtos atingido no Plano Iniciante. Faça upgrade para cadastrar produtos ilimitados!', 'warning');
+        setIsSubmitting(false);
+        return;
+      }
 
       // Validação de Nome Duplicado (Frontend + Supabase) com isolamento estrito por loja
       let checkQuery = supabase
