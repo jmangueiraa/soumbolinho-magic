@@ -293,7 +293,7 @@ export function normalizeStore(s: any): Store {
     slug: resolvedSlug,
     is_matriz: isAjpStore,
     subscription_status: isBase ? 'active' : (s.subscription_status || 'active'),
-    expires_at: isBase ? '2099-12-31T23:59:59.000Z' : s.expires_at,
+    expires_at: isBase ? '2099-12-31T23:59:59.000Z' : (s.expires_at || (s as any).trial_ends_at || (s as any).vence_em || (s as any).trial_end || (s as any).expiration_date || null),
     monthly_fee: isBase ? 0.00 : (s.monthly_fee !== undefined ? Number(s.monthly_fee) : 50.00),
     isTrial: isBase ? false : Boolean(s.subscription_status === 'trial' || s.isTrial),
     logo_url: s.logo_url || stTheme.logo_url || '/ajpstore-logo.png',
@@ -777,14 +777,17 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   let isExpired = false;
   let isExpiringSoon = false;
 
+  const rawExpiry = currentStore.expires_at || (currentStore as any).trial_ends_at || (currentStore as any).vence_em || (currentStore as any).trial_end || (currentStore as any).expiration_date;
+
   if (!isBaseStore && !isEditaveisStore && currentStore.id !== '__resolving_tenant__') {
     if (currentStore.subscription_status === 'suspended') {
       isExpired = true;
-    } else if (currentStore.expires_at) {
-      const expTime = new Date(currentStore.expires_at).getTime();
+      daysRemaining = 0;
+    } else if (rawExpiry) {
+      const expTime = new Date(rawExpiry).getTime();
       const diffMs = expTime - now;
       daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      if (diffMs <= 0) {
+      if (diffMs <= 0 || daysRemaining <= 0) {
         isExpired = true;
       } else if (daysRemaining <= 5) {
         isExpiringSoon = true;
@@ -801,7 +804,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     : (currentStore.monthly_fee !== undefined && currentStore.monthly_fee !== null ? Number(currentStore.monthly_fee) : 50.00);
   const subscriptionStatus: SubscriptionStatus = isBaseStore ? 'active' : (currentStore.subscription_status || 'active');
   const isTrial = !isBaseStore && (currentStore.subscription_status === 'trial' || Boolean((currentStore as any).isTrial));
-  const expiresAt = isBaseStore ? null : (currentStore.expires_at || null);
+  const expiresAt = isBaseStore ? null : (rawExpiry || null);
 
   return (
     <TenantContext.Provider

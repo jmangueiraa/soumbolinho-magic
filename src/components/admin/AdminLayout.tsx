@@ -15,7 +15,10 @@ import {
   Ticket,
   Menu,
   X,
-  ShoppingBag
+  ShoppingBag,
+  AlertTriangle,
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -93,6 +96,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
 
   const [activeTab, setActiveTab] = useState<AdminTab>(getTabFromLocation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
   const isBaseStore = 
     Boolean(currentStore?.is_matriz) ||
     currentStore?.slug === 'ajpstore' || 
@@ -157,7 +161,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
 
   // Se a mensalidade estiver vencida, bloqueia totalmente o painel do comprador (NUNCA a loja matriz vitalícia nem a loja Editáveis do Canva)
   if (!isExemptFromBlock && isExpired) {
-    return <SubscriptionBlockedScreen onBackToStore={onBackToStore} />;
+    return <SubscriptionBlockedScreen onBackToStore={onBackToStore} isHardLock={true} />;
   }
 
   const storeDisplayName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Minha Loja';
@@ -172,9 +176,55 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
     return null;
   })();
 
+  const expiryFormatted = expiresAt 
+    ? new Date(expiresAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
+    : '';
+  const monthlyFeeFormatted = (monthlyFee || 50).toFixed(2).replace('.', ',');
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       
+      {/* 0. Banner Fixo de Aviso de Vencimento (5 dias ou menos) */}
+      {!isExemptFromBlock && !isExpired && isExpiringSoon && daysRemaining !== null && daysRemaining <= 5 && (
+        <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 text-white px-4 py-2.5 sm:px-6 shadow-md sticky top-0 z-50 transition-all">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 text-center sm:text-left">
+              <div className="p-1.5 bg-white/20 rounded-xl shrink-0">
+                <AlertTriangle className="w-4 h-4 text-white animate-pulse" />
+              </div>
+              <p className="text-xs sm:text-sm font-semibold tracking-wide">
+                <span>Aviso de Vencimento: </span>
+                <span className="font-extrabold underline decoration-amber-200">
+                  {daysRemaining === 1 ? 'Resta apenas 1 dia' : `Restam ${daysRemaining} dias`}
+                </span>
+                {expiryFormatted && <span> (vence em {expiryFormatted})</span>}
+                <span>. Mensalidade da loja: </span>
+                <span className="font-extrabold">R$ {monthlyFeeFormatted}/mês</span>.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowRenewalModal(true)}
+                className="px-3.5 py-1.5 bg-white text-orange-700 hover:bg-orange-50 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                <span>Renovar Agora (Pix)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Renovação Preventiva (aberto ao clicar em 'Renovar Agora' no banner) */}
+      {showRenewalModal && (
+        <SubscriptionBlockedScreen 
+          isHardLock={false} 
+          onClose={() => setShowRenewalModal(false)} 
+        />
+      )}
+
       {/* 1. Admin Navigation Header (Barra superior limpa sem abas) */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
