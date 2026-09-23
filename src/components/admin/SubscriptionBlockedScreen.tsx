@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   X,
-  ShieldCheck
+  ShieldCheck,
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext';
 import { useStoreData } from '../../context/StoreDataContext';
@@ -28,17 +30,34 @@ interface SubscriptionBlockedScreenProps {
   onBackToStore?: () => void;
   isHardLock?: boolean;
   onClose?: () => void;
+  initialTargetPlan?: 30 | 50;
 }
 
 export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps> = ({
   onBackToStore,
   isHardLock = true,
   onClose,
+  initialTargetPlan,
 }) => {
   const { currentStore, expiresAt, monthlyFee, updateCurrentStore, refreshTenant, isExpired } = useTenant();
   const { storeConfig } = useStoreData();
   
-  // 'overview' = modal visual exatamente igual ao layout de referência (media_1790123731047.png)
+  // Detecta o plano contratado da loja: se o monthly_fee for <= 30, é o Plano Iniciante (R$ 30); caso contrário, é o Plano Máximo (R$ 50)
+  const contractedPlan: 30 | 50 = Number(monthlyFee || 0) <= 30 ? 30 : 50;
+
+  // Plano selecionado para pagamento/renovação (permite migração se o plano contratado for 30)
+  const [selectedPlan, setSelectedPlan] = useState<30 | 50>(() => {
+    return initialTargetPlan || contractedPlan;
+  });
+
+  // Atualiza caso a prop initialTargetPlan mude
+  useEffect(() => {
+    if (initialTargetPlan) {
+      setSelectedPlan(initialTargetPlan);
+    }
+  }, [initialTargetPlan]);
+
+  // 'overview' = modal visual exatamente igual à referência (com opção de migração quando plano 30)
   // 'pix' = tela com QR Code e Pix Copia e Cola para pagamento
   const [viewMode, setViewMode] = useState<'overview' | 'pix'>('overview');
 
@@ -55,7 +74,9 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
   const masterWhatsApp = import.meta.env.VITE_MASTER_WHATSAPP || '5519981356505';
 
   const storeName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Sua Loja';
-  const feeValue = Number(monthlyFee || 30);
+  
+  // Valor a pagar baseado no plano selecionado
+  const feeValue = selectedPlan;
   const feeFormatted = feeValue.toFixed(2).replace('.', ',');
 
   const expiryDateFormatted = expiresAt 
@@ -73,15 +94,17 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
       const currentExpTime = expiresAt ? new Date(expiresAt).getTime() : now;
       const baseTime = currentExpTime > now ? currentExpTime : now;
       const newExpiresAt = approvedDate || new Date(baseTime + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const newMonthlyFee = selectedPlan;
 
-      console.log('[SubscriptionBlockedScreen] 🎉 Pagamento Aprovado pelo Mercado Pago! Renovando loja para:', newExpiresAt);
+      console.log(`[SubscriptionBlockedScreen] 🎉 Pagamento Aprovado pelo Mercado Pago! Renovando loja para: ${newExpiresAt} | Plano: R$ ${newMonthlyFee}`);
 
-      // Atualiza banco Supabase (por id e por slug se disponível)
+      // Atualiza banco Supabase (por id e por slug se disponível) com a nova validade e o plano contratado/migrado
       try {
         await supabase
           .from('stores')
           .update({
             expires_at: newExpiresAt,
+            monthly_fee: newMonthlyFee,
             subscription_status: 'active',
             updated_at: new Date().toISOString()
           })
@@ -92,6 +115,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
             .from('stores')
             .update({
               expires_at: newExpiresAt,
+              monthly_fee: newMonthlyFee,
               subscription_status: 'active',
               updated_at: new Date().toISOString()
             })
@@ -104,6 +128,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
       // Atualiza estado local React na hora sem precisar de F5
       updateCurrentStore({
         expires_at: newExpiresAt,
+        monthly_fee: newMonthlyFee,
         subscription_status: 'active'
       });
 
@@ -121,7 +146,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
     }
   };
 
-  // 1. Gerar Pix dinâmico via Mercado Pago
+  // 1. Gerar Pix dinâmico via Mercado Pago para o plano selecionado
   const handleGeneratePix = async () => {
     if (isGeneratingPix) return;
     setIsGeneratingPix(true);
@@ -131,12 +156,13 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
     try {
       const payerName = currentStore?.owner_name || currentStore?.client_name || 'Lojista AJPSTORE';
       const payerEmail = currentStore?.owner_email || currentStore?.client_email || 'cobranca@ajpstore.com.br';
+      const planLabel = selectedPlan === 50 ? 'Plano Maximo' : 'Plano Iniciante';
 
       const response = await createMercadoPagoPixPayment({
         amount: feeValue,
         customerName: payerName,
         customerEmail: payerEmail,
-        description: `Renovacao Mensalidade AJPSTORE - ${storeName.slice(0, 30)}`,
+        description: `Renovacao AJPSTORE - ${storeName.slice(0, 22)} (${planLabel})`,
         storeConfig
       });
 
@@ -171,7 +197,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
     }, 3500);
 
     return () => clearInterval(intervalId);
-  }, [pixData?.paymentId, paymentSuccess, viewMode, currentStore?.id, expiresAt]);
+  }, [pixData?.paymentId, paymentSuccess, viewMode, currentStore?.id, expiresAt, selectedPlan]);
 
   // 3. Checagem de contingência no Supabase: SOMENTE ativa se um administrador estendeu a data explicitamente no banco
   // APÓS o modal ter sido aberto (evitando falsos positivos se a loja já tiver data futura ativa)
@@ -182,7 +208,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
       try {
         const { data: storeDb } = await supabase
           .from('stores')
-          .select('id, expires_at, subscription_status')
+          .select('id, expires_at, subscription_status, monthly_fee')
           .eq('id', currentStore.id)
           .maybeSingle();
 
@@ -237,7 +263,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
   };
 
   const whatsappMessage = encodeURIComponent(
-    `👋 Olá! Sou da loja *${storeName}*.\n\nPreciso de suporte sobre a renovação da minha assinatura de *R$ ${feeFormatted}*.`
+    `👋 Olá! Sou da loja *${storeName}*.\n\nPreciso de suporte sobre a renovação/migração da minha assinatura (Plano R$ ${feeFormatted}).`
   );
   const cleanPhone = (masterWhatsApp || '5519981356505').replace(/\D/g, '');
   const finalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
@@ -264,7 +290,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
                 Pagamento Aprovado pelo Mercado Pago!
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 max-w-sm mx-auto">
-                Sua assinatura foi renovada por mais <strong>30 dias</strong>. Liberando o acesso ao painel imediatamente...
+                Sua assinatura foi renovada por mais <strong>30 dias</strong> no <strong>Plano {selectedPlan === 50 ? 'Máximo (R$ 50,00)' : 'Iniciante (R$ 30,00)'}</strong>. Liberando o acesso ao painel imediatamente...
               </p>
             </div>
             <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 py-2 px-4 rounded-full max-w-xs mx-auto">
@@ -274,7 +300,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
           </div>
         ) : viewMode === 'overview' ? (
           /* ========================================================================= */
-          /* MODO VISÃO GERAL: IDÊNTICO À IMAGEM DE REFERÊNCIA (media_1790123731047.png)*/
+          /* MODO VISÃO GERAL: SELETOR DE PLANOS DINÂMICO E VISUAL DA REFERÊNCIA      */
           /* ========================================================================= */
           <div className="relative text-center">
             
@@ -298,26 +324,74 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
             {/* Badge Pílula */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFF6ED] text-[#C2410C] border border-[#FED7AA] text-xs font-bold mb-2.5">
               <Lock className="w-3.5 h-3.5 text-[#EA580C]" />
-              <span>{isExpired ? 'Assinatura Mensal Vencida' : 'Assinatura Mensal'}</span>
+              <span>
+                {isExpired 
+                  ? 'Assinatura Mensal Vencida' 
+                  : (selectedPlan === 50 && contractedPlan === 30 ? 'Upgrade para Plano Máximo' : 'Assinatura Mensal')}
+              </span>
             </div>
 
             {/* Título Principal */}
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
-              Para continuar, renove seu plano
+              {selectedPlan === 50 && contractedPlan === 30 
+                ? 'Migrar para o Plano Máximo' 
+                : 'Para continuar, renove seu plano'}
             </h2>
 
             {/* Subtítulo com Data Dinâmica */}
-            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed mb-4">
               {isExpired
                 ? `Sua assinatura mensal encerrou em ${expiryDateFormatted}. Renove para continuar com acesso total à ferramenta.`
                 : `Sua assinatura mensal encerra em ${expiryDateFormatted}. Renove para continuar com acesso total à ferramenta.`}
             </p>
 
+            {/* SELETOR DE MIGRAÇÃO: Exibido quando a loja está no Plano de R$ 30 */}
+            {contractedPlan === 30 && (
+              <div className="flex p-1 bg-slate-100/90 rounded-2xl mb-4 gap-1.5 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedPlan !== 30) {
+                      setSelectedPlan(30);
+                      setPixData(null);
+                    }
+                  }}
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedPlan === 30 
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80' 
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Plano Atual (R$ 30)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedPlan !== 50) {
+                      setSelectedPlan(50);
+                      setPixData(null);
+                    }
+                  }}
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedPlan === 50 
+                      ? 'bg-[#D9383A] text-white shadow-md shadow-red-500/20' 
+                      : 'text-amber-800 bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200/60'
+                  }`}
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${selectedPlan === 50 ? 'text-amber-300' : 'text-amber-600'}`} />
+                  <span>Migrar p/ Máximo (R$ 50)</span>
+                </button>
+              </div>
+            )}
+
             {/* Bloco de Preço e Botão Vermelho (Destaque Central) */}
-            <div className="bg-[#FEF2F2] border border-[#FEE2E2] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left mb-6">
+            <div className="bg-[#FEF2F2] border border-[#FEE2E2] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left mb-4">
               <div className="min-w-0">
                 <span className="text-[10px] font-bold text-[#EF4444] tracking-wider uppercase block mb-0.5">
-                  PLANO MENSAL COMPLETO
+                  {selectedPlan === 50 && contractedPlan === 30 
+                    ? 'PLANO MÁXIMO COMPLETO (MIGRAÇÃO)' 
+                    : (selectedPlan === 30 ? 'PLANO MENSAL INICIANTE' : 'PLANO MENSAL COMPLETO')}
                 </span>
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -326,7 +400,9 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
                   <span className="text-xs text-slate-400 font-normal">/mês</span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
-                  30 dias de acesso com renovação automática via Pix.
+                  {selectedPlan === 50 && contractedPlan === 30 
+                    ? 'Upgrade imediato e 30 dias de acesso com ativação via Pix.' 
+                    : '30 dias de acesso com renovação automática via Pix.'}
                 </p>
               </div>
 
@@ -341,9 +417,23 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
                 className="bg-[#D9383A] hover:bg-[#C22E30] text-white font-bold px-5 py-3 rounded-xl shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all active:scale-98 cursor-pointer shrink-0 w-full sm:w-auto"
               >
                 <QrCode className="w-4 h-4" />
-                <span>Pagar via Pix (R$ {feeFormatted})</span>
+                <span>
+                  {selectedPlan === 50 && contractedPlan === 30 
+                    ? `Migrar via Pix (R$ ${feeFormatted})` 
+                    : `Pagar via Pix (R$ ${feeFormatted})`}
+                </span>
               </button>
             </div>
+
+            {/* Aviso informativo de upgrade */}
+            {selectedPlan === 50 && contractedPlan === 30 && (
+              <div className="text-center mb-4 animate-in fade-in">
+                <span className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-full font-semibold inline-flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  Ao pagar R$ 50,00, sua loja será atualizada automaticamente para o Plano Máximo.
+                </span>
+              </div>
+            )}
 
             {/* Lista de Vantagens da Loja Virtual (2 Colunas com Checkmarks Verdes) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left mb-6 px-1">
@@ -411,7 +501,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
               </button>
 
               <span className="text-xs font-bold text-slate-700">
-                Renovação via Pix (R$ {feeFormatted})
+                {selectedPlan === 50 && contractedPlan === 30 ? 'Migração' : 'Renovação'} via Pix (R$ {feeFormatted})
               </span>
 
               {!isHardLock && onClose ? (
@@ -432,7 +522,9 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
             {isGeneratingPix ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-600">
                 <RefreshCw className="w-8 h-8 animate-spin text-[#EF4444]" />
-                <p className="text-sm font-bold text-slate-800">Gerando cobrança Pix no Mercado Pago...</p>
+                <p className="text-sm font-bold text-slate-800">
+                  Gerando cobrança Pix de R$ {feeFormatted} no Mercado Pago...
+                </p>
                 <p className="text-xs text-slate-400">Aguarde alguns segundos enquanto conectamos à API oficial.</p>
               </div>
             ) : pixData ? (

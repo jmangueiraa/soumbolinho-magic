@@ -804,9 +804,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }
 
-  const monthlyFee = (currentStore.monthly_fee !== undefined && currentStore.monthly_fee !== null && Number(currentStore.monthly_fee) > 0)
-    ? Number(currentStore.monthly_fee)
-    : 50.00;
+  const rawFee = currentStore.monthly_fee;
+  const storePlan = (currentStore as any).plan_type || (currentStore as any).plan;
+  const monthlyFee = (rawFee !== undefined && rawFee !== null && Number(rawFee) > 0)
+    ? Number(rawFee)
+    : (storePlan === 'iniciante' ? 30.00 : 50.00);
   const subscriptionStatus: SubscriptionStatus = currentStore.subscription_status || 'active';
   const isTrial = !isBaseStore && (currentStore.subscription_status === 'trial' || Boolean((currentStore as any).isTrial));
   const expiresAt = computedExpiresAt;

@@ -98,6 +98,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
   const [activeTab, setActiveTab] = useState<AdminTab>(getTabFromLocation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [renewalTargetPlan, setRenewalTargetPlan] = useState<30 | 50>(30);
   const isBaseStore = 
     Boolean(currentStore?.is_matriz) ||
     currentStore?.slug === 'ajpstore' || 
@@ -188,7 +189,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
       {showRenewalModal && (
         <SubscriptionBlockedScreen 
           isHardLock={false} 
-          onClose={() => setShowRenewalModal(false)} 
+          onClose={() => setShowRenewalModal(false)}
+          initialTargetPlan={renewalTargetPlan}
         />
       )}
 
@@ -373,8 +375,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight">
-                        Plano Mensal Ativo
+                      <span className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight flex items-center gap-1.5">
+                        <span>{monthlyFee <= 30 ? 'Plano Iniciante Ativo' : 'Plano Máximo Ativo'}</span>
+                        {monthlyFee > 30 && (
+                          <span className="text-[10px] font-bold bg-[#D1F3DE] text-[#047857] px-1.5 py-0.5 rounded border border-[#A1E4BA]">
+                            Completo
+                          </span>
+                        )}
                       </span>
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
                         isExpiringSoon 
@@ -393,15 +400,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
                   </div>
                 </div>
 
-                {/* Lado Direito: Botão de Renovar Plano */}
-                <button
-                  type="button"
-                  onClick={() => setShowRenewalModal(true)}
-                  className="bg-white hover:bg-emerald-50/60 text-[#047857] border border-[#9EE2B9] hover:border-[#059669] px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all active:scale-98 cursor-pointer shrink-0"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
-                  <span>Renovar Plano (R$ {monthlyFeeFormatted})</span>
-                </button>
+                {/* Lado Direito: Botões de Renovar e Migrar */}
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {monthlyFee <= 30 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenewalTargetPlan(50);
+                        setShowRenewalModal(true);
+                      }}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-98 cursor-pointer shrink-0"
+                      title="Migrar para o Plano Máximo (R$ 50)"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-200" />
+                      <span>Migrar p/ Plano Máximo (R$ 50)</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRenewalTargetPlan(monthlyFee <= 30 ? 30 : 50);
+                      setShowRenewalModal(true);
+                    }}
+                    className="bg-white hover:bg-emerald-50/60 text-[#047857] border border-[#9EE2B9] hover:border-[#059669] px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all active:scale-98 cursor-pointer shrink-0"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
+                    <span>Renovar Plano (R$ {monthlyFeeFormatted})</span>
+                  </button>
+                </div>
 
               </div>
             </div>
