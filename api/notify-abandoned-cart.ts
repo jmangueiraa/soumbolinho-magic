@@ -76,6 +76,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           reqHeaders['Authorization'] = `Bearer ${supabaseKey}`;
         }
 
+        // 0. Tenta primeiro na tabela global_settings (configurada no Super Admin)
+        try {
+          const resGlobal = await fetch(`${supabaseUrl}/rest/v1/global_settings?select=*&limit=1`, { headers: reqHeaders });
+          if (resGlobal.ok) {
+            const gsRows = await resGlobal.json();
+            if (Array.isArray(gsRows) && gsRows.length > 0) {
+              if (!botToken && gsRows[0]?.telegram_bot_token) {
+                botToken = String(gsRows[0].telegram_bot_token).trim();
+              }
+              if (!chatId && gsRows[0]?.telegram_chat_id) {
+                chatId = String(gsRows[0].telegram_chat_id).trim();
+              }
+            }
+          }
+        } catch (e) {}
+
         // 1. Tenta consultar na tabela stores (busca em colunas raiz e também dentro de theme_settings JSONB)
         const resStores = await fetch(`${supabaseUrl}/rest/v1/stores?select=*&limit=10`, {
           headers: reqHeaders

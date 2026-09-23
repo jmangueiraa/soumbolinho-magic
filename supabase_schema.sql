@@ -831,11 +831,27 @@ ALTER TABLE public.stores ALTER COLUMN expires_at SET DEFAULT (NOW() + INTERVAL 
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS benefit_cards JSONB;
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS whatsapp TEXT;
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS display_whatsapp TEXT;
-ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS instagram TEXT;
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS slogan TEXT;
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS address TEXT;
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS business_hours TEXT;
 ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS whatsapp_default_message TEXT;
 ALTER TABLE public.site_settings DROP CONSTRAINT IF EXISTS site_settings_store_id_key;
 ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_store_id_key UNIQUE (store_id);
+
+-- Migração 12.3: Tabela de Configurações Globais (global_settings) para o Super Admin
+CREATE TABLE IF NOT EXISTS public.global_settings (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    mp_access_token TEXT,
+    mp_public_key TEXT,
+    telegram_bot_token TEXT,
+    telegram_chat_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.global_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read global_settings" ON public.global_settings FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated/admin upsert global_settings" ON public.global_settings FOR ALL USING (true);
+
+
 

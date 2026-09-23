@@ -28,12 +28,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } = req.body || {};
 
     const rawToken = clientAccessToken || process.env.MERCADO_PAGO_ACCESS_TOKEN || process.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || '';
-    const accessToken = rawToken.replace(/['";\s]/g, '').trim();
+    let accessToken = rawToken.replace(/['";\s]/g, '').trim();
+
+    if (!accessToken) {
+      const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://mbwxubnwaeywstnmlrqg.supabase.co').trim();
+      const supabaseKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id3h1Ym53YWV5d3N0bm1scnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyODAwNDEsImV4cCI6MjEwMzg1NjA0MX0.gGa7ZDgiDuN_NNiNK7i7nHEVtaBQ8nEuOPSz0eIn4D4').trim();
+
+      if (supabaseUrl && supabaseKey) {
+        try {
+          const reqHeaders: any = {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          };
+          // 1. Tentar ler da tabela global_settings salva pelo Super Admin
+          const gsRes = await fetch(`${supabaseUrl}/rest/v1/global_settings?select=*&limit=1`, { headers: reqHeaders });
+          if (gsRes.ok) {
+            const gsData = await gsRes.json();
+            if (Array.isArray(gsData) && gsData[0]?.mp_access_token) {
+              accessToken = String(gsData[0].mp_access_token).trim();
+            }
+          }
+
+          // 2. Se não encontrou, tenta na tabela stores (matriz)
+          if (!accessToken) {
+            const stRes = await fetch(`${supabaseUrl}/rest/v1/stores?or=(is_matriz.eq.true,slug.eq.ajpstore)&select=*&limit=1`, { headers: reqHeaders });
+            if (stRes.ok) {
+              const stData = await stRes.json();
+              if (Array.isArray(stData) && stData[0]?.mp_access_token) {
+                accessToken = String(stData[0].mp_access_token).trim();
+              }
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[create-pix-payment] Erro ao consultar credenciais globais no Supabase:', dbErr);
+        }
+      }
+    }
 
     if (!accessToken) {
       return res.status(400).json({
         success: false,
-        error: 'Access Token do Mercado Pago não configurado nas variáveis de ambiente da Vercel (MERCADO_PAGO_ACCESS_TOKEN).',
+        error: 'Access Token do Mercado Pago não configurado. Por favor, configure no Painel Super Admin (Aba Integrações Globais) ou nas variáveis de ambiente da Vercel.',
       });
     }
 

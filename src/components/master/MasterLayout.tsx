@@ -7,7 +7,9 @@ import {
   DollarSign, 
   Plus, 
   LogOut, 
-  ExternalLink 
+  ExternalLink,
+  Key,
+  Sliders
 } from 'lucide-react';
 import { Store as StoreType } from '../../types';
 import { fetchAllStores } from '../../services/storeManagementService';
@@ -16,6 +18,7 @@ import { StoresList } from './StoresList';
 import { CreateStoreModal } from './CreateStoreModal';
 import { DnsInstructionsModal } from './DnsInstructionsModal';
 import { MasterLogin } from './MasterLogin';
+import { GlobalIntegrationsManager } from './GlobalIntegrationsManager';
 
 const MASTER_SESSION_KEY = 'saas_master_auth_session';
 
@@ -103,12 +106,14 @@ export const MasterLayout: React.FC = () => {
     .filter((s) => !s.isExpired && !isBase(s) && s.subscription_status === 'active')
     .reduce((acc, s) => acc + (s.monthly_fee || 50), 0);
 
+  const [activeTab, setActiveTab] = useState<'stores' | 'integrations'>('stores');
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-800 flex flex-col">
       <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col">
         
         {/* HEADER PRINCIPAL */}
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900">
               <span className="bg-pink-500 text-white p-1.5 rounded-lg flex items-center justify-center shadow-xs">
@@ -147,37 +152,78 @@ export const MasterLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* 1. MÉTRICAS EM GRID (Substituindo os cards gigantes) */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <StatCard icon={<Store size={20}/>} title="Lojas" value={totalStores} color="text-pink-500" bg="bg-pink-50" />
-          <StatCard icon={<Gift size={20}/>} title="Em Teste" value={trialStores} color="text-purple-500" bg="bg-purple-50" />
-          <StatCard icon={<CheckCircle size={20}/>} title="Assinantes" value={activeSubscriptionStores} color="text-emerald-500" bg="bg-emerald-50" />
-          <StatCard icon={<AlertCircle size={20}/>} title="Vencidas" value={expiredSubscriptionStores} color="text-red-500" bg="bg-red-50" />
-          <StatCard icon={<DollarSign size={20}/>} title="MRR" value={`R$ ${estimatedMRR.toFixed(2).replace('.', ',')}`} color="text-green-600" bg="bg-green-50" />
+        {/* NAVEGAÇÃO DE ABAS DO SUPER ADMIN */}
+        <div className="flex items-center gap-2 mb-6 border-b border-gray-200 pb-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab('stores')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'stores'
+                ? 'bg-pink-500 text-white shadow-xs'
+                : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
+            }`}
+          >
+            <Store size={16} />
+            <span>Lojas & Assinaturas</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+              activeTab === 'stores' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {totalStores}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('integrations')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'integrations'
+                ? 'bg-pink-500 text-white shadow-xs'
+                : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
+            }`}
+          >
+            <Key size={16} />
+            <span>Integrações Globais (APIs)</span>
+          </button>
         </div>
 
-        {loadError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-3 text-red-700 text-xs">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-              <span><strong>Aviso do Banco de Dados:</strong> {loadError}</span>
+        {/* CONTEÚDO DA ABA SELECIONADA */}
+        {activeTab === 'stores' ? (
+          <>
+            {/* 1. MÉTRICAS EM GRID */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+              <StatCard icon={<Store size={20}/>} title="Lojas" value={totalStores} color="text-pink-500" bg="bg-pink-50" />
+              <StatCard icon={<Gift size={20}/>} title="Em Teste" value={trialStores} color="text-purple-500" bg="bg-purple-50" />
+              <StatCard icon={<CheckCircle size={20}/>} title="Assinantes" value={activeSubscriptionStores} color="text-emerald-500" bg="bg-emerald-50" />
+              <StatCard icon={<AlertCircle size={20}/>} title="Vencidas" value={expiredSubscriptionStores} color="text-red-500" bg="bg-red-50" />
+              <StatCard icon={<DollarSign size={20}/>} title="MRR" value={`R$ ${estimatedMRR.toFixed(2).replace('.', ',')}`} color="text-green-600" bg="bg-green-50" />
             </div>
-            <button
-              onClick={loadStores}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold cursor-pointer transition-colors shrink-0"
-            >
-              Tentar Novamente
-            </button>
-          </div>
-        )}
 
-        {/* 2. ÁREA DE BUSCA, ABAS E LISTA DE LOJAS */}
-        <StoresList
-          stores={safeStores}
-          isLoading={isLoading}
-          onRefresh={loadStores}
-          onOpenDns={(store) => setSelectedDnsStore(store)}
-        />
+            {loadError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-3 text-red-700 text-xs">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span><strong>Aviso do Banco de Dados:</strong> {loadError}</span>
+                </div>
+                <button
+                  onClick={loadStores}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold cursor-pointer transition-colors shrink-0"
+                >
+                  Tentar Novamente
+                </button>
+              </div>
+            )}
+
+            {/* 2. ÁREA DE BUSCA, ABAS E LISTA DE LOJAS */}
+            <StoresList
+              stores={safeStores}
+              isLoading={isLoading}
+              onRefresh={loadStores}
+              onOpenDns={(store) => setSelectedDnsStore(store)}
+            />
+          </>
+        ) : (
+          <GlobalIntegrationsManager />
+        )}
 
       </div>
 
