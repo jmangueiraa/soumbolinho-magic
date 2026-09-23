@@ -23,7 +23,8 @@ import {
   Calendar,
   RefreshCw,
   AlertCircle,
-  Send
+  Send,
+  MessageCircle
 } from 'lucide-react';
 import { Store } from '../../types';
 import { 
@@ -263,11 +264,14 @@ export const StoresList: React.FC<StoresListProps> = ({
       const res = await notifyStoreCreatedById(store.id);
       if (res.success) {
         setNotifyFeedback({ id: store.id, message: `🚀 Notificação de "${store.name || store.store_name}" enviada ao Telegram!` });
+        alert(`🚀 Notificação da loja "${store.name || store.store_name}" enviada com sucesso ao Telegram!`);
       } else {
         setNotifyFeedback({ id: store.id, message: res.error || 'Falha ao enviar notificação.', isError: true });
+        alert(`⚠️ Não foi possível entregar no Telegram:\n${res.error || 'Verifique o Bot Token e Chat ID nas configurações globais.'}`);
       }
     } catch (e: any) {
       setNotifyFeedback({ id: store.id, message: e.message || 'Erro inesperado.', isError: true });
+      alert(`❌ Erro inesperado ao disparar Telegram: ${e.message}`);
     } finally {
       setNotifyingId(null);
       setTimeout(() => {
@@ -525,6 +529,20 @@ export const StoresList: React.FC<StoresListProps> = ({
                           <div className="flex items-center gap-1.5 truncate">
                             <Mail size={13} className="text-gray-400 shrink-0" />
                             <span className="text-gray-500 font-mono text-[11px] truncate">{store.owner_email || store.client_email}</span>
+                          </div>
+                        )}
+                        {(store.whatsapp_number || store.owner_phone) && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <MessageCircle size={13} className="text-emerald-500 shrink-0" />
+                            <a
+                              href={`https://wa.me/55${(store.whatsapp_number || store.owner_phone || '').replace(/\D/g, '').replace(/^55/, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:text-emerald-700 font-medium text-[11px] hover:underline truncate"
+                              title="Abrir WhatsApp do lojista"
+                            >
+                              {store.whatsapp_number || store.owner_phone}
+                            </a>
                           </div>
                         )}
                       </div>

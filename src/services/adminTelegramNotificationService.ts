@@ -336,7 +336,7 @@ export async function notifyStoreCreatedById(storeId: string): Promise<{ success
     return await notifyNewStoreCreated({
       store_name: store.store_name || store.name,
       client_name: store.client_name || store.owner_name,
-      whatsapp_number: store.whatsapp_number || store.owner_phone,
+      whatsapp_number: store.whatsapp_number || store.owner_phone || store.whatsapp,
       client_email: store.client_email || store.owner_email,
       slug: store.slug,
       status: store.subscription_status === 'trial' ? 'Período de Testes (Trial)' : (store.subscription_status || 'Ativo')
