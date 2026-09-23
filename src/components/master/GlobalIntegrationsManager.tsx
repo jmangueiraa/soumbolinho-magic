@@ -61,7 +61,10 @@ export const GlobalIntegrationsManager: React.FC = () => {
     setIsLoading(true);
     try {
       const data = await fetchGlobalSettings();
-      setMpAccessToken(data.mp_access_token || '');
+      // Proteção contra autofill do navegador que salvou 'admin' como senha
+      const rawMp = (data.mp_access_token || '').trim();
+      const validMp = (rawMp === 'admin' || (rawMp && rawMp.length < 15)) ? '' : rawMp;
+      setMpAccessToken(validMp);
       setMpPublicKey(data.mp_public_key || '');
       setTelegramBotToken(data.telegram_bot_token || '');
       setTelegramChatId(data.telegram_chat_id || '');
@@ -85,11 +88,23 @@ export const GlobalIntegrationsManager: React.FC = () => {
 
   // 1. Salvar Mercado Pago
   const handleSaveMp = async () => {
+    const cleanToken = mpAccessToken.trim();
+    if (cleanToken === 'admin') {
+      showNotification('error', 'O navegador preencheu sua senha de login (admin) por engano. Cole o seu Access Token real do Mercado Pago (começando com APP_USR-).');
+      return;
+    }
+    if (cleanToken && cleanToken.length > 5 && !cleanToken.startsWith('APP_USR-') && !cleanToken.startsWith('TEST-')) {
+      showNotification('error', 'O Access Token do Mercado Pago deve começar com APP_USR- ou TEST-. Verifique a chave copiada.');
+      return;
+    }
+
     setIsSavingMp(true);
     try {
       const res = await saveGlobalSettings({
-        mp_access_token: mpAccessToken,
-        mp_public_key: mpPublicKey,
+        mp_access_token: cleanToken,
+        mp_public_key: mpPublicKey.trim(),
+        telegram_bot_token: telegramBotToken.trim() || undefined,
+        telegram_chat_id: telegramChatId.trim() || undefined,
       });
 
       if (res.success) {
@@ -126,8 +141,10 @@ export const GlobalIntegrationsManager: React.FC = () => {
     setIsSavingTelegram(true);
     try {
       const res = await saveGlobalSettings({
-        telegram_bot_token: telegramBotToken,
-        telegram_chat_id: telegramChatId,
+        telegram_bot_token: telegramBotToken.trim(),
+        telegram_chat_id: telegramChatId.trim(),
+        mp_access_token: mpAccessToken.trim() || undefined,
+        mp_public_key: mpPublicKey.trim() || undefined,
       });
 
       if (res.success) {
@@ -233,7 +250,12 @@ export const GlobalIntegrationsManager: React.FC = () => {
   };
 
 
-  const isMpConfigured = Boolean(mpAccessToken && mpAccessToken.length > 15);
+  const isMpConfigured = Boolean(
+    mpAccessToken && 
+    mpAccessToken !== 'admin' && 
+    mpAccessToken.length > 20 && 
+    (mpAccessToken.startsWith('APP_USR-') || mpAccessToken.startsWith('TEST-'))
+  );
   const isTelegramConfigured = Boolean(telegramBotToken && telegramChatId);
 
   if (isLoading) {
@@ -340,6 +362,12 @@ export const GlobalIntegrationsManager: React.FC = () => {
               <div className="relative">
                 <input
                   type={showMpToken ? 'text' : 'password'}
+                  name="mp_global_access_token_private"
+                  id="mp_global_access_token_private"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   value={mpAccessToken}
                   onChange={(e) => setMpAccessToken(e.target.value)}
                   placeholder="APP_USR-0000000000000000-000000-..."
@@ -369,6 +397,9 @@ export const GlobalIntegrationsManager: React.FC = () => {
               </div>
               <input
                 type="text"
+                name="mp_global_public_key_field"
+                id="mp_global_public_key_field"
+                autoComplete="off"
                 value={mpPublicKey}
                 onChange={(e) => setMpPublicKey(e.target.value)}
                 placeholder="APP_USR-00000000-0000-0000-0000-000000000000"
@@ -472,6 +503,12 @@ export const GlobalIntegrationsManager: React.FC = () => {
               <div className="relative">
                 <input
                   type={showTelegramToken ? 'text' : 'password'}
+                  name="tg_global_bot_token_private"
+                  id="tg_global_bot_token_private"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   value={telegramBotToken}
                   onChange={(e) => setTelegramBotToken(e.target.value)}
                   placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
@@ -502,6 +539,9 @@ export const GlobalIntegrationsManager: React.FC = () => {
               </div>
               <input
                 type="text"
+                name="tg_global_chat_id_field"
+                id="tg_global_chat_id_field"
+                autoComplete="off"
                 value={telegramChatId}
                 onChange={(e) => setTelegramChatId(e.target.value)}
                 placeholder="Ex: 123456789 ou -100123456789"

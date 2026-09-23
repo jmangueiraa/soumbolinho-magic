@@ -174,35 +174,49 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
 export async function saveGlobalSettings(
   settings: Partial<GlobalApiSettings>
 ): Promise<{ success: boolean; error?: string }> {
-  const cleanSettings = {
-    mp_access_token: (settings.mp_access_token ?? '').trim(),
-    mp_public_key: (settings.mp_public_key ?? '').trim(),
-    telegram_bot_token: (settings.telegram_bot_token ?? '').trim(),
-    telegram_chat_id: (settings.telegram_chat_id ?? '').trim(),
+  // 1. Busca primeiro as configurações existentes no banco / cache para mesclar e NUNCA sobrescrever com vazio
+  const existing = await fetchGlobalSettings().catch(() => ({} as GlobalApiSettings));
+
+  const cleanSettings: GlobalApiSettings = {
+    mp_access_token: settings.mp_access_token !== undefined 
+      ? String(settings.mp_access_token).trim() 
+      : (existing.mp_access_token || '').trim(),
+    mp_public_key: settings.mp_public_key !== undefined 
+      ? String(settings.mp_public_key).trim() 
+      : (existing.mp_public_key || '').trim(),
+    telegram_bot_token: settings.telegram_bot_token !== undefined 
+      ? String(settings.telegram_bot_token).trim() 
+      : (existing.telegram_bot_token || '').trim(),
+    telegram_chat_id: settings.telegram_chat_id !== undefined 
+      ? String(settings.telegram_chat_id).trim() 
+      : (existing.telegram_chat_id || '').trim(),
     updated_at: new Date().toISOString()
   };
 
   let savedInDb = false;
   let lastErrorMessage = '';
 
-  // 1. Tentar gravar na tabela global_settings
+  // 1. Gravar na tabela global_settings (apenas campos preenchidos)
   try {
+    const payloadGlobal: any = {
+      id: 'default',
+      updated_at: cleanSettings.updated_at
+    };
+    if (cleanSettings.mp_access_token) payloadGlobal.mp_access_token = cleanSettings.mp_access_token;
+    if (cleanSettings.mp_public_key) payloadGlobal.mp_public_key = cleanSettings.mp_public_key;
+    if (cleanSettings.telegram_bot_token) payloadGlobal.telegram_bot_token = cleanSettings.telegram_bot_token;
+    if (cleanSettings.telegram_chat_id) payloadGlobal.telegram_chat_id = cleanSettings.telegram_chat_id;
+
     const { error: gsErr } = await supabase
       .from('global_settings')
-      .upsert(
-        {
-          id: 'default',
-          ...cleanSettings
-        },
-        { onConflict: 'id' }
-      );
+      .upsert(payloadGlobal, { onConflict: 'id' });
 
     if (!gsErr) {
       savedInDb = true;
       console.log('[globalSettingsService] ✅ Configurações gravadas em global_settings');
     } else {
       lastErrorMessage = gsErr.message;
-      console.warn('[globalSettingsService] Aviso ao gravar em global_settings (tentando fallback):', gsErr.message);
+      console.warn('[globalSettingsService] Aviso ao gravar em global_settings:', gsErr.message);
     }
   } catch (err: any) {
     lastErrorMessage = err?.message || 'Erro de conexão';
@@ -255,13 +269,15 @@ export async function saveGlobalSettings(
 
   // 2.1. Gravar em store_config
   try {
-    await supabase.from('store_config').upsert({
+    const cfgPayload: any = {
       id: 'cfg_global_settings',
       store_id: 'store_ajpstore',
-      telegram_bot_token: cleanSettings.telegram_bot_token || undefined,
-      telegram_chat_id: cleanSettings.telegram_chat_id || undefined,
-      mp_access_token: cleanSettings.mp_access_token || undefined,
-    }, { onConflict: 'id' });
+    };
+    if (cleanSettings.telegram_bot_token) cfgPayload.telegram_bot_token = cleanSettings.telegram_bot_token;
+    if (cleanSettings.telegram_chat_id) cfgPayload.telegram_chat_id = cleanSettings.telegram_chat_id;
+    if (cleanSettings.mp_access_token) cfgPayload.mp_access_token = cleanSettings.mp_access_token;
+
+    await supabase.from('store_config').upsert(cfgPayload, { onConflict: 'id' });
   } catch (cfgErr) {
     console.warn('[globalSettingsService] Aviso ao espelhar em store_config:', cfgErr);
   }
@@ -269,15 +285,24 @@ export async function saveGlobalSettings(
   // 3. Gravar em cache local no navegador
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem('global_mp_access_token', cleanSettings.mp_access_token);
-      localStorage.setItem('global_mp_public_key', cleanSettings.mp_public_key);
-      localStorage.setItem('global_telegram_bot_token', cleanSettings.telegram_bot_token);
-      localStorage.setItem('global_telegram_chat_id', cleanSettings.telegram_chat_id);
-
-      // Sincroniza também com as chaves gerais caso usadas pelo checkout
-      if (cleanSettings.mp_access_token) localStorage.setItem('mp_access_token', cleanSettings.mp_access_token);
-      if (cleanSettings.telegram_bot_token) localStorage.setItem('encantando_festa_telegram_bot_token', cleanSettings.telegram_bot_token);
-      if (cleanSettings.telegram_chat_id) localStorage.setItem('encantando_festa_telegram_chat_id', cleanSettings.telegram_chat_id);
+      if (cleanSettings.mp_access_token) {
+        localStorage.setItem('global_mp_access_token', cleanSettings.mp_access_token);
+        localStorage.setItem('mp_access_token', cleanSettings.mp_access_token);
+        localStorage.setItem('encantando_festa_mp_access_token', cleanSettings.mp_access_token);
+      }
+      if (cleanSettings.mp_public_key) {
+        localStorage.setItem('global_mp_public_key', cleanSettings.mp_public_key);
+      }
+      if (cleanSettings.telegram_bot_token) {
+        localStorage.setItem('global_telegram_bot_token', cleanSettings.telegram_bot_token);
+        localStorage.setItem('telegram_bot_token', cleanSettings.telegram_bot_token);
+        localStorage.setItem('encantando_festa_telegram_bot_token', cleanSettings.telegram_bot_token);
+      }
+      if (cleanSettings.telegram_chat_id) {
+        localStorage.setItem('global_telegram_chat_id', cleanSettings.telegram_chat_id);
+        localStorage.setItem('telegram_chat_id', cleanSettings.telegram_chat_id);
+        localStorage.setItem('encantando_festa_telegram_chat_id', cleanSettings.telegram_chat_id);
+      }
     } catch (lsErr) {
       console.warn('[globalSettingsService] Erro ao gravar localStorage:', lsErr);
     }
