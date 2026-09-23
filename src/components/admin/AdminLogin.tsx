@@ -82,6 +82,20 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onBackToStore }) => {
           return;
         }
 
+        if (currentStore?.slug) {
+          const { data: storeRowSlug } = await supabase
+            .from('stores')
+            .select('admin_password')
+            .eq('slug', currentStore.slug)
+            .maybeSingle();
+
+          if (storeRowSlug?.admin_password && storeRowSlug.admin_password.trim() === password.trim()) {
+            sessionStorage.setItem('soumbolinho_admin_auth_session', 'true');
+            window.location.reload();
+            return;
+          }
+        }
+
         const { data: userRow } = await supabase
           .from('store_users')
           .select('password_hash')

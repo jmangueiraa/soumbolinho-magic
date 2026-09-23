@@ -24,7 +24,13 @@ import {
   Image as ImageIcon,
   Trash2,
   Loader2,
-  Link2
+  Link2,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -53,6 +59,7 @@ const AVAILABLE_BENEFIT_ICONS = [
 interface StoreSettingsManagerProps {
   onNavigateToApiDomain?: () => void;
   onNavigateToLayout?: () => void;
+  initialTab?: 'identidade' | 'atendimento' | 'rodape' | 'seguranca';
 }
 
 interface TabButtonProps {
@@ -127,13 +134,136 @@ const InputField: React.FC<InputFieldProps> = ({
 
 export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({ 
   onNavigateToApiDomain, 
-  onNavigateToLayout 
+  onNavigateToLayout,
+  initialTab
 }) => {
   const { storeConfig, updateStoreConfig, resetToDefaults, showNotification } = useStoreData();
   const { currentStore, updateCurrentStore, refreshTenant } = useTenant();
 
-  const [activeTab, setActiveTab] = useState<'identidade' | 'atendimento' | 'rodape'>('identidade');
+  const [activeTab, setActiveTab] = useState<'identidade' | 'atendimento' | 'rodape' | 'seguranca'>(() => {
+    if (initialTab) return initialTab;
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#seguranca' || hash === '#senha' || hash === '#security') return 'seguranca';
+      if (hash === '#atendimento') return 'atendimento';
+      if (hash === '#rodape') return 'rodape';
+    }
+    return 'identidade';
+  });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Estados para alteração de senha administrativa
+  const [newAdminPass, setNewAdminPass] = useState('');
+  const [confirmAdminPass, setConfirmAdminPass] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [isSavingPass, setIsSavingPass] = useState(false);
+  const [passFeedback, setPassFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleUpdateAdminPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPassFeedback(null);
+
+    const cleanPass = newAdminPass.trim();
+    const cleanConfirm = confirmAdminPass.trim();
+
+    if (!cleanPass) {
+      setPassFeedback({ type: 'error', message: 'Digite a nova senha de acesso.' });
+      return;
+    }
+
+    if (cleanPass.length < 4) {
+      setPassFeedback({ type: 'error', message: 'A nova senha deve ter no mínimo 4 caracteres.' });
+      return;
+    }
+
+    if (cleanPass !== cleanConfirm) {
+      setPassFeedback({ type: 'error', message: 'A confirmação de senha não confere com a nova senha digitada.' });
+      return;
+    }
+
+    const currentStoreId = currentStore?.id;
+    if (!currentStoreId || currentStoreId === '__resolving_tenant__') {
+      setPassFeedback({ type: 'error', message: 'Loja não identificada. Aguarde o carregamento.' });
+      return;
+    }
+
+    setIsSavingPass(true);
+    try {
+      let isSuccess = false;
+
+      // 1. Atualiza na tabela stores por ID
+      const { data: updatedById, error: errId } = await supabase
+        .from('stores')
+        .update({ admin_password: cleanPass })
+        .eq('id', currentStoreId)
+        .select();
+
+      if (!errId && updatedById && updatedById.length > 0) {
+        isSuccess = true;
+      }
+
+      // 2. Fallback por slug
+      if (!isSuccess && currentStore?.slug) {
+        const { data: updatedBySlug, error: errSlug } = await supabase
+          .from('stores')
+          .update({ admin_password: cleanPass })
+          .eq('slug', currentStore.slug)
+          .select();
+
+        if (!errSlug && updatedBySlug && updatedBySlug.length > 0) {
+          isSuccess = true;
+        }
+      }
+
+      // 3. Fallback matriz
+      if (!isSuccess && (Boolean(currentStore?.is_matriz) || currentStore?.slug === 'ajpstore' || currentStoreId === 'store_ajpstore')) {
+        const { data: updatedMatriz, error: errMatriz } = await supabase
+          .from('stores')
+          .update({ admin_password: cleanPass })
+          .or('slug.eq.ajpstore,id.eq.store_ajpstore,is_matriz.eq.true')
+          .select();
+
+        if (!errMatriz && updatedMatriz && updatedMatriz.length > 0) {
+          isSuccess = true;
+        }
+      }
+
+      // 4. Atualiza store_users se existir
+      try {
+        await supabase
+          .from('store_users')
+          .update({ password_hash: cleanPass })
+          .eq('store_id', currentStoreId);
+      } catch (uErr) {
+        console.warn('Aviso store_users:', uErr);
+      }
+
+      // 5. Atualiza contexto e localStorage
+      if (updateCurrentStore) {
+        updateCurrentStore({ admin_password: cleanPass });
+      }
+
+      try {
+        localStorage.setItem(`store_${currentStoreId}_admin_password`, cleanPass);
+        if (currentStore?.slug) {
+          localStorage.setItem(`store_${currentStore.slug}_admin_password`, cleanPass);
+        }
+        localStorage.setItem('soumbolinho_admin_password', cleanPass);
+      } catch (lsErr) {}
+
+      showNotification('Senha administrativa atualizada com sucesso!', 'success');
+      setPassFeedback({ type: 'success', message: 'Senha administrativa atualizada com sucesso! Guarde sua nova senha.' });
+      setNewAdminPass('');
+      setConfirmAdminPass('');
+    } catch (err: any) {
+      console.error('Erro ao atualizar senha:', err);
+      setPassFeedback({ type: 'error', message: err.message || 'Erro ao atualizar a senha.' });
+    } finally {
+      setIsSavingPass(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     storeName: storeConfig.storeName || currentStore?.store_name || currentStore?.name || '',
@@ -566,6 +696,9 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
           <TabButton active={activeTab === 'rodape'} onClick={() => setActiveTab('rodape')} icon={<LayoutTemplate size={16}/>}>
             Rodapé & Destaques
           </TabButton>
+          <TabButton active={activeTab === 'seguranca'} onClick={() => setActiveTab('seguranca')} icon={<Lock size={16}/>}>
+            Segurança & Senha
+          </TabButton>
         </div>
       </header>
 
@@ -909,6 +1042,189 @@ export const StoreSettingsManager: React.FC<StoreSettingsManagerProps> = ({
                     <span>Acessar Api e Dominio</span>
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA 4: SEGURANÇA & SENHA ADMIN */}
+        {activeTab === 'seguranca' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Card de Informações e Status da Senha */}
+            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-gray-900">
+                      Segurança do Painel Administrativo
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Gerencie a senha de acesso ao painel de controle desta loja
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Acesso Protegido</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Informações da Loja e Senha Atual */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Loja / Domínio
+                  </span>
+                  <p className="text-xs sm:text-sm font-extrabold text-gray-800">
+                    {currentStore?.store_name || currentStore?.name || 'Sua Loja'}
+                  </p>
+                  <span className="text-[11px] text-gray-500 font-mono">
+                    /{currentStore?.slug || currentStore?.id}
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Senha Atual Cadastrada
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm font-mono font-bold text-gray-800">
+                        {showCurrentPass 
+                          ? (currentStore?.admin_password || 'admin') 
+                          : '••••••••••••'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPass(!showCurrentPass)}
+                    className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200/60 rounded-xl transition-colors cursor-pointer"
+                    title={showCurrentPass ? 'Ocultar senha atual' : 'Visualizar senha atual'}
+                  >
+                    {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Formulário de Alteração de Senha */}
+              <div className="pt-2 space-y-4">
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <KeyRound size={14} className="text-indigo-600" />
+                  <span>Definir Nova Senha de Acesso</span>
+                </h3>
+
+                {passFeedback && (
+                  <div className={`p-4 rounded-2xl text-xs font-semibold flex items-start gap-2.5 ${
+                    passFeedback.type === 'success' 
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}>
+                    {passFeedback.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <span>{passFeedback.message}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Nova Senha */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                      Nova Senha Admin
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3.5 text-gray-400 pointer-events-none">
+                        <Lock size={15} />
+                      </span>
+                      <input
+                        type={showNewPass ? 'text' : 'password'}
+                        value={newAdminPass}
+                        onChange={(e) => setNewAdminPass(e.target.value)}
+                        placeholder="Digite a nova senha (mínimo 4 caracteres)"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-800 placeholder:text-gray-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPass(!showNewPass)}
+                        className="absolute right-3 p-1 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                        title={showNewPass ? 'Ocultar' : 'Visualizar'}
+                      >
+                        {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirmar Nova Senha */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                      Confirmar Nova Senha
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3.5 text-gray-400 pointer-events-none">
+                        <Lock size={15} />
+                      </span>
+                      <input
+                        type={showConfirmPass ? 'text' : 'password'}
+                        value={confirmAdminPass}
+                        onChange={(e) => setConfirmAdminPass(e.target.value)}
+                        placeholder="Repita a nova senha exatamente igual"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-800 placeholder:text-gray-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPass(!showConfirmPass)}
+                        className="absolute right-3 p-1 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                        title={showConfirmPass ? 'Ocultar' : 'Visualizar'}
+                      >
+                        {showConfirmPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {confirmAdminPass && newAdminPass !== confirmAdminPass && (
+                  <p className="text-[11px] text-rose-500 font-medium">
+                    ⚠️ As senhas não conferem. Certifique-se de digitar a mesma senha nos dois campos.
+                  </p>
+                )}
+
+                <div className="pt-2 flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateAdminPassword()}
+                    disabled={isSavingPass || !newAdminPass.trim() || newAdminPass !== confirmAdminPass}
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm flex items-center gap-2 active:scale-98 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingPass ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <span>Atualizando Senha...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 text-white" />
+                        <span>Salvar Nova Senha Admin</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Dica de Segurança */}
+              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-bold">Aviso importante:</strong> Após salvar, a nova senha passa a valer imediatamente para todos os acessos em <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">/admin</code>. Guarde sua senha em local seguro.
+                </div>
               </div>
             </div>
           </div>

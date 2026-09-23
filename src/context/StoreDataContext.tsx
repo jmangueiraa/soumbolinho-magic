@@ -284,10 +284,9 @@ export const StoreDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // -------------------------------------------------------------
   const login = (password: string): boolean => {
     const clientPass = currentStore?.admin_password;
-    const valid = 
-      (clientPass && password.trim() === clientPass.trim()) ||
-      password.trim() === DEFAULT_ADMIN_PASSWORD || 
-      password.trim() === '123456';
+    const valid = clientPass 
+      ? (password.trim() === clientPass.trim())
+      : (password.trim() === DEFAULT_ADMIN_PASSWORD || password.trim() === '123456');
 
     if (valid) {
       setIsAuthenticated(true);

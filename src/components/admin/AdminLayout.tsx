@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   Sparkles,
   Clock,
-  RefreshCw
+  RefreshCw,
+  KeyRound
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -33,6 +34,7 @@ import { ApiDomainManager } from './ApiDomainManager';
 import { CouponsManager } from './CouponsManager';
 import { OrdersManager } from './OrdersManager';
 import { SubscriptionBlockedScreen } from './SubscriptionBlockedScreen';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import { SoumbolinhoLogo } from '../common/SoumbolinhoLogo';
 import { applyThemeToDocument } from '../../utils/theme';
 import { ColorPaletteType, ThemeLayoutType } from '../../types';
@@ -99,6 +101,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [renewalTargetPlan, setRenewalTargetPlan] = useState<30 | 50>(30);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const isBaseStore = 
     Boolean(currentStore?.is_matriz) ||
     currentStore?.slug === 'ajpstore' || 
@@ -264,8 +267,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
             </button>
           </div>
 
-          {/* Lado Direito: Ações Rápidas (Ver Catálogo & Logout) */}
+          {/* Lado Direito: Ações Rápidas (Alterar Senha, Ver Catálogo & Logout) */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setShowChangePasswordModal(true)}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-800 hover:text-indigo-700 text-xs font-bold rounded-2xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Alterar senha do painel administrativo"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="hidden sm:inline">Alterar Senha</span>
+            </button>
+
             <button
               onClick={onBackToStore}
               className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-2xl flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -340,6 +353,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
             <Settings className="w-3.5 h-3.5" />
             <span>Configurações</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setShowChangePasswordModal(true)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer bg-white text-slate-700 border border-slate-200 hover:bg-indigo-50"
+            title="Alterar senha administrativa"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Senha</span>
+          </button>
         </div>
       </header>
 
@@ -356,6 +378,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
           storeDomainDisplay={storeDomainDisplay}
           onBackToStore={onBackToStore}
           logout={logout}
+          onOpenChangePassword={() => setShowChangePasswordModal(true)}
           adminBasePath={adminBasePath}
         />
 
@@ -478,6 +501,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
           </div>
         </div>
       )}
+
+      {/* Modal de Alteração de Senha Administrativa */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+      />
 
     </div>
   );

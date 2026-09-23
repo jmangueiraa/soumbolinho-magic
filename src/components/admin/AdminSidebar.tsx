@@ -11,7 +11,8 @@ import {
   TrendingUp, 
   Ticket, 
   ShoppingBag, 
-  X 
+  X,
+  KeyRound
 } from 'lucide-react';
 
 export type AdminTab = 
@@ -48,6 +49,7 @@ export interface AdminSidebarProps {
   storeDomainDisplay: string | null;
   onBackToStore: () => void;
   logout: () => void;
+  onOpenChangePassword?: () => void;
   adminBasePath?: string;
 }
 
@@ -60,6 +62,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   storeDomainDisplay,
   onBackToStore,
   logout,
+  onOpenChangePassword,
   adminBasePath = '/admin',
 }) => {
   const basePath = adminBasePath.replace(/\/+$/, '') || '/admin';
@@ -256,6 +259,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
         {/* Rodapé do Menu Lateral */}
         <div className="p-4 border-t border-slate-100 space-y-2 bg-slate-50/50">
+          {onOpenChangePassword && (
+            <button
+              type="button"
+              onClick={onOpenChangePassword}
+              className="w-full px-3 py-2 text-xs font-bold text-slate-700 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
+              title="Alterar senha do painel administrativo"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Alterar Senha Admin</span>
+            </button>
+          )}
           <button
             onClick={onBackToStore}
             className="w-full px-3 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
