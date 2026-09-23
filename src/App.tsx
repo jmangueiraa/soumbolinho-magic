@@ -159,7 +159,15 @@ export const StoreFront: React.FC = () => {
 
   // Injeção de variáveis CSS de tema em tempo real
   useEffect(() => {
-    applyThemeToDocument(activePalette, activePrimary, activeLayout);
+    try {
+      if (typeof applyThemeToDocument === 'function') {
+        applyThemeToDocument(activePalette, activePrimary, activeLayout);
+      } else if (typeof window !== 'undefined' && typeof (window as any).applyThemeToDocument === 'function') {
+        (window as any).applyThemeToDocument(activePalette, activePrimary, activeLayout);
+      }
+    } catch (err) {
+      console.warn('[App] Erro ao aplicar tema:', err);
+    }
   }, [activePalette, activePrimary, activeLayout, themeVersion]);
 
   // Registro de visita em tempo real para o painel de métricas

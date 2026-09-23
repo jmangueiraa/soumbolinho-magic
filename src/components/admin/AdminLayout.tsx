@@ -126,8 +126,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
     const activePalette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
     const activePrimary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor || '#FF1493';
     const activeLayout = (currentStore?.layout_style as ThemeLayoutType) || currentStore?.theme_settings?.theme_layout || (currentStore?.theme_settings?.layout_style as ThemeLayoutType) || storeConfig.themeLayout || 'classic';
-    document.documentElement.style.setProperty('--primary-color', activePrimary);
-    applyThemeToDocument(activePalette, activePrimary, activeLayout);
+    try {
+      document.documentElement.style.setProperty('--primary-color', activePrimary);
+      if (typeof applyThemeToDocument === 'function') {
+        applyThemeToDocument(activePalette, activePrimary, activeLayout);
+      } else if (typeof window !== 'undefined' && typeof (window as any).applyThemeToDocument === 'function') {
+        (window as any).applyThemeToDocument(activePalette, activePrimary, activeLayout);
+      }
+    } catch {}
 
     const titleName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Loja';
     document.title = `Painel Administrativo | ${titleName}`;

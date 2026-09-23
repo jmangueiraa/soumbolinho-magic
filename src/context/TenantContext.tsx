@@ -5,6 +5,18 @@ import { DEFAULT_STORE_FEATURES, DEFAULT_MAIN_CTA_TEXT } from '../data/storeConf
 import { EDITAVEIS_MONTHLY_STORE_DATA } from '../services/storeManagementService';
 import { COLOR_PALETTES, applyThemeToDocument } from '../utils/theme';
 
+const safeApplyTheme = (palette?: any, primary?: string, layout?: any) => {
+  try {
+    if (typeof applyThemeToDocument === 'function') {
+      applyThemeToDocument(palette, primary, layout);
+    } else if (typeof window !== 'undefined' && typeof (window as any).applyThemeToDocument === 'function') {
+      (window as any).applyThemeToDocument(palette, primary, layout);
+    }
+  } catch (err) {
+    console.warn('[TenantContext] Aviso ao aplicar tema:', err);
+  }
+};
+
 export const DEFAULT_STORE: Store = {
   id: 'store_ajpstore',
   name: 'AJPSTORE',
@@ -492,7 +504,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           } catch {}
           const normalized = normalizeStore(storeBySlug);
           setCurrentStore(normalized);
-          applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
+          safeApplyTheme(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           setTenantNotFound(false);
           setTenantError(null);
           setIsResolvingTenant(false);
@@ -502,7 +514,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             console.log('[TenantResolver] 🏬 Ativando loja Editáveis do Canva via fallback garantido.');
             const normalized = normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA);
             setCurrentStore(normalized);
-            applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
+            safeApplyTheme(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
             setTenantNotFound(false);
             setTenantError(null);
             setIsResolvingTenant(false);
@@ -536,7 +548,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
           const normalized = normalizeStore(storeBySubdomain);
           setCurrentStore(normalized);
-          applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
+          safeApplyTheme(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           setTenantNotFound(false);
           setIsResolvingTenant(false);
           return;
@@ -618,7 +630,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           const normalized = normalizeStore(matchedStore);
           setCurrentStore(normalized);
-          applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
+          safeApplyTheme(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           setTenantNotFound(false);
           setIsResolvingTenant(false);
           return;
@@ -627,7 +639,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             console.log('[TenantResolver] 🏬 Ativando loja Editáveis do Canva para o domínio personalizado via fallback garantido.');
             const normalized = normalizeStore(EDITAVEIS_MONTHLY_STORE_DATA);
             setCurrentStore(normalized);
-            applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
+            safeApplyTheme(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
             setTenantNotFound(false);
             setTenantError(null);
             setIsResolvingTenant(false);
@@ -705,7 +717,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             console.log('[TenantContext] ⚡ Realtime: Tabela stores atualizada para a loja ativa:', updated.name, updated.id);
             const normalized = normalizeStore({ ...currentStore, ...updated });
             setCurrentStore(normalized);
-            applyThemeToDocument(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
+            safeApplyTheme(normalized.color_palette as any, normalized.primary_color, normalized.layout_style as any);
           }
         }
       )
@@ -719,7 +731,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Aplica variáveis de tema e layout imediatamente sempre que currentStore for modificado
   useEffect(() => {
     if (currentStore && currentStore.id !== '__resolving_tenant__') {
-      applyThemeToDocument(
+      safeApplyTheme(
         currentStore.color_palette as any,
         currentStore.primary_color,
         (currentStore.layout_style || currentStore.theme_layout) as any

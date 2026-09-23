@@ -21,9 +21,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onBackToStore }) => {
     const primary = currentStore?.primary_color || currentStore?.theme_settings?.primary_color || storeConfig.primaryColor;
     const palette = (currentStore?.color_palette as ColorPaletteType) || currentStore?.theme_settings?.color_palette || storeConfig.colorPalette || 'pink_pastel';
     const layout = (currentStore?.layout_style as ThemeLayoutType) || currentStore?.theme_settings?.theme_layout || (currentStore?.theme_settings?.layout_style as ThemeLayoutType) || storeConfig.themeLayout || 'classic';
-    if (primary) {
-      applyThemeToDocument(palette, primary, layout);
-    }
+    try {
+      if (primary) {
+        if (typeof applyThemeToDocument === 'function') {
+          applyThemeToDocument(palette, primary, layout);
+        } else if (typeof window !== 'undefined' && typeof (window as any).applyThemeToDocument === 'function') {
+          (window as any).applyThemeToDocument(palette, primary, layout);
+        }
+      }
+    } catch {}
   }, [currentStore?.primary_color, currentStore?.theme_settings?.primary_color, currentStore?.layout_style, currentStore?.theme_settings?.theme_layout, storeConfig.primaryColor, storeConfig.colorPalette, storeConfig.themeLayout]);
 
   useEffect(() => {

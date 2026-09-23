@@ -16,9 +16,15 @@ export const ArquivosPage: React.FC = () => {
     const siteTitle = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'AJPSTORE';
     document.title = `Arquivos | ${siteTitle}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (storeConfig?.primaryColor) {
-      applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
-    }
+    try {
+      if (storeConfig?.primaryColor) {
+        if (typeof applyThemeToDocument === 'function') {
+          applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+        } else if (typeof window !== 'undefined' && typeof (window as any).applyThemeToDocument === 'function') {
+          (window as any).applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+        }
+      }
+    } catch {}
   }, [storeConfig.storeName, storeConfig?.primaryColor, storeConfig?.colorPalette, storeConfig?.themeLayout]);
 
   return (

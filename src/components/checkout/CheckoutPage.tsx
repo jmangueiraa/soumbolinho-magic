@@ -45,9 +45,15 @@ export const CheckoutPage: React.FC = () => {
 
   // Aplica a variável global CSS --primary-color e tema da loja dinamicamente
   useEffect(() => {
-    if (storeConfig?.primaryColor) {
-      applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
-    }
+    try {
+      if (storeConfig?.primaryColor) {
+        if (typeof applyThemeToDocument === 'function') {
+          applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+        } else if (typeof window !== 'undefined' && typeof (window as any).applyThemeToDocument === 'function') {
+          (window as any).applyThemeToDocument(storeConfig.colorPalette, storeConfig.primaryColor, storeConfig.themeLayout);
+        }
+      }
+    } catch {}
   }, [storeConfig?.primaryColor, storeConfig?.colorPalette, storeConfig?.themeLayout]);
 
   const [customerInfo, setCustomerInfo] = useState(() => {

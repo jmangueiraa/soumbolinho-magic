@@ -127,10 +127,10 @@ html, body {
   /* filter: brightness(0) invert(1); */
 }
 
-/* Remove o fundo branco e adapta a logo para o fundo escuro automaticamente */
+/* Garante exibição nítida e visível da imagem da logo em qualquer fundo */
 .logo-image {
-  mix-blend-mode: screen; /* Transforma o fundo branco em transparente no fundo escuro */
-  filter: brightness(1.2);  /* Aumenta o brilho para destacar os traços */
+  mix-blend-mode: normal !important;
+  object-fit: contain;
 }
 
 /* =========================================================

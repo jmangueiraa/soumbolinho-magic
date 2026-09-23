@@ -52,9 +52,9 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
 
   const rawLogo = (
     propLogoUrl ||
-    storeConfig?.logoUrl ||
     currentStore?.logo_url ||
     currentStore?.theme_settings?.logo_url ||
+    storeConfig?.logoUrl ||
     ''
   ).trim();
 
@@ -139,7 +139,7 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
   return (
     <div className={`inline-flex items-center ${gapClasses} select-none bg-transparent min-w-0 ${className}`}>
       {/* Ícone da Marca: Imagem ou SVG Oficial AJPSTORE */}
-      <div className="logo-container relative flex items-center justify-center shrink-0">
+      <div className="relative flex items-center justify-center shrink-0">
         <div 
           className={`${sizeClasses} aspect-square rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-white/40 ring-2 sm:ring-4 ring-theme-primary shadow-lg bg-white transition-all duration-300 group-hover:scale-105`}
           style={{
@@ -154,7 +154,12 @@ export const SoumbolinhoLogo: React.FC<SoumbolinhoLogoProps> = ({
                 setImageError(true);
               }
             }}
-            className="logo-image w-full h-full object-contain rounded-full drop-shadow-sm transition-transform duration-300 group-hover:scale-110 pointer-events-none"
+            className="w-full h-full object-contain rounded-full drop-shadow-xs transition-transform duration-300 group-hover:scale-110 pointer-events-none"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              mixBlendMode: 'normal',
+            }}
           />
         </div>
       </div>

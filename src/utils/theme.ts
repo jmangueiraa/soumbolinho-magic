@@ -164,3 +164,12 @@ export function applyThemeToDocument(
     document.body.style.setProperty('--header-border', palette.headerBorder);
   }
 }
+
+// Garante disponibilidade global no window e globalThis para prevenir qualquer ReferenceError
+if (typeof window !== 'undefined') {
+  (window as any).applyThemeToDocument = applyThemeToDocument;
+}
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).applyThemeToDocument = applyThemeToDocument;
+}
+
