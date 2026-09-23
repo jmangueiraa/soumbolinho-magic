@@ -18,7 +18,8 @@ import {
   ShoppingBag,
   AlertTriangle,
   Sparkles,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
@@ -184,40 +185,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       
-      {/* 0. Banner Fixo de Aviso de Vencimento (5 dias ou menos) */}
-      {!isExemptFromBlock && !isExpired && isExpiringSoon && daysRemaining !== null && daysRemaining <= 5 && (
-        <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 text-white px-4 py-2.5 sm:px-6 shadow-md sticky top-0 z-50 transition-all">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 text-center sm:text-left">
-              <div className="p-1.5 bg-white/20 rounded-xl shrink-0">
-                <AlertTriangle className="w-4 h-4 text-white animate-pulse" />
-              </div>
-              <p className="text-xs sm:text-sm font-semibold tracking-wide">
-                <span>Aviso de Vencimento: </span>
-                <span className="font-extrabold underline decoration-amber-200">
-                  {daysRemaining === 1 ? 'Resta apenas 1 dia' : `Restam ${daysRemaining} dias`}
-                </span>
-                {expiryFormatted && <span> (vence em {expiryFormatted})</span>}
-                <span>. Mensalidade da loja: </span>
-                <span className="font-extrabold">R$ {monthlyFeeFormatted}/mês</span>.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowRenewalModal(true)}
-                className="px-3.5 py-1.5 bg-white text-orange-700 hover:bg-orange-50 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-                <span>Renovar Agora (Pix)</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Renovação Preventiva (aberto ao clicar em 'Renovar Agora' no banner) */}
+      {/* Modal de Renovação Preventiva (aberto ao clicar em 'Renovar Plano' no card oficial) */}
       {showRenewalModal && (
         <SubscriptionBlockedScreen 
           isHardLock={false} 
@@ -393,35 +361,50 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ onBackToStore, initial
         {/* 3. Área de Conteúdo à Direita */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
 
-          {/* Banner de Ciclo de 30 Dias / Período Inicial (Apenas para Lojas de Clientes, NUNCA para a Matriz Vitalícia) */}
-          {!isBaseStore && isTrial && !isExpiringSoon && (
-            <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold">
-              <div className="flex items-center gap-2 mx-auto sm:mx-0">
-                <span className="text-base sm:text-lg animate-bounce">🎁</span>
-                <span>
-                  Período de Mensalidade (30 dias): Restam{' '}
-                  <strong className="underline decoration-pink-200">
-                    {daysRemaining !== null ? (daysRemaining > 0 ? daysRemaining : 0) : 30}{' '}
-                    {daysRemaining === 1 ? 'dia' : 'dias'}
-                  </strong>{' '}
-                  para gerenciar sua loja. Valor do plano: R$ {(monthlyFee || 50).toFixed(2).replace('.', ',')}/mês.
-                </span>
-              </div>
-              {expiresAt && (
-                <span className="hidden md:inline-block bg-white/20 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-mono">
-                  Vence em: {new Date(expiresAt).toLocaleDateString('pt-BR')}
-                </span>
-              )}
-            </div>
-          )}
+          {/* Card Oficial de Status do Plano Mensal (Conforme solicitado pelo usuário) */}
+          {!isExemptFromBlock && !isExpired && (
+            <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-0">
+              <div className="bg-[#E8F8EE] border border-[#BBECCD] rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                
+                {/* Lado Esquerdo: Ícone Redondo com borda + Textos */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#D1F3DE] border border-[#A1E4BA] text-[#059669] flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4 text-[#059669]" />
+                  </div>
 
-          {/* Aviso de Renovação Pendente (5 dias ou menos antes de vencer - Apenas Lojas de Clientes) */}
-          {!isBaseStore && isExpiringSoon && (
-            <div className="bg-amber-500 text-white border-b border-amber-600 px-4 py-2.5 text-center text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm animate-pulse">
-              <AlertCircle className="w-5 h-5 text-yellow-200 shrink-0" />
-              <span>
-                ⚠️ Aviso de Renovação Pendente: A mensalidade da sua loja vence em <strong>{daysRemaining} {daysRemaining === 1 ? 'dia' : 'dias'}</strong> ({expiresAt ? new Date(expiresAt).toLocaleDateString('pt-BR') : ''}). Efetue o pagamento de R$ {(monthlyFee || 50).toFixed(2).replace('.', ',')} para evitar o bloqueio automático do seu painel administrativo.
-              </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-900 text-xs sm:text-sm tracking-tight">
+                        Plano Mensal Ativo
+                      </span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                        isExpiringSoon 
+                          ? 'bg-amber-100 text-amber-800 border-amber-300' 
+                          : 'bg-[#D1F3DE] text-[#047857] border-[#A1E4BA]'
+                      }`}>
+                        {daysRemaining !== null 
+                          ? (daysRemaining === 1 ? 'Resta 1 dia' : `Restam ${daysRemaining} dias`) 
+                          : 'Restam 30 dias'}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-tight">
+                      Validade da assinatura até <strong className="text-slate-700 font-bold">{expiryFormatted || '30 dias'}</strong>. Todos os recursos e redirecionamentos estão operando normalmente.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Lado Direito: Botão de Renovar Plano */}
+                <button
+                  type="button"
+                  onClick={() => setShowRenewalModal(true)}
+                  className="bg-white hover:bg-emerald-50/60 text-[#047857] border border-[#9EE2B9] hover:border-[#059669] px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all active:scale-98 cursor-pointer shrink-0"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-[#059669]" />
+                  <span>Renovar Plano (R$ {monthlyFeeFormatted})</span>
+                </button>
+
+              </div>
             </div>
           )}
 
