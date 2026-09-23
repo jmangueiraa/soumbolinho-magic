@@ -20,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const {
       message = '',
       event_type = 'general',
+      parse_mode = 'HTML',
       telegram_bot_token = '',
       telegram_chat_id = '',
       store_data = null,
@@ -133,7 +134,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!botToken || !chatId) {
-      console.warn('[notify-admin-telegram] ⚠️ Token ou Chat ID do Telegram não configurados.');
+      console.warn('[notify-admin-telegram] ⚠️ Token ou Chat ID do Telegram estão vazios/nulos no backend.', {
+        botTokenConfigured: Boolean(botToken),
+        chatIdConfigured: Boolean(chatId)
+      });
       return res.status(200).json({
         success: false,
         warning: 'Telegram Bot Token ou Chat ID não configurados no Super Admin ou nas variáveis de ambiente.',
@@ -142,26 +146,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log(`[notify-admin-telegram] 🚀 Despachando mensagem para Chat ID: ${chatId.slice(0, 4)}****`);
+    console.log(`[notify-admin-telegram] 🚀 Despachando mensagem para Chat ID: ${chatId.slice(0, 4)}**** (parse_mode: ${parse_mode})`);
+    console.log(`[notify-admin-telegram] 📤 [Fetch Telegram] Enviando requisição para https://api.telegram.org/bot${botToken.slice(0, 6)}.../sendMessage`);
 
-    // 1. Primeira tentativa: com parse_mode: 'Markdown'
+    // 1. Primeira tentativa: com parse_mode solicitado (default 'HTML')
     let tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
-        parse_mode: 'Markdown',
+        parse_mode: parse_mode,
         disable_web_page_preview: true
       })
     });
 
+    let tgStatus = tgRes.status;
     let tgData = await tgRes.json().catch(() => ({}));
 
-    // 2. Se falhar por erro de parsing do Markdown (ex: caracteres especiais), reenvia como texto puro
-    if (!tgRes.ok && (tgData?.description?.includes("can't parse") || tgData?.description?.includes("entity"))) {
-      console.warn('[notify-admin-telegram] ⚠️ Erro de parsing Markdown no Telegram. Reenviando em texto plano...', tgData?.description);
-      const plainText = message.replace(/[*_`]/g, '');
+    console.log('[notify-admin-telegram] 📥 Status da resposta do Telegram:', tgStatus);
+    console.log('[notify-admin-telegram] 📥 Corpo do retorno retornado pelo Telegram:', tgData);
+
+    // 2. Se falhar por erro de parsing (ex: tags mal fechadas ou caracteres não reconhecidos), reenvia como texto puro
+    if (!tgRes.ok && (tgData?.description?.toLowerCase().includes("can't parse") || tgData?.description?.toLowerCase().includes("entity"))) {
+      console.warn('[notify-admin-telegram] ⚠️ Erro de parsing no Telegram. Reenviando em texto plano...', tgData?.description);
+      const plainText = message.replace(/<[^>]*>/g, '').replace(/[*_`]/g, '');
       tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,7 +180,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           disable_web_page_preview: true
         })
       });
+      tgStatus = tgRes.status;
       tgData = await tgRes.json().catch(() => ({}));
+      console.log('[notify-admin-telegram] 📥 Status do reenvio em texto simples:', tgStatus);
+      console.log('[notify-admin-telegram] 📥 Corpo do retorno do reenvio:', tgData);
     }
 
     if (tgRes.ok && tgData.ok) {
@@ -179,15 +191,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         success: true,
         messageId: tgData?.result?.message_id,
-        event_type
+        status: tgStatus,
+        event_type,
+        body: tgData
       });
     }
 
     console.warn('[notify-admin-telegram] ❌ Telegram recusou envio:', tgData);
     return res.status(200).json({
       success: false,
+      status: tgStatus,
       error: tgData?.description || 'Falha ao entregar mensagem no Telegram.',
-      details: tgData
+      body: tgData
     });
 
   } catch (error: any) {

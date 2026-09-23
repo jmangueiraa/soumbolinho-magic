@@ -785,6 +785,26 @@ export async function createStoreWithClient(
       return { store: null, error: storeError?.message || 'Erro ao gravar loja no banco de dados.' };
     }
 
+    // GATILHO OBRIGATÓRIO: Notificação imediata para o Telegram Super Admin
+    // Executada IMEDIATAMENTE após a inserção bem-sucedida na tabela 'stores'
+    try {
+      console.log('[storeManagementService] 🚀 [GATILHO] Loja inserida com sucesso em stores! Disparando notificação Telegram...');
+      notifyNewStoreCreated({
+        store_name: resolvedStoreName,
+        client_name: resolvedClientName,
+        whatsapp_number: input.whatsappNumber?.trim() || input.clientPhone?.trim() || 'Não informado',
+        client_email: resolvedClientEmail,
+        slug: storeSlug,
+        status: input.subscriptionStatus === 'trial' ? 'Período de Testes (Trial)' : (input.subscriptionStatus || 'Ativo')
+      }).then((tgRes) => {
+        console.log('[storeManagementService] 📬 Retorno da notificação do Telegram:', tgRes);
+      }).catch((tgErr) => {
+        console.error('[storeManagementService] ❌ Erro ao disparar Telegram pós-insert stores:', tgErr);
+      });
+    } catch (tgSyncErr) {
+      console.error('[storeManagementService] ❌ Falha síncrona no gatilho do Telegram:', tgSyncErr);
+    }
+
     // 3. Salva ou atualiza a tabela store_config exclusivamente com os dados da nova loja
     try {
       await saveStoreConfigInSupabase({
@@ -863,25 +883,6 @@ export async function createStoreWithClient(
       } catch (e) {
         console.warn('[storeManagementService] Erro ao disparar sincronização com Vercel:', e);
       }
-    }
-
-    // Notificação automática de Nova Loja Criada para o Telegram Super Admin
-    try {
-      console.log('[storeManagementService] 📢 Disparando notificação de Nova Loja Criada para o Telegram...');
-      await Promise.race([
-        notifyNewStoreCreated({
-          store_name: resolvedStoreName,
-          client_name: resolvedClientName,
-          whatsapp_number: input.whatsappNumber?.trim() || input.clientPhone?.trim() || 'Não informado',
-          client_email: resolvedClientEmail,
-          slug: storeSlug,
-          status: input.subscriptionStatus === 'trial' ? 'Período de Testes (Trial)' : (input.subscriptionStatus || 'Ativo')
-        }),
-        new Promise((resolve) => setTimeout(resolve, 2500))
-      ]);
-      console.log('[storeManagementService] ✅ Notificação do Telegram processada.');
-    } catch (tgErr) {
-      console.warn('[storeManagementService] Aviso notificação Telegram:', tgErr);
     }
 
     return { 

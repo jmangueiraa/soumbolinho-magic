@@ -76,7 +76,19 @@ export function formatLojistaWhatsApp(rawPhone?: string | null): {
 }
 
 /**
- * Escapa caracteres especiais de Markdown para evitar erros de parsing na API do Telegram.
+ * Escapa caracteres reservados para uso seguro com parse_mode: 'HTML' no Telegram.
+ * Apenas &, < e > precisam ser escapados. Caracteres como _, *, ., - permanecem inalterados.
+ */
+export function escapeTgHtml(text: any): string {
+  if (text === null || text === undefined) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Escapa caracteres especiais de Markdown para fallback caso necessário.
  */
 function escapeTgMarkdown(text: any): string {
   if (text === null || text === undefined) return '';
@@ -85,93 +97,175 @@ function escapeTgMarkdown(text: any): string {
 
 /**
  * Envia uma mensagem formatada para o Bot do Telegram do Super Admin.
- * Prioriza o endpoint serverless /api/notify-admin-telegram para contornar
- * limitações de CORS e bloqueio de ad-blockers no navegador.
+ * Suporta tanto envio direto via navegador quanto a rota serverless /api/notify-admin-telegram.
+ * Fornece logs detalhados do status da resposta e corpo retornado.
  */
 export async function sendTelegramAdminNotification(
-  messageText: string,
+  messageHtml: string,
   eventType: string = 'general'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Tenta recuperar credenciais do cliente/localStorage como apoio
+    console.log(`[adminTelegramNotification] 🚀 Disparo de notificação iniciado para o evento [${eventType}]...`);
+
+    // 1. Tenta recuperar credenciais do cliente/localStorage/banco
     const globalSettings = await fetchGlobalSettings().catch(() => ({} as any));
-    const token = (globalSettings?.telegram_bot_token || '').trim();
-    const chatId = (globalSettings?.telegram_chat_id || '').trim();
+    let token = (globalSettings?.telegram_bot_token || '').trim();
+    let chatId = (globalSettings?.telegram_chat_id || '').trim();
 
-    // 2. Prioridade: Enviar através da Serverless Function /api/notify-admin-telegram
-    // Isso evita problemas de CORS do navegador, bloqueio de adblockers e consulta o Supabase no servidor
-    try {
-      const serverRes = await fetch('/api/notify-admin-telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: messageText,
-          event_type: eventType,
-          telegram_bot_token: token || undefined,
-          telegram_chat_id: chatId || undefined
-        })
-      });
-
-      if (serverRes.ok) {
-        const serverData = await serverRes.json().catch(() => ({}));
-        if (serverData.success) {
-          console.log('[adminTelegramNotification] ✅ Alerta entregue com sucesso via /api/notify-admin-telegram!');
-          return { success: true };
-        } else if (serverData.warning) {
-          console.warn('[adminTelegramNotification] ⚠️ Aviso da API:', serverData.warning);
-        } else if (serverData.error) {
-          console.warn('[adminTelegramNotification] ⚠️ Erro retornado pela API:', serverData.error);
-        }
+    // Se ainda estiver vazio, busca em chaves locais adicionais
+    if (typeof window !== 'undefined') {
+      if (!token) {
+        token = (
+          localStorage.getItem('global_telegram_bot_token') ||
+          localStorage.getItem('telegram_bot_token') ||
+          localStorage.getItem('encantando_festa_telegram_bot_token') ||
+          ''
+        ).trim();
       }
-    } catch (apiErr) {
-      console.warn('[adminTelegramNotification] Endpoint /api/notify-admin-telegram inacessível, tentando fallback direto...', apiErr);
+      if (!chatId) {
+        chatId = (
+          localStorage.getItem('global_telegram_chat_id') ||
+          localStorage.getItem('telegram_chat_id') ||
+          localStorage.getItem('encantando_festa_telegram_chat_id') ||
+          ''
+        ).trim();
+      }
     }
 
-    // 3. Fallback: Envio direto via Telegram Bot API caso a API serverless não esteja ativa localmente
+    // Diagnóstico claro se bot token ou chat_id estiverem vazios/nulos
+    if (!token || !chatId) {
+      console.warn('[adminTelegramNotification] ⚠️ Token ou Chat ID do Telegram estão vazios/nulos no cliente:', {
+        botTokenConfigured: Boolean(token),
+        chatIdConfigured: Boolean(chatId),
+        tokenLength: token ? token.length : 0,
+        chatId: chatId || 'NÃO CONFIGURADO'
+      });
+    } else {
+      console.log('[adminTelegramNotification] 🔑 Credenciais identificadas:', {
+        botToken: `${token.slice(0, 6)}...${token.slice(-4)}`,
+        chatId: chatId
+      });
+    }
+
+    let lastError = '';
+
+    // 2. Método 1: Envio DIRETO para a API do Telegram (parse_mode: 'HTML')
+    // Exibe logs detalhados (status e json) diretamente no console do navegador
     if (token && chatId) {
       try {
-        let res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: messageText,
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true
-          })
+        const directUrl = `https://api.telegram.org/bot${token}/sendMessage`;
+        const directPayload = {
+          chat_id: chatId,
+          text: messageHtml,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true
+        };
+
+        console.log('[adminTelegramNotification] 📤 [Fetch Direto] Enviando payload para Telegram:', {
+          url: `https://api.telegram.org/bot${token.slice(0, 6)}.../sendMessage`,
+          parse_mode: 'HTML',
+          payload: directPayload
         });
 
-        let data = await res.json().catch(() => ({}));
+        const response = await fetch(directUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(directPayload),
+          keepalive: true
+        });
 
-        // Se falhar no parsing de markdown, tenta texto simples
-        if (!res.ok && data?.description?.includes("can't parse")) {
-          const plainText = messageText.replace(/[*_`]/g, '');
-          res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        const status = response.status;
+        const responseData = await response.json().catch(() => ({}));
+
+        console.log('[adminTelegramNotification] 📥 [Fetch Direto] Status da resposta:', status);
+        console.log('[adminTelegramNotification] 📥 [Fetch Direto] Corpo do retorno:', responseData);
+
+        if (response.ok && responseData.ok) {
+          console.log('[adminTelegramNotification] ✅ [Fetch Direto] Mensagem entregue com sucesso! Message ID:', responseData.result?.message_id);
+          return { success: true };
+        }
+
+        console.error('[adminTelegramNotification] ❌ [Fetch Direto] Telegram recusou o envio:', {
+          status,
+          error_code: responseData?.error_code,
+          description: responseData?.description,
+          body: responseData
+        });
+
+        // Se falhar por erro de parsing do HTML, tenta reenviar em texto simples puro
+        if (responseData?.description?.toLowerCase().includes("can't parse") || responseData?.description?.toLowerCase().includes("entity")) {
+          console.warn('[adminTelegramNotification] ⚠️ Erro de parsing HTML. Tentando reenviar em texto simples (sem tags)...');
+          const plainText = messageHtml.replace(/<[^>]*>/g, '');
+          const retryRes = await fetch(directUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
               text: plainText,
               disable_web_page_preview: true
-            })
+            }),
+            keepalive: true
           });
-          data = await res.json().catch(() => ({}));
+          const retryStatus = retryRes.status;
+          const retryData = await retryRes.json().catch(() => ({}));
+          console.log('[adminTelegramNotification] 📥 [Reenvio Texto Simples] Status:', retryStatus);
+          console.log('[adminTelegramNotification] 📥 [Reenvio Texto Simples] Corpo:', retryData);
+          if (retryRes.ok && retryData.ok) {
+            console.log('[adminTelegramNotification] ✅ [Reenvio Texto Simples] Mensagem entregue com sucesso!');
+            return { success: true };
+          }
         }
 
-        if (res.ok && data.ok) {
-          console.log('[adminTelegramNotification] ✅ Alerta entregue com sucesso via fallback direto!');
-          return { success: true };
-        }
-
-        console.warn('[adminTelegramNotification] ⚠️ Resposta do Telegram no fallback direto:', data);
-        return { success: false, error: data.description || 'Falha ao enviar mensagem.' };
+        lastError = responseData?.description || `Erro HTTP ${status} no Telegram`;
       } catch (directErr: any) {
-        return { success: false, error: directErr.message || 'Erro de conexão no Telegram.' };
+        console.warn('[adminTelegramNotification] ⚠️ Falha na conexão direta com Telegram (possível ad-blocker ou CORS):', directErr);
+        lastError = directErr?.message || 'Falha de conexão com a API do Telegram';
       }
     }
 
-    console.warn('[adminTelegramNotification] ⚠️ Token ou Chat ID do Telegram não configurados no Super Admin.');
-    return { success: false, error: 'Credenciais do Telegram não configuradas no Super Admin.' };
+    // 3. Método 2: Rota Serverless /api/notify-admin-telegram
+    // Útil caso o fetch direto seja bloqueado por adblocker ou credenciais estejam apenas no servidor
+    try {
+      console.log('[adminTelegramNotification] 🔄 Tentando envio via rota serverless /api/notify-admin-telegram...');
+      const serverRes = await fetch('/api/notify-admin-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageHtml,
+          parse_mode: 'HTML',
+          event_type: eventType,
+          telegram_bot_token: token || undefined,
+          telegram_chat_id: chatId || undefined
+        }),
+        keepalive: true
+      });
+
+      const serverStatus = serverRes.status;
+      const serverData = await serverRes.json().catch(() => ({}));
+
+      console.log('[adminTelegramNotification] 📥 [Rota Serverless] Status da resposta:', serverStatus);
+      console.log('[adminTelegramNotification] 📥 [Rota Serverless] Corpo do retorno:', serverData);
+
+      if (serverRes.ok && serverData.success) {
+        console.log('[adminTelegramNotification] ✅ [Rota Serverless] Notificação entregue com sucesso via backend!');
+        return { success: true };
+      }
+
+      if (serverData?.error) {
+        lastError = serverData.error;
+      }
+    } catch (apiErr: any) {
+      console.warn('[adminTelegramNotification] ⚠️ Rota serverless /api/notify-admin-telegram inacessível:', apiErr);
+    }
+
+    if (!token || !chatId) {
+      return {
+        success: false,
+        error: 'Token ou Chat ID do Telegram não configurados no Painel Super Admin (Aba Integrações / APIs).'
+      };
+    }
+
+    return { success: false, error: lastError || 'Falha ao entregar notificação no Telegram.' };
   } catch (err: any) {
     console.error('[adminTelegramNotification] ❌ Exceção ao enviar notificação:', err);
     return { success: false, error: err.message || 'Erro de conexão' };
@@ -181,28 +275,31 @@ export async function sendTelegramAdminNotification(
 /**
  * EVENTO 1: Nova Loja Criada (Onboarding)
  * Gatilho: Imediatamente após a inserção bem-sucedida na tabela 'stores'.
+ * Payload formatado em HTML para suportar qualquer caractere sem erros de parse.
  */
 export async function notifyNewStoreCreated(data: TelegramNewStorePayload): Promise<{ success: boolean; error?: string }> {
   try {
     const phone = formatLojistaWhatsApp(data.whatsapp_number);
-    const storeName = escapeTgMarkdown(data.store_name);
-    const clientName = escapeTgMarkdown(data.client_name || 'Lojista');
-    const clientEmail = escapeTgMarkdown(data.client_email || 'Não informado');
+    const storeName = escapeTgHtml(data.store_name);
+    const clientName = escapeTgHtml(data.client_name || 'Lojista');
+    const clientEmail = escapeTgHtml(data.client_email || 'Não informado');
     const slug = (data.slug || '').toLowerCase().trim();
-    const status = escapeTgMarkdown(data.status || 'Período de Testes (Trial)');
+    const cleanDigits = phone.cleanDigits;
+    const whatsappDisplay = escapeTgHtml(phone.display);
 
     const message = 
-      `🚀 *NOVA LOJA CRIADA!*\n` +
-      `• Loja: ${storeName}\n` +
-      `• Cliente: ${clientName}\n` +
-      `• WhatsApp: ${phone.display} (${phone.waLink})\n` +
-      `• E-mail: ${clientEmail}\n` +
-      `• Domínio/Link: ${slug}.ajpstore.com.br\n` +
-      `• Status: ${status}`;
+      `🚀 <b>NOVA LOJA CRIADA!</b>\n` +
+      `• <b>Loja:</b> ${storeName}\n` +
+      `• <b>Cliente:</b> ${clientName}\n` +
+      `• <b>WhatsApp:</b> ${whatsappDisplay} (https://wa.me/55${cleanDigits})\n` +
+      `• <b>E-mail:</b> ${clientEmail}\n` +
+      `• <b>Link:</b> https://${slug}.ajpstore.com.br`;
+
+    console.log('[adminTelegramNotification] 📦 Payload formatado para Nova Loja Criada:\n', message);
 
     return await sendTelegramAdminNotification(message, 'new_store');
   } catch (err: any) {
-    console.warn('[adminTelegramNotification] Erro ao disparar Nova Loja Criada:', err);
+    console.error('[adminTelegramNotification] ❌ Erro ao disparar Nova Loja Criada:', err);
     return { success: false, error: err.message };
   }
 }
@@ -241,7 +338,6 @@ export async function notifyStoreCreatedById(storeId: string): Promise<{ success
  */
 export async function notifyPaymentApproved(data: TelegramPaymentApprovedPayload): Promise<{ success: boolean; error?: string }> {
   try {
-    // Se whatsapp_number ou store_name não foram passados diretamente, busca no Supabase
     let storeName = data.store_name;
     let clientName = data.client_name;
     let rawPhone = data.whatsapp_number;
@@ -270,28 +366,29 @@ export async function notifyPaymentApproved(data: TelegramPaymentApprovedPayload
     }
 
     const phone = formatLojistaWhatsApp(rawPhone);
-    const finalStoreName = escapeTgMarkdown(storeName || 'Loja AJPSTORE');
-    const finalClientName = escapeTgMarkdown(clientName || 'Lojista');
+    const finalStoreName = escapeTgHtml(storeName || 'Loja AJPSTORE');
+    const finalClientName = escapeTgHtml(clientName || 'Lojista');
+    const whatsappDisplay = escapeTgHtml(phone.display);
 
     const valorFormatted = typeof data.valor === 'number'
       ? data.valor.toFixed(2).replace('.', ',')
       : String(data.valor).replace('.', ',');
 
-    const forma = escapeTgMarkdown(data.forma || 'Pix');
-    const dataRenovada = escapeTgMarkdown(data.data_renovada || '30 dias');
+    const forma = escapeTgHtml(data.forma || 'Pix');
+    const dataRenovada = escapeTgHtml(data.data_renovada || '30 dias');
 
     const message = 
-      `💰 *PAGAMENTO CONFIRMADO!*\n` +
-      `• Loja: ${finalStoreName}\n` +
-      `• Cliente: ${finalClientName}\n` +
-      `• WhatsApp: ${phone.display} (${phone.waLink})\n` +
-      `• Valor: R$ ${valorFormatted}\n` +
-      `• Forma: ${forma}\n` +
-      `• Nova Validade: ${dataRenovada}`;
+      `💰 <b>PAGAMENTO CONFIRMADO!</b>\n` +
+      `• <b>Loja:</b> ${finalStoreName}\n` +
+      `• <b>Cliente:</b> ${finalClientName}\n` +
+      `• <b>WhatsApp:</b> ${whatsappDisplay} (https://wa.me/55${phone.cleanDigits})\n` +
+      `• <b>Valor:</b> R$ ${valorFormatted}\n` +
+      `• <b>Forma:</b> ${forma}\n` +
+      `• <b>Nova Validade:</b> ${dataRenovada}`;
 
     return await sendTelegramAdminNotification(message, 'payment');
   } catch (err: any) {
-    console.warn('[adminTelegramNotification] Erro ao disparar Pagamento Confirmado:', err);
+    console.error('[adminTelegramNotification] ❌ Erro ao disparar Pagamento Confirmado:', err);
     return { success: false, error: err.message };
   }
 }
@@ -303,23 +400,24 @@ export async function notifyPaymentApproved(data: TelegramPaymentApprovedPayload
 export async function notifyPlanExpiring(data: TelegramPlanExpiringPayload): Promise<{ success: boolean; error?: string }> {
   try {
     const phone = formatLojistaWhatsApp(data.whatsapp_number);
-    const storeName = escapeTgMarkdown(data.store_name);
-    const clientName = escapeTgMarkdown(data.client_name || 'Lojista');
+    const storeName = escapeTgHtml(data.store_name);
+    const clientName = escapeTgHtml(data.client_name || 'Lojista');
+    const whatsappDisplay = escapeTgHtml(phone.display);
     const diasRestantes = data.dias_restantes;
-    const dataVencimento = escapeTgMarkdown(data.data_vencimento || 'Em breve');
-    const status = escapeTgMarkdown(data.status || 'Trial Ativo');
+    const dataVencimento = escapeTgHtml(data.data_vencimento || 'Em breve');
+    const status = escapeTgHtml(data.status || 'Trial Ativo');
 
     const message = 
-      `⚠️ *PLANO VENCENDO EM BREVE!*\n` +
-      `• Loja: ${storeName}\n` +
-      `• Cliente: ${clientName}\n` +
-      `• WhatsApp: ${phone.display} (${phone.waLink})\n` +
-      `• Vencimento em: ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'} (${dataVencimento})\n` +
-      `• Status atual: ${status}`;
+      `⚠️ <b>PLANO VENCENDO EM BREVE!</b>\n` +
+      `• <b>Loja:</b> ${storeName}\n` +
+      `• <b>Cliente:</b> ${clientName}\n` +
+      `• <b>WhatsApp:</b> ${whatsappDisplay} (https://wa.me/55${phone.cleanDigits})\n` +
+      `• <b>Vencimento em:</b> ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'} (${dataVencimento})\n` +
+      `• <b>Status atual:</b> ${status}`;
 
     return await sendTelegramAdminNotification(message, 'expiring');
   } catch (err: any) {
-    console.warn('[adminTelegramNotification] Erro ao disparar Plano Vencendo:', err);
+    console.error('[adminTelegramNotification] ❌ Erro ao disparar Plano Vencendo:', err);
     return { success: false, error: err.message };
   }
 }

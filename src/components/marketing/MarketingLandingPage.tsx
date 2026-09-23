@@ -328,6 +328,23 @@ export const MarketingLandingPage: React.FC = () => {
         throw new Error('Não foi possível registrar a loja no banco de dados. Tente novamente.');
       }
 
+      // 4.1. GATILHO OBRIGATÓRIO: Notificação imediata para o Telegram Super Admin
+      // Executada IMEDIATAMENTE após a inserção bem-sucedida na tabela 'stores'
+      try {
+        console.log('[Cadastro Loja] 🚀 [GATILHO] Loja inserida com sucesso em stores! Disparando notificação Telegram...');
+        const tgRes = await notifyNewStoreCreated({
+          store_name: formData.storeName.trim(),
+          client_name: (cleanOwnerName || formData.clientName || '').trim(),
+          whatsapp_number: cleanWhatsApp,
+          client_email: cleanEmail,
+          slug: cleanSlug,
+          status: 'Período de Testes (Trial)'
+        });
+        console.log('[Cadastro Loja] 📬 Retorno da notificação do Telegram:', tgRes);
+      } catch (tgErr) {
+        console.error('[Cadastro Loja] ❌ Erro ao disparar Telegram pós-insert stores:', tgErr);
+      }
+
       // 5. Vincula usuário na tabela store_users caso exista
       try {
         await supabase.from('store_users').insert([{
@@ -348,25 +365,6 @@ export const MarketingLandingPage: React.FC = () => {
         sessionStorage.setItem('last_created_store_id', newStoreId);
       } catch (err) {
         console.log('[Cadastro Loja] Aviso sessionStorage:', err);
-      }
-
-      // 6.1. Disparo imediato da notificação de Nova Loja Criada para o Telegram Super Admin
-      try {
-        console.log('[Cadastro Loja] 📢 Disparando notificação de Nova Loja Criada para o Telegram...');
-        await Promise.race([
-          notifyNewStoreCreated({
-            store_name: formData.storeName.trim(),
-            client_name: (cleanOwnerName || formData.clientName || '').trim(),
-            whatsapp_number: cleanWhatsApp,
-            client_email: cleanEmail,
-            slug: cleanSlug,
-            status: 'Período de Testes (Trial)'
-          }),
-          new Promise((resolve) => setTimeout(resolve, 2500))
-        ]);
-        console.log('[Cadastro Loja] ✅ Notificação do Telegram processada.');
-      } catch (tgErr) {
-        console.warn('[Cadastro Loja] Aviso notificação Telegram:', tgErr);
       }
 
       // 7. Proteção da Clonagem: bloco seguro garantindo que a loja principal continue registrada mesmo se a cópia falhar

@@ -253,10 +253,22 @@ export async function saveGlobalSettings(
       if (cleanSettings.mp_access_token) payloadToUpdate.mp_access_token = cleanSettings.mp_access_token;
       if (cleanSettings.mp_public_key) payloadToUpdate.mp_public_key = cleanSettings.mp_public_key;
 
-      const { error: storeErr } = await supabase
+      let { error: storeErr } = await supabase
         .from('stores')
         .update(payloadToUpdate)
         .eq('id', targetStore.id);
+
+      if (storeErr) {
+        console.warn('[globalSettingsService] Erro ao atualizar stores com colunas diretas, tentando apenas theme_settings:', storeErr.message);
+        const retryRes = await supabase
+          .from('stores')
+          .update({
+            theme_settings: updatedTheme,
+            updated_at: cleanSettings.updated_at
+          })
+          .eq('id', targetStore.id);
+        storeErr = retryRes.error;
+      }
 
       if (!storeErr) {
         savedInDb = true;
