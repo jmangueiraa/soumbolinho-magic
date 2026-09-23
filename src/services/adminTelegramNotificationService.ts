@@ -84,40 +84,94 @@ function escapeTgMarkdown(text: any): string {
 }
 
 /**
- * Envia uma mensagem formatada para o Bot do Telegram configurado no Super Admin.
- * Protegido com try/catch para que falhas de rede NUNCA travem operações da aplicação.
+ * Envia uma mensagem formatada para o Bot do Telegram do Super Admin.
+ * Prioriza o endpoint serverless /api/notify-admin-telegram para contornar
+ * limitações de CORS e bloqueio de ad-blockers no navegador.
  */
-export async function sendTelegramAdminNotification(messageText: string): Promise<{ success: boolean; error?: string }> {
+export async function sendTelegramAdminNotification(
+  messageText: string,
+  eventType: string = 'general'
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const globalSettings = await fetchGlobalSettings();
-    const token = (globalSettings.telegram_bot_token || '').trim();
-    const chatId = (globalSettings.telegram_chat_id || '').trim();
+    // 1. Tenta recuperar credenciais do cliente/localStorage como apoio
+    const globalSettings = await fetchGlobalSettings().catch(() => ({} as any));
+    const token = (globalSettings?.telegram_bot_token || '').trim();
+    const chatId = (globalSettings?.telegram_chat_id || '').trim();
 
-    if (!token || !chatId) {
-      console.warn('[adminTelegramNotification] ⚠️ Token ou Chat ID do Telegram não configurados no Super Admin.');
-      return { success: false, error: 'Credenciais do Telegram não configuradas no Super Admin.' };
+    // 2. Prioridade: Enviar através da Serverless Function /api/notify-admin-telegram
+    // Isso evita problemas de CORS do navegador, bloqueio de adblockers e consulta o Supabase no servidor
+    try {
+      const serverRes = await fetch('/api/notify-admin-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageText,
+          event_type: eventType,
+          telegram_bot_token: token || undefined,
+          telegram_chat_id: chatId || undefined
+        })
+      });
+
+      if (serverRes.ok) {
+        const serverData = await serverRes.json().catch(() => ({}));
+        if (serverData.success) {
+          console.log('[adminTelegramNotification] ✅ Alerta entregue com sucesso via /api/notify-admin-telegram!');
+          return { success: true };
+        } else if (serverData.warning) {
+          console.warn('[adminTelegramNotification] ⚠️ Aviso da API:', serverData.warning);
+        } else if (serverData.error) {
+          console.warn('[adminTelegramNotification] ⚠️ Erro retornado pela API:', serverData.error);
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[adminTelegramNotification] Endpoint /api/notify-admin-telegram inacessível, tentando fallback direto...', apiErr);
     }
 
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: messageText,
-        parse_mode: 'Markdown',
-        disable_web_page_preview: true
-      })
-    });
+    // 3. Fallback: Envio direto via Telegram Bot API caso a API serverless não esteja ativa localmente
+    if (token && chatId) {
+      try {
+        let res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: messageText,
+            parse_mode: 'Markdown',
+            disable_web_page_preview: true
+          })
+        });
 
-    const data = await res.json().catch(() => ({}));
+        let data = await res.json().catch(() => ({}));
 
-    if (res.ok && data.ok) {
-      console.log('[adminTelegramNotification] ✅ Alerta entregue com sucesso no Telegram!');
-      return { success: true };
+        // Se falhar no parsing de markdown, tenta texto simples
+        if (!res.ok && data?.description?.includes("can't parse")) {
+          const plainText = messageText.replace(/[*_`]/g, '');
+          res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: plainText,
+              disable_web_page_preview: true
+            })
+          });
+          data = await res.json().catch(() => ({}));
+        }
+
+        if (res.ok && data.ok) {
+          console.log('[adminTelegramNotification] ✅ Alerta entregue com sucesso via fallback direto!');
+          return { success: true };
+        }
+
+        console.warn('[adminTelegramNotification] ⚠️ Resposta do Telegram no fallback direto:', data);
+        return { success: false, error: data.description || 'Falha ao enviar mensagem.' };
+      } catch (directErr: any) {
+        return { success: false, error: directErr.message || 'Erro de conexão no Telegram.' };
+      }
     }
 
-    console.warn('[adminTelegramNotification] ⚠️ Resposta do Telegram:', data);
-    return { success: false, error: data.description || 'Falha ao enviar mensagem.' };
+    console.warn('[adminTelegramNotification] ⚠️ Token ou Chat ID do Telegram não configurados no Super Admin.');
+    return { success: false, error: 'Credenciais do Telegram não configuradas no Super Admin.' };
   } catch (err: any) {
     console.error('[adminTelegramNotification] ❌ Exceção ao enviar notificação:', err);
     return { success: false, error: err.message || 'Erro de conexão' };
@@ -134,7 +188,7 @@ export async function notifyNewStoreCreated(data: TelegramNewStorePayload): Prom
     const storeName = escapeTgMarkdown(data.store_name);
     const clientName = escapeTgMarkdown(data.client_name || 'Lojista');
     const clientEmail = escapeTgMarkdown(data.client_email || 'Não informado');
-    const slug = data.slug.toLowerCase().trim();
+    const slug = (data.slug || '').toLowerCase().trim();
     const status = escapeTgMarkdown(data.status || 'Período de Testes (Trial)');
 
     const message = 
@@ -146,9 +200,37 @@ export async function notifyNewStoreCreated(data: TelegramNewStorePayload): Prom
       `• Domínio/Link: ${slug}.ajpstore.com.br\n` +
       `• Status: ${status}`;
 
-    return await sendTelegramAdminNotification(message);
+    return await sendTelegramAdminNotification(message, 'new_store');
   } catch (err: any) {
     console.warn('[adminTelegramNotification] Erro ao disparar Nova Loja Criada:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Permite reenviar a notificação de Nova Loja Criada para uma loja existente no Supabase.
+ */
+export async function notifyStoreCreatedById(storeId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: store, error } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('id', storeId)
+      .maybeSingle();
+
+    if (error || !store) {
+      return { success: false, error: error?.message || 'Loja não encontrada no banco de dados.' };
+    }
+
+    return await notifyNewStoreCreated({
+      store_name: store.store_name || store.name,
+      client_name: store.client_name || store.owner_name,
+      whatsapp_number: store.whatsapp_number || store.owner_phone,
+      client_email: store.client_email || store.owner_email,
+      slug: store.slug,
+      status: store.subscription_status === 'trial' ? 'Período de Testes (Trial)' : (store.subscription_status || 'Ativo')
+    });
+  } catch (err: any) {
     return { success: false, error: err.message };
   }
 }
@@ -207,7 +289,7 @@ export async function notifyPaymentApproved(data: TelegramPaymentApprovedPayload
       `• Forma: ${forma}\n` +
       `• Nova Validade: ${dataRenovada}`;
 
-    return await sendTelegramAdminNotification(message);
+    return await sendTelegramAdminNotification(message, 'payment');
   } catch (err: any) {
     console.warn('[adminTelegramNotification] Erro ao disparar Pagamento Confirmado:', err);
     return { success: false, error: err.message };
@@ -235,7 +317,7 @@ export async function notifyPlanExpiring(data: TelegramPlanExpiringPayload): Pro
       `• Vencimento em: ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'} (${dataVencimento})\n` +
       `• Status atual: ${status}`;
 
-    return await sendTelegramAdminNotification(message);
+    return await sendTelegramAdminNotification(message, 'expiring');
   } catch (err: any) {
     console.warn('[adminTelegramNotification] Erro ao disparar Plano Vencendo:', err);
     return { success: false, error: err.message };

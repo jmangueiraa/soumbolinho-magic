@@ -867,14 +867,19 @@ export async function createStoreWithClient(
 
     // Notificação automática de Nova Loja Criada para o Telegram Super Admin
     try {
-      notifyNewStoreCreated({
-        store_name: resolvedStoreName,
-        client_name: resolvedClientName,
-        whatsapp_number: input.whatsappNumber?.trim() || input.clientPhone?.trim() || 'Não informado',
-        client_email: resolvedClientEmail,
-        slug: storeSlug,
-        status: input.subscriptionStatus === 'trial' ? 'Período de Testes (Trial)' : (input.subscriptionStatus || 'Ativo')
-      });
+      console.log('[storeManagementService] 📢 Disparando notificação de Nova Loja Criada para o Telegram...');
+      await Promise.race([
+        notifyNewStoreCreated({
+          store_name: resolvedStoreName,
+          client_name: resolvedClientName,
+          whatsapp_number: input.whatsappNumber?.trim() || input.clientPhone?.trim() || 'Não informado',
+          client_email: resolvedClientEmail,
+          slug: storeSlug,
+          status: input.subscriptionStatus === 'trial' ? 'Período de Testes (Trial)' : (input.subscriptionStatus || 'Ativo')
+        }),
+        new Promise((resolve) => setTimeout(resolve, 2500))
+      ]);
+      console.log('[storeManagementService] ✅ Notificação do Telegram processada.');
     } catch (tgErr) {
       console.warn('[storeManagementService] Aviso notificação Telegram:', tgErr);
     }

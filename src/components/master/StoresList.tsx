@@ -22,7 +22,8 @@ import {
   Gift, 
   Calendar,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Send
 } from 'lucide-react';
 import { Store } from '../../types';
 import { 
@@ -34,6 +35,7 @@ import {
   activatePaidSubscription, 
   setStoreExpirationDays 
 } from '../../services/storeManagementService';
+import { notifyStoreCreatedById } from '../../services/adminTelegramNotificationService';
 
 interface StoresListProps {
   stores: Store[];
@@ -61,6 +63,8 @@ export const StoresList: React.FC<StoresListProps> = ({
   const [customDateInput, setCustomDateInput] = useState<string>('');
   const [isSavingDays, setIsSavingDays] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [notifyingId, setNotifyingId] = useState<string | null>(null);
+  const [notifyFeedback, setNotifyFeedback] = useState<{ id: string; message: string; isError?: boolean } | null>(null);
 
   // Contagens para os filtros (exclui apenas a Matriz permanente AJPSTORE da contagem de clientes)
   const safeList = Array.isArray(stores) ? stores.filter(Boolean) : [];
@@ -251,6 +255,25 @@ export const StoresList: React.FC<StoresListProps> = ({
     }
 
     onRefresh();
+  };
+
+  const handleNotifyTelegram = async (store: Store) => {
+    setNotifyingId(store.id);
+    try {
+      const res = await notifyStoreCreatedById(store.id);
+      if (res.success) {
+        setNotifyFeedback({ id: store.id, message: `🚀 Notificação de "${store.name || store.store_name}" enviada ao Telegram!` });
+      } else {
+        setNotifyFeedback({ id: store.id, message: res.error || 'Falha ao enviar notificação.', isError: true });
+      }
+    } catch (e: any) {
+      setNotifyFeedback({ id: store.id, message: e.message || 'Erro inesperado.', isError: true });
+    } finally {
+      setNotifyingId(null);
+      setTimeout(() => {
+        setNotifyFeedback((prev) => (prev?.id === store.id ? null : prev));
+      }, 5000);
+    }
   };
 
   const getStoreUrl = (store: Store, admin = false) => {
@@ -597,6 +620,17 @@ export const StoresList: React.FC<StoresListProps> = ({
                         </button>
                       )}
 
+                      {!isMatriz && (
+                        <button
+                          onClick={() => handleNotifyTelegram(store)}
+                          disabled={notifyingId === store.id}
+                          className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                          title="Enviar/Reenviar alerta de Nova Loja no Telegram"
+                        >
+                          {notifyingId === store.id ? <Loader2 size={14} className="animate-spin text-indigo-600" /> : <Send size={14} />}
+                        </button>
+                      )}
+
                       <button
                         onClick={() => onOpenDns(store)}
                         className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer"
@@ -631,6 +665,18 @@ export const StoresList: React.FC<StoresListProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Feedback de Notificação do Telegram */}
+                  {notifyFeedback?.id === store.id && (
+                    <div className={`mt-2.5 p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-in fade-in duration-200 ${
+                      notifyFeedback.isError 
+                        ? 'bg-red-50 text-red-700 border border-red-200' 
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    }`}>
+                      <Send size={13} className={notifyFeedback.isError ? 'text-red-500' : 'text-emerald-600'} />
+                      <span>{notifyFeedback.message}</span>
+                    </div>
+                  )}
 
                 </div>
               );

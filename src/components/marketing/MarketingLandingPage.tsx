@@ -352,14 +352,19 @@ export const MarketingLandingPage: React.FC = () => {
 
       // 6.1. Disparo imediato da notificação de Nova Loja Criada para o Telegram Super Admin
       try {
-        notifyNewStoreCreated({
-          store_name: formData.storeName.trim(),
-          client_name: (cleanOwnerName || formData.clientName || '').trim(),
-          whatsapp_number: cleanWhatsApp,
-          client_email: cleanEmail,
-          slug: cleanSlug,
-          status: 'Período de Testes (Trial)'
-        });
+        console.log('[Cadastro Loja] 📢 Disparando notificação de Nova Loja Criada para o Telegram...');
+        await Promise.race([
+          notifyNewStoreCreated({
+            store_name: formData.storeName.trim(),
+            client_name: (cleanOwnerName || formData.clientName || '').trim(),
+            whatsapp_number: cleanWhatsApp,
+            client_email: cleanEmail,
+            slug: cleanSlug,
+            status: 'Período de Testes (Trial)'
+          }),
+          new Promise((resolve) => setTimeout(resolve, 2500))
+        ]);
+        console.log('[Cadastro Loja] ✅ Notificação do Telegram processada.');
       } catch (tgErr) {
         console.warn('[Cadastro Loja] Aviso notificação Telegram:', tgErr);
       }

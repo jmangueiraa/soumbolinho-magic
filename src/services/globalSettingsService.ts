@@ -41,29 +41,86 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
     console.warn('[globalSettingsService] Tabela global_settings ainda não consultável:', err);
   }
 
-  // 2. Se algum campo estiver vazio, tenta ler da loja Matriz (stores)
+  // 2. Se algum campo estiver vazio, busca na tabela stores (priorizando Matriz e varrendo todas as lojas)
   if (!result.mp_access_token || !result.telegram_bot_token) {
     try {
-      const { data: matrizData } = await supabase
+      const { data: storeRows } = await supabase
         .from('stores')
         .select('*')
-        .or('is_matriz.eq.true,slug.eq.ajpstore,id.eq.store_ajpstore')
-        .limit(1)
-        .maybeSingle();
+        .limit(30);
 
-      if (matrizData) {
-        if (!result.mp_access_token && matrizData.mp_access_token) {
-          result.mp_access_token = String(matrizData.mp_access_token).trim();
+      if (storeRows && storeRows.length > 0) {
+        // Procura primeiro pela loja Matriz oficial
+        const matrizStore = storeRows.find((s: any) => 
+          Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore'
+        );
+
+        if (matrizStore) {
+          if (!result.mp_access_token && matrizStore.mp_access_token) {
+            result.mp_access_token = String(matrizStore.mp_access_token).trim();
+          }
+          if (!result.mp_public_key && matrizStore.mp_public_key) {
+            result.mp_public_key = String(matrizStore.mp_public_key).trim();
+          }
+          if (!result.telegram_bot_token) {
+            result.telegram_bot_token = String(matrizStore.telegram_bot_token || matrizStore.theme_settings?.telegram_bot_token || '').trim();
+          }
+          if (!result.telegram_chat_id) {
+            result.telegram_chat_id = String(matrizStore.telegram_chat_id || matrizStore.theme_settings?.telegram_chat_id || '').trim();
+          }
         }
-        if (!result.telegram_bot_token && matrizData.telegram_bot_token) {
-          result.telegram_bot_token = String(matrizData.telegram_bot_token).trim();
-        }
-        if (!result.telegram_chat_id && matrizData.telegram_chat_id) {
-          result.telegram_chat_id = String(matrizData.telegram_chat_id).trim();
+
+        // Se ainda faltar algum campo, varre todas as lojas da plataforma procurando quem tem preenchido
+        if (!result.telegram_bot_token || !result.mp_access_token) {
+          for (const s of storeRows) {
+            const rowTgToken = s.telegram_bot_token || s.theme_settings?.telegram_bot_token;
+            const rowTgChat = s.telegram_chat_id || s.theme_settings?.telegram_chat_id;
+            const rowMpToken = s.mp_access_token || s.theme_settings?.mp_access_token;
+            const rowMpPub = s.mp_public_key || s.theme_settings?.mp_public_key;
+
+            if (!result.telegram_bot_token && rowTgToken) {
+              result.telegram_bot_token = String(rowTgToken).trim();
+            }
+            if (!result.telegram_chat_id && rowTgChat) {
+              result.telegram_chat_id = String(rowTgChat).trim();
+            }
+            if (!result.mp_access_token && rowMpToken) {
+              result.mp_access_token = String(rowMpToken).trim();
+            }
+            if (!result.mp_public_key && rowMpPub) {
+              result.mp_public_key = String(rowMpPub).trim();
+            }
+          }
         }
       }
     } catch (storeErr) {
-      console.warn('[globalSettingsService] Aviso ao consultar matriz em stores:', storeErr);
+      console.warn('[globalSettingsService] Aviso ao consultar stores:', storeErr);
+    }
+  }
+
+  // 2.1. Se ainda faltar, busca na tabela store_config
+  if (!result.mp_access_token || !result.telegram_bot_token) {
+    try {
+      const { data: cfgRows } = await supabase
+        .from('store_config')
+        .select('*')
+        .limit(20);
+
+      if (cfgRows && cfgRows.length > 0) {
+        for (const c of cfgRows) {
+          if (!result.telegram_bot_token && c.telegram_bot_token) {
+            result.telegram_bot_token = String(c.telegram_bot_token).trim();
+          }
+          if (!result.telegram_chat_id && c.telegram_chat_id) {
+            result.telegram_chat_id = String(c.telegram_chat_id).trim();
+          }
+          if (!result.mp_access_token && c.mp_access_token) {
+            result.mp_access_token = String(c.mp_access_token).trim();
+          }
+        }
+      }
+    } catch (cfgErr) {
+      console.warn('[globalSettingsService] Aviso ao consultar store_config:', cfgErr);
     }
   }
 
@@ -74,6 +131,7 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
         result.mp_access_token = (
           localStorage.getItem('global_mp_access_token') || 
           localStorage.getItem('mp_access_token') || 
+          localStorage.getItem('encantando_festa_mp_access_token') || 
           import.meta.env.VITE_MERCADO_PAGO_ACCESS_TOKEN || 
           ''
         ).trim();
@@ -89,6 +147,7 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
         result.telegram_bot_token = (
           localStorage.getItem('global_telegram_bot_token') || 
           localStorage.getItem('telegram_bot_token') || 
+          localStorage.getItem('encantando_festa_telegram_bot_token') || 
           ''
         ).trim();
       }
@@ -96,6 +155,7 @@ export async function fetchGlobalSettings(): Promise<GlobalApiSettings> {
         result.telegram_chat_id = (
           localStorage.getItem('global_telegram_chat_id') || 
           localStorage.getItem('telegram_chat_id') || 
+          localStorage.getItem('encantando_festa_telegram_chat_id') || 
           ''
         ).trim();
       }
@@ -149,26 +209,61 @@ export async function saveGlobalSettings(
     console.warn('[globalSettingsService] Exceção em global_settings:', err);
   }
 
-  // 2. Espelhar na loja Matriz (tabela stores) para compatibilidade imediata com rotinas existentes
+  // 2. Espelhar na loja Matriz e em stores para compatibilidade imediata
   try {
-    const updateStorePayload: any = {
-      updated_at: cleanSettings.updated_at
-    };
-    if (cleanSettings.mp_access_token) updateStorePayload.mp_access_token = cleanSettings.mp_access_token;
-    if (cleanSettings.telegram_bot_token) updateStorePayload.telegram_bot_token = cleanSettings.telegram_bot_token;
-    if (cleanSettings.telegram_chat_id) updateStorePayload.telegram_chat_id = cleanSettings.telegram_chat_id;
-
-    const { error: storeErr } = await supabase
+    const { data: storeRows } = await supabase
       .from('stores')
-      .update(updateStorePayload)
-      .or('is_matriz.eq.true,slug.eq.ajpstore,id.eq.store_ajpstore');
+      .select('id, slug, is_matriz, theme_settings')
+      .limit(20);
 
-    if (!storeErr) {
-      savedInDb = true;
-      console.log('[globalSettingsService] ✅ Configurações espelhadas na loja Matriz (stores)');
+    let targetStore = storeRows?.find((s: any) => 
+      Boolean(s.is_matriz) || s.slug === 'ajpstore' || s.id === 'store_ajpstore'
+    ) || storeRows?.[0];
+
+    if (targetStore) {
+      const updatedTheme = {
+        ...(targetStore.theme_settings || {}),
+        ...(cleanSettings.telegram_bot_token ? { telegram_bot_token: cleanSettings.telegram_bot_token } : {}),
+        ...(cleanSettings.telegram_chat_id ? { telegram_chat_id: cleanSettings.telegram_chat_id } : {}),
+        ...(cleanSettings.mp_access_token ? { mp_access_token: cleanSettings.mp_access_token } : {}),
+        ...(cleanSettings.mp_public_key ? { mp_public_key: cleanSettings.mp_public_key } : {}),
+      };
+
+      const payloadToUpdate: any = {
+        is_matriz: true,
+        theme_settings: updatedTheme,
+        updated_at: cleanSettings.updated_at
+      };
+      if (cleanSettings.telegram_bot_token) payloadToUpdate.telegram_bot_token = cleanSettings.telegram_bot_token;
+      if (cleanSettings.telegram_chat_id) payloadToUpdate.telegram_chat_id = cleanSettings.telegram_chat_id;
+      if (cleanSettings.mp_access_token) payloadToUpdate.mp_access_token = cleanSettings.mp_access_token;
+      if (cleanSettings.mp_public_key) payloadToUpdate.mp_public_key = cleanSettings.mp_public_key;
+
+      const { error: storeErr } = await supabase
+        .from('stores')
+        .update(payloadToUpdate)
+        .eq('id', targetStore.id);
+
+      if (!storeErr) {
+        savedInDb = true;
+        console.log('[globalSettingsService] ✅ Configurações espelhadas na loja Matriz (stores):', targetStore.id);
+      }
     }
   } catch (errStore) {
     console.warn('[globalSettingsService] Aviso ao espelhar em stores:', errStore);
+  }
+
+  // 2.1. Gravar em store_config
+  try {
+    await supabase.from('store_config').upsert({
+      id: 'cfg_global_settings',
+      store_id: 'store_ajpstore',
+      telegram_bot_token: cleanSettings.telegram_bot_token || undefined,
+      telegram_chat_id: cleanSettings.telegram_chat_id || undefined,
+      mp_access_token: cleanSettings.mp_access_token || undefined,
+    }, { onConflict: 'id' });
+  } catch (cfgErr) {
+    console.warn('[globalSettingsService] Aviso ao espelhar em store_config:', cfgErr);
   }
 
   // 3. Gravar em cache local no navegador
@@ -181,6 +276,8 @@ export async function saveGlobalSettings(
 
       // Sincroniza também com as chaves gerais caso usadas pelo checkout
       if (cleanSettings.mp_access_token) localStorage.setItem('mp_access_token', cleanSettings.mp_access_token);
+      if (cleanSettings.telegram_bot_token) localStorage.setItem('encantando_festa_telegram_bot_token', cleanSettings.telegram_bot_token);
+      if (cleanSettings.telegram_chat_id) localStorage.setItem('encantando_festa_telegram_chat_id', cleanSettings.telegram_chat_id);
     } catch (lsErr) {
       console.warn('[globalSettingsService] Erro ao gravar localStorage:', lsErr);
     }
@@ -247,7 +344,7 @@ export async function testMercadoPagoToken(
 }
 
 /**
- * Dispara uma notificação de teste imediata para o Telegram via Bot API
+ * Dispara uma notificação de teste imediata para o Telegram via API serverless
  */
 export async function testTelegramNotification(
   token: string, 
@@ -271,8 +368,40 @@ export async function testTelegramNotification(
     `💬 *Chat ID:* \`${cleanChatId}\`\n\n` +
     `_A partir de agora, este canal receberá alertas automáticos da plataforma!_`;
 
+  // 1. Tentar primeiro via Serverless Function /api/notify-admin-telegram
   try {
-    const response = await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
+    const serverRes = await fetch('/api/notify-admin-telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: messageText,
+        event_type: 'test',
+        telegram_bot_token: cleanToken,
+        telegram_chat_id: cleanChatId
+      })
+    });
+
+    if (serverRes.ok) {
+      const serverData = await serverRes.json().catch(() => ({}));
+      if (serverData.success) {
+        return {
+          success: true,
+          message: 'Mensagem de teste entregue com sucesso no seu Telegram (via servidor)!'
+        };
+      } else if (serverData.error) {
+        return {
+          success: false,
+          message: `Erro retornado pelo Telegram: ${serverData.error}`
+        };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[globalSettingsService] Serverless indisponível, tentando fallback direto...', apiErr);
+  }
+
+  // 2. Fallback direto caso serverless não responda
+  try {
+    let response = await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -282,7 +411,20 @@ export async function testTelegramNotification(
       })
     });
 
-    const data = await response.json();
+    let data = await response.json().catch(() => ({}));
+
+    if (!response.ok && data?.description?.includes("can't parse")) {
+      const plainText = messageText.replace(/[*_`]/g, '');
+      response = await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: cleanChatId,
+          text: plainText
+        })
+      });
+      data = await response.json().catch(() => ({}));
+    }
 
     if (response.ok && data.ok) {
       return {
