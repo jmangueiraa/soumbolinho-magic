@@ -52,7 +52,7 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
 
   // Chaves de fallback e suporte
   const masterPixKey = import.meta.env.VITE_MASTER_PIX_KEY || 'admin@editaveisdocanva.com.br';
-  const masterWhatsApp = import.meta.env.VITE_MASTER_WHATSAPP || '5521974975884';
+  const masterWhatsApp = import.meta.env.VITE_MASTER_WHATSAPP || '5519981356505';
 
   const storeName = currentStore?.store_name || currentStore?.name || storeConfig.storeName || 'Sua Loja';
   const feeValue = Number(monthlyFee || 30);
@@ -237,9 +237,11 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
   };
 
   const whatsappMessage = encodeURIComponent(
-    `👋 Olá! Sou da loja *${storeName}* (ID: ${currentStore.id}).\n\nEstou com uma dúvida sobre a renovação da minha assinatura de *R$ ${feeFormatted}*.\n\nPodem me ajudar?`
+    `👋 Olá! Sou da loja *${storeName}*.\n\nPreciso de suporte sobre a renovação da minha assinatura de *R$ ${feeFormatted}*.`
   );
-  const whatsappUrl = `https://wa.me/${masterWhatsApp.replace(/\D/g, '')}?text=${whatsappMessage}`;
+  const cleanPhone = (masterWhatsApp || '5519981356505').replace(/\D/g, '');
+  const finalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+  const whatsappUrl = `https://wa.me/${finalPhone}?text=${whatsappMessage}`;
 
   return (
     <div 
@@ -343,19 +345,19 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
               </button>
             </div>
 
-            {/* Lista de Vantagens (2 Colunas com Checkmarks Verdes) */}
+            {/* Lista de Vantagens da Loja Virtual (2 Colunas com Checkmarks Verdes) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left mb-6 px-1">
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Links de afiliado ilimitados</span>
+                <span>Produtos e Pedidos Ilimitados</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Deep Link para App da Shopee</span>
+                <span>Checkout Próprio com Pix Automático</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>Validação dupla de 7 dias (Cookies + IP)</span>
+                <span>Recuperação de Vendas e Carrinho</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -363,9 +365,9 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
               </div>
             </div>
 
-            {/* Rodapé com Desenvolvedor e Link de Suporte WhatsApp */}
+            {/* Rodapé com Desenvolvedor e Link de Suporte WhatsApp (19981356505) */}
             <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-              <span className="text-[11px] sm:text-xs">Desenvolvido pela AJP Entretenimento</span>
+              <span className="text-[11px] sm:text-xs">Desenvolvido por AJPSTORE</span>
               <a 
                 href={whatsappUrl} 
                 target="_blank" 
@@ -566,9 +568,9 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
               </div>
             )}
 
-            {/* Suporte WhatsApp */}
+            {/* Suporte WhatsApp (19981356505) */}
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-              <span>Desenvolvido pela AJP Entretenimento</span>
+              <span>Desenvolvido por AJPSTORE</span>
               <a 
                 href={whatsappUrl} 
                 target="_blank" 
