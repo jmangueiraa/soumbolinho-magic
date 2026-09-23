@@ -33,6 +33,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from '../../lib/router';
 import { cloneStoreTemplate } from '../../services/storeCloneService';
+import { notifyNewStoreCreated } from '../../services/adminTelegramNotificationService';
 import { slugify } from '../../utils/slug';
 import { AJP_OFFICIAL_LOGO_BASE64 } from '../../assets/officialLogo';
 
@@ -347,6 +348,20 @@ export const MarketingLandingPage: React.FC = () => {
         sessionStorage.setItem('last_created_store_id', newStoreId);
       } catch (err) {
         console.log('[Cadastro Loja] Aviso sessionStorage:', err);
+      }
+
+      // 6.1. Disparo imediato da notificação de Nova Loja Criada para o Telegram Super Admin
+      try {
+        notifyNewStoreCreated({
+          store_name: formData.storeName.trim(),
+          client_name: (cleanOwnerName || formData.clientName || '').trim(),
+          whatsapp_number: cleanWhatsApp,
+          client_email: cleanEmail,
+          slug: cleanSlug,
+          status: 'Período de Testes (Trial)'
+        });
+      } catch (tgErr) {
+        console.warn('[Cadastro Loja] Aviso notificação Telegram:', tgErr);
       }
 
       // 7. Proteção da Clonagem: bloco seguro garantindo que a loja principal continue registrada mesmo se a cópia falhar

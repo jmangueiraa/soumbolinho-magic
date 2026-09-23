@@ -14,7 +14,10 @@ import {
   CheckCircle2, 
   HelpCircle, 
   Key,
-  Info
+  Info,
+  Rocket,
+  DollarSign,
+  Bell
 } from 'lucide-react';
 import { 
   fetchGlobalSettings, 
@@ -22,6 +25,12 @@ import {
   testMercadoPagoToken, 
   testTelegramNotification 
 } from '../../services/globalSettingsService';
+import { 
+  notifyNewStoreCreated, 
+  notifyPaymentApproved, 
+  notifyPlanExpiring,
+  checkAndNotifyExpiringStores 
+} from '../../services/adminTelegramNotificationService';
 
 export const GlobalIntegrationsManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -133,7 +142,7 @@ export const GlobalIntegrationsManager: React.FC = () => {
     }
   };
 
-  // 4. Testar Telegram
+  // 4. Testar Telegram (Geral)
   const handleTestTelegram = async () => {
     setIsTestingTelegram(true);
     try {
@@ -147,6 +156,79 @@ export const GlobalIntegrationsManager: React.FC = () => {
       showNotification('error', err?.message || 'Erro ao enviar notificação de teste.');
     } finally {
       setIsTestingTelegram(false);
+    }
+  };
+
+  const [isCheckingExpiring, setIsCheckingExpiring] = useState(false);
+
+  // 4.1. Testar Eventos Específicos Formatados (Nova Loja, Pagamento, Vencimento)
+  const handleTestEvent = async (type: 'new_store' | 'payment' | 'expiring') => {
+    setIsTestingTelegram(true);
+    try {
+      if (type === 'new_store') {
+        const res = await notifyNewStoreCreated({
+          store_name: 'Loja Exemplo Modas',
+          client_name: 'Maria Oliveira',
+          whatsapp_number: '19981356505',
+          client_email: 'maria@exemplo.com.br',
+          slug: 'exemplomodas',
+          status: 'Período de Testes (Trial)'
+        });
+        if (res.success) {
+          showNotification('success', '🚀 Alerta de "Nova Loja Criada" enviado com sucesso para o Telegram!');
+        } else {
+          showNotification('error', res.error || 'Falha ao enviar alerta.');
+        }
+      } else if (type === 'payment') {
+        const res = await notifyPaymentApproved({
+          store_name: 'Loja Exemplo Modas',
+          client_name: 'Maria Oliveira',
+          whatsapp_number: '19981356505',
+          valor: 50.00,
+          forma: 'Pix',
+          data_renovada: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')
+        });
+        if (res.success) {
+          showNotification('success', '💰 Alerta de "Pagamento Confirmado" enviado com sucesso para o Telegram!');
+        } else {
+          showNotification('error', res.error || 'Falha ao enviar alerta.');
+        }
+      } else if (type === 'expiring') {
+        const res = await notifyPlanExpiring({
+          store_name: 'Loja Exemplo Modas',
+          client_name: 'Maria Oliveira',
+          whatsapp_number: '19981356505',
+          dias_restantes: 3,
+          data_vencimento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+          status: 'Plano Iniciante'
+        });
+        if (res.success) {
+          showNotification('success', '⚠️ Alerta de "Plano Vencendo" enviado com sucesso para o Telegram!');
+        } else {
+          showNotification('error', res.error || 'Falha ao enviar alerta.');
+        }
+      }
+    } catch (err: any) {
+      showNotification('error', err?.message || 'Erro ao enviar alerta.');
+    } finally {
+      setIsTestingTelegram(false);
+    }
+  };
+
+  // 4.2. Rotina Manual de Verificação de Planos Vencendo
+  const handleCheckExpiringStores = async () => {
+    setIsCheckingExpiring(true);
+    try {
+      const res = await checkAndNotifyExpiringStores();
+      if (res.alerted > 0) {
+        showNotification('success', `Verificação concluída! ${res.alerted} lojas com plano a vencer foram notificadas no Telegram.`);
+      } else {
+        showNotification('info', `Nenhuma loja com vencimento em 5 dias ou menos no momento (${res.scanned} lojas escaneadas).`);
+      }
+    } catch (err: any) {
+      showNotification('error', err?.message || 'Erro ao verificar lojas.');
+    } finally {
+      setIsCheckingExpiring(false);
     }
   };
 
@@ -439,6 +521,67 @@ export const GlobalIntegrationsManager: React.FC = () => {
               <p>
                 Antes de testar, abra seu Telegram e dê <strong>/start</strong> no seu bot recém-criado para autorizar o recebimento de mensagens.
               </p>
+            </div>
+
+            {/* Testes dos 3 Eventos Oficiais com WhatsApp */}
+            <div className="pt-3 border-t border-gray-100 space-y-2">
+              <span className="text-[11px] font-bold text-gray-700 block">
+                Testar Alertas Automáticos com WhatsApp (wa.me):
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTestEvent('new_store')}
+                  disabled={isTestingTelegram || !telegramBotToken || !telegramChatId}
+                  className="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="Testar alerta formatado de Nova Loja Criada"
+                >
+                  <Rocket className="w-3.5 h-3.5 text-pink-500" />
+                  <span>Nova Loja</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTestEvent('payment')}
+                  disabled={isTestingTelegram || !telegramBotToken || !telegramChatId}
+                  className="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="Testar alerta formatado de Pagamento Confirmado"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Pagamento</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTestEvent('expiring')}
+                  disabled={isTestingTelegram || !telegramBotToken || !telegramChatId}
+                  className="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="Testar alerta formatado de Plano Vencendo"
+                >
+                  <Bell className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Vencendo</span>
+                </button>
+              </div>
+
+              {/* Botão de Rotina Manual de Verificação */}
+              <button
+                type="button"
+                onClick={handleCheckExpiringStores}
+                disabled={isCheckingExpiring || !telegramBotToken || !telegramChatId}
+                className="w-full mt-1.5 py-2 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-900 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isCheckingExpiring ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                    <span>Verificando Lojas no Banco...</span>
+                  </>
+                ) : (
+                  <>
+                    <Bell className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Executar Varredura de Lojas Vencendo Agora</span>
+                  </>
+                )}
+              </button>
             </div>
 
           </div>

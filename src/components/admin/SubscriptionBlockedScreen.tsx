@@ -25,6 +25,7 @@ import {
   checkMercadoPagoPaymentStatus, 
   PixPaymentResponse 
 } from '../../lib/mercadopago';
+import { notifyPaymentApproved } from '../../services/adminTelegramNotificationService';
 
 interface SubscriptionBlockedScreenProps {
   onBackToStore?: () => void;
@@ -131,6 +132,23 @@ export const SubscriptionBlockedScreen: React.FC<SubscriptionBlockedScreenProps>
         monthly_fee: newMonthlyFee,
         subscription_status: 'active'
       });
+
+      // Disparo automático de notificação de Pagamento Aprovado no Telegram
+      try {
+        const renewedDateFormatted = new Date(newExpiresAt).toLocaleDateString('pt-BR');
+        notifyPaymentApproved({
+          store_name: currentStore.store_name || currentStore.name || storeName,
+          client_name: currentStore.client_name || currentStore.owner_name || 'Lojista',
+          whatsapp_number: currentStore.whatsapp_number || currentStore.owner_phone || (currentStore as any).whatsapp,
+          valor: feeValue,
+          forma: 'Pix',
+          data_renovada: renewedDateFormatted,
+          store_id: currentStore.id,
+          slug: currentStore.slug
+        });
+      } catch (tgErr) {
+        console.warn('[SubscriptionBlockedScreen] Aviso notificação Telegram:', tgErr);
+      }
 
       if (refreshTenant) {
         refreshTenant();

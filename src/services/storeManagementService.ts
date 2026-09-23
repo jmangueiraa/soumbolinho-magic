@@ -3,6 +3,7 @@ import { Store, StoreUser, DomainStatus, SubscriptionStatus } from '../types';
 import { slugify } from '../utils/slug';
 import { cloneStoreTemplate } from './storeCloneService';
 import { saveStoreConfigInSupabase } from './storeConfigService';
+import { notifyNewStoreCreated } from './adminTelegramNotificationService';
 
 export interface CreateStoreInput {
   clientName: string;
@@ -862,6 +863,20 @@ export async function createStoreWithClient(
       } catch (e) {
         console.warn('[storeManagementService] Erro ao disparar sincronização com Vercel:', e);
       }
+    }
+
+    // Notificação automática de Nova Loja Criada para o Telegram Super Admin
+    try {
+      notifyNewStoreCreated({
+        store_name: resolvedStoreName,
+        client_name: resolvedClientName,
+        whatsapp_number: input.whatsappNumber?.trim() || input.clientPhone?.trim() || 'Não informado',
+        client_email: resolvedClientEmail,
+        slug: storeSlug,
+        status: input.subscriptionStatus === 'trial' ? 'Período de Testes (Trial)' : (input.subscriptionStatus || 'Ativo')
+      });
+    } catch (tgErr) {
+      console.warn('[storeManagementService] Aviso notificação Telegram:', tgErr);
     }
 
     return { 
