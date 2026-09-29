@@ -37,27 +37,40 @@ export function getProductMedia(product?: any): {
 } {
   if (!product) return { url: '', isVideo: false };
 
-  // Verifica campos explícitos de vídeo primeiro
-  const explicitVideo = (product.videoUrl || product.video_url || '').trim();
-  if (explicitVideo) {
-    return { url: explicitVideo, isVideo: true };
-  }
-
-  // Verifica imagem ou mídia geral
+  // 1. Imagem principal / Capa do produto
   const rawMedia = 
-    product.image || 
-    product.image_url || 
     product.imageUrl || 
+    product.image_url || 
+    product.image || 
     product.photo_url || 
     (Array.isArray(product.images) && product.images[0]) || 
     (Array.isArray(product.galleryImages) && product.galleryImages[0]) || 
     '';
 
   const mediaUrl = typeof rawMedia === 'string' ? rawMedia.trim() : '';
-  const isVideo = product.mediaType === 'video' || isVideoUrl(mediaUrl);
+  const explicitVideo = (product.videoUrl || product.video_url || '').trim();
+
+  // Se a mídia for exclusivamente vídeo (sem foto de capa), usa o vídeo
+  if (product.mediaType === 'video' && explicitVideo && !mediaUrl) {
+    return { url: explicitVideo, isVideo: true };
+  }
+
+  // Se houver foto de capa e não for arquivo de vídeo, exibe a foto na vitrine
+  if (mediaUrl && !isVideoUrl(mediaUrl)) {
+    return { url: mediaUrl, isVideo: false };
+  }
+
+  // Se tiver vídeo cadastrado
+  if (explicitVideo) {
+    return { url: explicitVideo, isVideo: true };
+  }
+
+  if (mediaUrl) {
+    return { url: mediaUrl, isVideo: isVideoUrl(mediaUrl) };
+  }
 
   return {
-    url: mediaUrl,
-    isVideo
+    url: '',
+    isVideo: false
   };
 }

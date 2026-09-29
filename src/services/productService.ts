@@ -19,12 +19,31 @@ export function mapSupabaseProduct(item: any): Product {
 
   const rawName = String(item.name || '').trim();
   const rawSlug = (item.slug || slugify(rawName) || String(item.id)).trim();
-  const rawVideo = (item.video_url || item.videoUrl || (isVideoUrl(rawImg) ? rawImg : '')).trim();
+
+  // 0. Extração de envelope de metadados se existir em customization_placeholder
+  let extractedPlaceholder = item.customizationPlaceholder || item.customization_placeholder || undefined;
+  let metaPayload: any = null;
+  if (typeof extractedPlaceholder === 'string' && extractedPlaceholder.trim().startsWith('{')) {
+    try {
+      metaPayload = JSON.parse(extractedPlaceholder);
+      if (metaPayload && typeof metaPayload === 'object' && metaPayload.__meta__) {
+        extractedPlaceholder = metaPayload.placeholder || undefined;
+      }
+    } catch {}
+  }
+
+  const rawVideo = (
+    item.video_url || 
+    item.videoUrl || 
+    metaPayload?.video_url || 
+    (typeof window !== 'undefined' && item.id ? localStorage.getItem(`soumbolinho_video_${item.id}`) : '') ||
+    (isVideoUrl(rawImg) ? rawImg : '')
+  ).trim();
   const isVideo = item.media_type === 'video' || item.mediaType === 'video' || Boolean(rawVideo);
 
   // Normalização de imagens da galeria (array, string JSON ou delimitado por vírgulas)
   let galleryImages: string[] = [];
-  const rawGallery = item.gallery_images || item.galleryImages || item.images;
+  const rawGallery = item.gallery_images || item.galleryImages || item.images || metaPayload?.gallery_images;
   if (Array.isArray(rawGallery)) {
     galleryImages = rawGallery.map((g: any) => String(g || '').trim()).filter(Boolean);
   } else if (typeof rawGallery === 'string' && rawGallery.trim()) {
@@ -97,20 +116,9 @@ export function mapSupabaseProduct(item: any): Product {
   let bonusesList: any[] = [];
   let rawBonuses = item.bonuses || item.bonus;
 
-  // 1. Se a coluna bonuses/bonus não veio ou veio vazia, busca no customization_placeholder (envelope de metadados)
-  let extractedPlaceholder = item.customizationPlaceholder || item.customization_placeholder || undefined;
-  if (typeof extractedPlaceholder === 'string' && extractedPlaceholder.trim().startsWith('{')) {
-    try {
-      const meta = JSON.parse(extractedPlaceholder);
-      if (meta && typeof meta === 'object') {
-        if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && meta.bonuses) {
-          rawBonuses = meta.bonuses;
-        }
-        if (meta.__meta__) {
-          extractedPlaceholder = meta.placeholder || undefined;
-        }
-      }
-    } catch {}
+  // 1. Se a coluna bonuses/bonus não veio ou veio vazia, busca no envelope de metadados
+  if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && metaPayload?.bonuses) {
+    rawBonuses = metaPayload.bonuses;
   }
 
   // 2. Se ainda assim não encontrar, busca no backup do localStorage do navegador
@@ -368,21 +376,28 @@ export async function createProductInSupabase(
     in_stock: Boolean(productData.inStock ?? true),
     badge: productData.badge || null,
     is_customizable: Boolean(productData.isCustomizable ?? true),
+    video_url: ((productData as any).video_url || productData.videoUrl || '').trim() || null,
+    media_type: (productData as any).mediaType || (productData as any).media_type || (finalImg ? 'image' : (productData.videoUrl ? 'video' : 'image')),
     customization_placeholder: (() => {
       const rawBonusesToSave = (productData as any).bonuses || null;
+      const finalVideoToSave = ((productData as any).video_url || productData.videoUrl || '').trim() || null;
+      const rawGalleryToSave = (productData as any).gallery_images || (productData as any).galleryImages || null;
       let placeholderVal = productData.customizationPlaceholder || null;
-      if (rawBonusesToSave && (Array.isArray(rawBonusesToSave) ? rawBonusesToSave.length > 0 : true)) {
-        try {
-          placeholderVal = JSON.stringify({
-            __meta__: true,
-            bonuses: rawBonusesToSave,
-            placeholder: productData.customizationPlaceholder || null,
-          });
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(`soumbolinho_bonuses_${newId}`, JSON.stringify(rawBonusesToSave));
+      try {
+        placeholderVal = JSON.stringify({
+          __meta__: true,
+          video_url: finalVideoToSave,
+          gallery_images: rawGalleryToSave,
+          bonuses: rawBonusesToSave || [],
+          placeholder: productData.customizationPlaceholder || null,
+        });
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(`soumbolinho_bonuses_${newId}`, JSON.stringify(rawBonusesToSave || []));
+          if (finalVideoToSave) {
+            localStorage.setItem(`soumbolinho_video_${newId}`, finalVideoToSave);
           }
-        } catch {}
-      }
+        }
+      } catch {}
       return placeholderVal;
     })(),
     upsell_product_id: (productData as any).upsell_product_id || (productData as any).upsellProductId || null,
@@ -416,6 +431,8 @@ export async function createProductInSupabase(
       error.message.includes('is_digital') ||
       error.message.includes('detailed_description') ||
       error.message.includes('gallery_images') ||
+      error.message.includes('video_url') ||
+      error.message.includes('media_type') ||
       error.message.includes('benefits') ||
       error.message.includes('checkout_url') ||
       error.message.includes('testimonials') ||
@@ -427,6 +444,8 @@ export async function createProductInSupabase(
       const { 
         slug, 
         product_type,
+        video_url,
+        media_type,
         upsell_product_id, 
         upsell_price, 
         upsell_discount_percent, 
@@ -515,6 +534,20 @@ export async function updateProductInSupabase(
     dbUpdatePayload.delivery_url = finalDeliveryUrl ? String(finalDeliveryUrl).trim() : null;
   }
   if (updates.description !== undefined) dbUpdatePayload.description = updates.description ? String(updates.description).trim() : null;
+  if ((updates as any).video_url !== undefined || (updates as any).videoUrl !== undefined) {
+    const vUrl = (updates as any).video_url !== undefined ? (updates as any).video_url : (updates as any).videoUrl;
+    dbUpdatePayload.video_url = vUrl ? String(vUrl).trim() : null;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (vUrl) {
+        localStorage.setItem(`soumbolinho_video_${id}`, String(vUrl).trim());
+      } else {
+        localStorage.removeItem(`soumbolinho_video_${id}`);
+      }
+    }
+  }
+  if ((updates as any).media_type !== undefined || (updates as any).mediaType !== undefined) {
+    dbUpdatePayload.media_type = (updates as any).media_type || (updates as any).mediaType || null;
+  }
   if ((updates as any).detailed_description !== undefined || (updates as any).detailedDescription !== undefined) {
     dbUpdatePayload.detailed_description = (updates as any).detailed_description || (updates as any).detailedDescription || null;
   }
@@ -557,8 +590,13 @@ export async function updateProductInSupabase(
         ? updates.customizationPlaceholder 
         : (dbUpdatePayload.customization_placeholder || null);
       
+      const currentMetaVideo = (updates as any).video_url || (updates as any).videoUrl || dbUpdatePayload.video_url || null;
+      const currentMetaGallery = (updates as any).gallery_images || (updates as any).galleryImages || dbUpdatePayload.gallery_images || null;
+
       dbUpdatePayload.customization_placeholder = JSON.stringify({
         __meta__: true,
+        video_url: currentMetaVideo,
+        gallery_images: currentMetaGallery,
         bonuses: rawBonusesToSave || [],
         placeholder: existingPlaceholder,
       });
@@ -591,6 +629,8 @@ export async function updateProductInSupabase(
       error.message.includes('is_digital') ||
       error.message.includes('detailed_description') ||
       error.message.includes('gallery_images') ||
+      error.message.includes('video_url') ||
+      error.message.includes('media_type') ||
       error.message.includes('benefits') ||
       error.message.includes('checkout_url') ||
       error.message.includes('testimonials') ||
@@ -601,6 +641,8 @@ export async function updateProductInSupabase(
       console.warn('[productService] ⚠️ Colunas ausentes na atualização. Gravando sem opcionais:', error.message);
       const { 
         product_type,
+        video_url,
+        media_type,
         upsell_product_id, 
         upsell_price, 
         upsell_discount_percent, 

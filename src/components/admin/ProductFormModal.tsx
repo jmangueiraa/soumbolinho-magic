@@ -1,11 +1,11 @@
 // Build Version: 2.1.0 - Vercel deploy verified (TypeScript syntax: else)
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2, Truck, Wand2, Check, Tag, Zap } from 'lucide-react';
+import { X, Save, Upload, Sparkles, Image as ImageIcon, Video as VideoIcon, Loader2, AlertCircle, Link2, Play, Download, Package, ExternalLink, ShieldCheck, FileText, Gift, Plus, Trash2, Truck, Wand2, Check, Tag, Zap, Star, Camera, Film } from 'lucide-react';
 import { Product } from '../../types';
 import { useStoreData } from '../../context/StoreDataContext';
 import { useTenant } from '../../context/TenantContext';
 import { ProductImagePlaceholder } from '../common/ProductImagePlaceholder';
-import { uploadProductImage } from '../../lib/storage';
+import { uploadProductImage, uploadMediaToSupabase } from '../../lib/storage';
 import { isVideoUrl } from '../../utils/media';
 import { slugify, generateSlug, generateUniqueSlug } from '../../utils/slug';
 import { supabase } from '../../lib/supabase';
@@ -100,6 +100,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   });
 
   const [isSlugManual, setIsSlugManual] = useState(false);
+  // 5 Fotos do Produto (Slot 0 é a Capa Principal, Slots 1-4 são da Galeria)
+  const [photos, setPhotos] = useState<string[]>(['', '', '', '', '']);
+  // 1 Vídeo do Produto (MP4, WebM, MOV ou URL direta)
+  const [videoUrl, setVideoUrl] = useState<string>('');
+  // Estados de upload granular
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [isUploadingVideo, setIsUploadingVideo] = useState<boolean>(false);
+  const [isBulkUploading, setIsBulkUploading] = useState<boolean>(false);
+  const [bulkProgress, setBulkProgress] = useState<string>('');
+  const [editingSlotUrl, setEditingSlotUrl] = useState<number | null>(null);
+  const [tempSlotUrl, setTempSlotUrl] = useState<string>('');
+  const [isManualVideoUrlOpen, setIsManualVideoUrlOpen] = useState<boolean>(false);
+  const [tempVideoUrl, setTempVideoUrl] = useState<string>('');
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
@@ -270,9 +284,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setSubmitError(null);
     setUploadError(null);
     setErrors({});
+    setUploadingSlot(null);
+    setIsUploadingVideo(false);
+    setIsBulkUploading(false);
+    setBulkProgress('');
+    setEditingSlotUrl(null);
+    setTempSlotUrl('');
+    setIsManualVideoUrlOpen(false);
+    setTempVideoUrl('');
+
     if (product) {
-      const existingImg = product.image || product.image_url || product.imageUrl || '';
-      const existingVideo = product.videoUrl || product.video_url || '';
+      const existingImg = (product.image || product.image_url || product.imageUrl || '').trim();
+      const existingVideo = (product.videoUrl || product.video_url || '').trim();
       const isVideo = product.mediaType === 'video' || isVideoUrl(existingVideo) || isVideoUrl(existingImg);
       const isDigital = Boolean(
         (product as any).product_type === 'digital' ||
@@ -283,7 +306,37 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const productType: 'digital' | 'fisico' = (product as any).product_type || (isDigital ? 'digital' : 'fisico');
 
       const rawGallery = product.galleryImages || product.gallery_images || [];
-      const galleryStr = Array.isArray(rawGallery) ? rawGallery.join('\n') : String(rawGallery || '');
+      const galleryArr: string[] = Array.isArray(rawGallery)
+        ? rawGallery.map((s: any) => String(s || '').trim()).filter(Boolean)
+        : String(rawGallery || '').split(/[\n,]/).map((s) => s.trim()).filter((s) => s.length > 5);
+
+      // 1. Carrega até 5 fotos
+      const initialPhotos: string[] = [];
+      if (existingImg && !isVideoUrl(existingImg)) {
+        initialPhotos.push(existingImg);
+      }
+      galleryArr.forEach((u) => {
+        if (!isVideoUrl(u) && !initialPhotos.includes(u) && initialPhotos.length < 5) {
+          initialPhotos.push(u);
+        }
+      });
+      while (initialPhotos.length < 5) {
+        initialPhotos.push('');
+      }
+      setPhotos(initialPhotos);
+
+      // 2. Carrega o vídeo (se houver)
+      let initialVideo = existingVideo;
+      if (!initialVideo && isVideoUrl(existingImg)) {
+        initialVideo = existingImg;
+      }
+      if (!initialVideo) {
+        const foundV = galleryArr.find((u) => isVideoUrl(u));
+        if (foundV) initialVideo = foundV;
+      }
+      setVideoUrl(initialVideo || '');
+
+      const galleryStr = galleryArr.filter((u) => !isVideoUrl(u)).join('\n');
       let rawBonuses = (product as any).bonuses || (product as any).bonus;
       if ((!rawBonuses || (Array.isArray(rawBonuses) && rawBonuses.length === 0)) && typeof window !== 'undefined' && window.localStorage && product?.id) {
         try {
@@ -342,7 +395,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setMediaPreview(isVideo ? (existingVideo || existingImg) : existingImg);
       setIsSlugManual(Boolean(product.slug));
     } else {
-      // TypeScript standard else branch
+      // Criação de novo produto
+      setPhotos(['', '', '', '', '']);
+      setVideoUrl('');
       setMediaType('image');
       setFormData({
         name: '',
@@ -377,65 +432,148 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const currentCategory = categories.find((c) => c.id === formData.category);
   const isCurrentMediaVideo = mediaType === 'video' || isVideoUrl(mediaPreview);
 
-  // Manipular seleção e upload no Supabase Storage
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  // Manipular upload individual de foto em um slot específico (0 a 4)
+  const handleSinglePhotoUpload = async (file: File, slotIndex: number) => {
     if (!file) return;
-
-    console.log('[ProductFormModal] 📁 Arquivo de mídia selecionado:', file.name, `(${file.size} bytes, tipo: ${file.type})`);
-    setSelectedFile(file);
-    setUploadError(null);
-
-    const isFileVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov|m4v)$/i);
-    if (isFileVideo) {
-      setMediaType('video');
+    if (!file.type.startsWith('image/')) {
+      showNotification('Selecione um arquivo de imagem válido (PNG, JPG, WebP).', 'error');
+      return;
     }
 
-    // Preview local imediato
-    const localPreviewUrl = URL.createObjectURL(file);
-    setMediaPreview(localPreviewUrl);
-
-    // Upload no Supabase Storage
-    setIsUploading(true);
+    setUploadingSlot(slotIndex);
     const { url, error } = await uploadProductImage(file);
-    setIsUploading(false);
+    setUploadingSlot(null);
 
     if (url) {
-      console.log('[ProductFormModal] ✅ Mídia enviada para o Supabase com URL:', url);
-      setMediaPreview(url);
-      if (isFileVideo || mediaType === 'video') {
-        setFormData((prev) => ({ ...prev, video_url: url, image: url }));
-      } else {
-        setFormData((prev) => ({ ...prev, image: url }));
-      }
+      setPhotos((prev) => {
+        const next = [...prev];
+        next[slotIndex] = url;
+        return next;
+      });
+      showNotification(`Foto ${slotIndex === 0 ? 'Principal (Capa)' : slotIndex + 1} carregada com sucesso!`, 'success');
     } else {
-      console.error('[ProductFormModal] ❌ Erro de upload no Supabase:', error);
-      setUploadError(`Erro no Supabase: ${error || 'Não foi possível salvar no bucket.'}`);
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setMediaPreview(base64String);
-        if (isFileVideo || mediaType === 'video') {
-          setFormData((prev) => ({ ...prev, video_url: base64String, image: base64String }));
-        } else {
-          setFormData((prev) => ({ ...prev, image: base64String }));
-        }
-      };
-      reader.readAsDataURL(file);
+      showNotification(`Erro ao enviar foto: ${error || 'Falha de conexão com o storage.'}`, 'error');
     }
   };
 
-  const handleUrlChange = (url: string) => {
-    setSelectedFile(null);
-    setUploadError(null);
-    const isUrlVideo = isVideoUrl(url) || mediaType === 'video';
-    if (isUrlVideo) {
-      setFormData((prev) => ({ ...prev, video_url: url, image: url }));
-    } else {
-      setFormData((prev) => ({ ...prev, image: url }));
+  // Manipular upload em lote de fotos (até 5)
+  const handleBulkPhotosUpload = async (fileList: FileList | File[]) => {
+    const rawFiles = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+    if (rawFiles.length === 0) {
+      showNotification('Selecione arquivos de imagem válidos.', 'info');
+      return;
     }
-    setMediaPreview(url);
+
+    setIsBulkUploading(true);
+
+    try {
+      const currentList = [...photos];
+      let targetIndices: number[] = [];
+
+      // 1º tenta slots vazios
+      for (let i = 0; i < 5; i++) {
+        if (!currentList[i]) targetIndices.push(i);
+      }
+
+      // Se todos estiverem preenchidos, substitui a partir do início
+      if (targetIndices.length === 0) {
+        targetIndices = [0, 1, 2, 3, 4];
+      }
+
+      const filesToUpload = rawFiles.slice(0, targetIndices.length);
+
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const targetSlot = targetIndices[i];
+        setBulkProgress(`Enviando foto ${i + 1} de ${filesToUpload.length}...`);
+        const { url } = await uploadProductImage(filesToUpload[i]);
+        if (url) {
+          setPhotos((prev) => {
+            const next = [...prev];
+            next[targetSlot] = url;
+            return next;
+          });
+        }
+      }
+
+      showNotification(`${filesToUpload.length} foto(s) enviada(s) com sucesso!`, 'success');
+    } catch (err: any) {
+      showNotification(`Erro no envio: ${err.message}`, 'error');
+    } finally {
+      setIsBulkUploading(false);
+      setBulkProgress('');
+    }
+  };
+
+  // Definir qualquer foto como principal (Capa / Slot 0)
+  const handleSetMainPhoto = (slotIndex: number) => {
+    if (slotIndex === 0) return;
+    setPhotos((prev) => {
+      const next = [...prev];
+      const selectedPhoto = next[slotIndex];
+      const previousCover = next[0];
+      next[0] = selectedPhoto;
+      next[slotIndex] = previousCover;
+      return next;
+    });
+    showNotification('Foto definida como Capa Principal!', 'success');
+  };
+
+  // Remover foto de um slot e reorganizar a lista
+  const handleRemovePhoto = (slotIndex: number) => {
+    setPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== slotIndex);
+      while (next.length < 5) next.push('');
+      return next;
+    });
+    showNotification('Foto removida.', 'info');
+  };
+
+  // Salvar URL manual no slot
+  const handleSaveSlotUrl = (slotIndex: number, url: string) => {
+    const clean = url.trim();
+    setPhotos((prev) => {
+      const next = [...prev];
+      next[slotIndex] = clean;
+      return next;
+    });
+    setEditingSlotUrl(null);
+    setTempSlotUrl('');
+  };
+
+  // Upload do Vídeo
+  const handleVideoUpload = async (file: File) => {
+    if (!file) return;
+    const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov|m4v)$/i);
+    if (!isVideo) {
+      showNotification('Selecione um arquivo de vídeo válido (MP4, WebM, MOV).', 'error');
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    const { url, error } = await uploadMediaToSupabase(file, 'products');
+    setIsUploadingVideo(false);
+
+    if (url) {
+      setVideoUrl(url);
+      showNotification('Vídeo do produto enviado com sucesso!', 'success');
+    } else {
+      showNotification(`Erro ao enviar vídeo: ${error || 'Falha no upload.'}`, 'error');
+    }
+  };
+
+  // Remover Vídeo
+  const handleRemoveVideo = () => {
+    setVideoUrl('');
+    setIsManualVideoUrlOpen(false);
+    setTempVideoUrl('');
+    showNotification('Vídeo removido.', 'info');
+  };
+
+  // Salvar link manual do vídeo
+  const handleSaveVideoUrl = (url: string) => {
+    setVideoUrl(url.trim());
+    setIsManualVideoUrlOpen(false);
+    setTempVideoUrl('');
   };
 
   const validate = () => {
@@ -510,22 +648,22 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         return;
       }
 
-      let finalMediaUrl = (mediaType === 'video' ? formData.video_url || formData.image : formData.image).trim();
+      // Processamento das 5 fotos e 1 vídeo
+      const cleanPhotos = photos.map((p) => p.trim()).filter(Boolean);
+      const mainPhoto = cleanPhotos[0] || '';
+      const extraPhotos = cleanPhotos.slice(1);
+      const finalVideo = videoUrl.trim();
 
-      // Se houver arquivo selecionado e upload pendente
-      if (selectedFile && (!finalMediaUrl || finalMediaUrl.startsWith('blob:'))) {
-        console.log('[ProductFormModal] ⏳ Aguardando conclusão do upload para o Supabase Storage...');
-        setIsUploading(true);
-        const { url, error: uploadErr } = await uploadProductImage(selectedFile);
-        setIsUploading(false);
-
-        if (url) {
-          finalMediaUrl = url;
-          console.log('[ProductFormModal] ✅ Mídia salva no bucket "products":', url);
-        } else if (uploadErr) {
-          console.warn('[ProductFormModal] Aviso de upload:', uploadErr);
-        }
+      if (!mainPhoto && !finalVideo) {
+        showNotification('Adicione pelo menos 1 foto ou 1 vídeo para o produto.', 'error');
+        setIsSubmitting(false);
+        return;
       }
+
+      // Mídia de capa: se tiver foto, a foto 1 é a capa; se só tiver vídeo, o vídeo é a capa
+      const finalMediaUrl = mainPhoto || finalVideo;
+      const isVideo = !mainPhoto && Boolean(finalVideo);
+      const mediaTypeResult: 'video' | 'image' = isVideo ? 'video' : 'image';
 
       // Conversão numérica
       const rawPrice = String(formData.price).replace(',', '.');
@@ -534,21 +672,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       // Garante que o slug do produto está definido antes do envio
       const finalSlug = formData.slug ? formData.slug.toLowerCase().replace(/\s+/g, '-') : generateSlug(cleanName);
 
-      // Verificação explícita do tipo de mídia (aba 'Foto' ou 'Vídeo')
-      const isVideo = mediaType === 'video';
-      const mediaTypeResult: 'video' | 'image' = isVideo ? 'video' : 'image';
-
       // Categoria garantida (se lista estiver vazia, usa 'geral')
       const finalCategory = formData.category.trim() || (categories && categories.length > 0 ? categories[0].id : 'geral');
 
       const isDigital = Boolean(formData.is_digital);
       const deliveryUrlClean = isDigital ? (formData.delivery_url || '').trim() : '';
-
-      // Processamento de imagens adicionais da galeria
-      const parsedGallery = formData.gallery_images
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 5);
 
       // Processamento de bônus exclusivos
       const rawBonusesInput = (formData.bonuses || '').trim();
@@ -581,8 +709,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         image: finalMediaUrl,
         image_url: finalMediaUrl,
         photo_url: finalMediaUrl,
-        videoUrl: isVideo ? finalMediaUrl : undefined,
-        video_url: isVideo ? finalMediaUrl : undefined,
+        videoUrl: finalVideo || undefined,
+        video_url: finalVideo || undefined,
         product_type: formData.product_type || (isDigital ? 'digital' : 'fisico'),
         is_digital: isDigital,
         isDigital: isDigital,
@@ -591,8 +719,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         description: formData.description ? String(formData.description).trim() : undefined,
         detailed_description: formData.detailed_description.trim() || undefined,
         detailedDescription: formData.detailed_description.trim() || undefined,
-        gallery_images: parsedGallery.length > 0 ? parsedGallery : undefined,
-        galleryImages: parsedGallery.length > 0 ? parsedGallery : undefined,
+        gallery_images: extraPhotos.length > 0 ? extraPhotos : undefined,
+        galleryImages: extraPhotos.length > 0 ? extraPhotos : undefined,
         benefits: undefined,
         testimonials: undefined,
         bonuses: parsedBonuses.length > 0 ? parsedBonuses : [],
@@ -945,135 +1073,416 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
 
-          {/* Mídia do Produto: FOTO OU VÍDEO */}
-          <div className="space-y-3 pt-3 border-t border-slate-200">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                {isCurrentMediaVideo ? (
-                  <VideoIcon className="w-4 h-4 text-theme-primary" />
-                ) : (
+          {/* ============================================================ */}
+          {/* MÍDIAS DO PRODUTO: 5 FOTOS + 1 VÍDEO NO MESMO PRODUTO         */}
+          {/* ============================================================ */}
+          <div className="space-y-4 pt-4 border-t border-slate-200">
+            {/* Cabeçalho da Seção com Contadores */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="block text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-theme-primary" />
-                )}
-                <span>Mídia do Produto (Foto ou Vídeo)</span>
-              </label>
+                  <span>Mídias do Produto</span>
+                  <span className="text-[11px] font-semibold text-slate-500 font-normal">
+                    (Até 5 Fotos e 1 Vídeo no mesmo produto)
+                  </span>
+                </label>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  A <strong>Foto 1</strong> é a capa da vitrine. As fotos seguintes e o vídeo completam a galeria.
+                </p>
+              </div>
 
-              {/* Botões de Alternância Foto / Vídeo */}
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMediaType('image')}
-                  className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    mediaType === 'image'
-                      ? 'bg-black text-white shadow-xs'
-                      : 'text-slate-600 hover:text-black'
-                  }`}
-                >
-                  📷 Foto
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMediaType('video')}
-                  className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
-                    mediaType === 'video'
-                      ? 'bg-black text-white shadow-xs'
-                      : 'text-slate-600 hover:text-black'
-                  }`}
-                >
-                  🎥 Vídeo
-                </button>
+              {/* Badges de Contagem */}
+              <div className="flex items-center gap-2">
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border ${
+                  photos.filter(Boolean).length > 0 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}>
+                  📷 {photos.filter(Boolean).length} / 5 Fotos
+                </span>
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border ${
+                  videoUrl 
+                    ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}>
+                  🎥 {videoUrl ? '1 / 1 Vídeo' : '0 / 1 Vídeo'}
+                </span>
               </div>
             </div>
 
-            <div className="flex gap-4 items-start">
-              {/* Preview Thumbnail (Foto ou Vídeo) */}
-              <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 shrink-0 flex items-center justify-center relative shadow-xs">
-                {mediaPreview ? (
-                  isCurrentMediaVideo ? (
-                    <video
-                      src={mediaPreview}
-                      controls
-                      muted
-                      autoPlay
-                      loop
-                      playsInline
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <img src={mediaPreview} alt="Preview" className="w-full h-full object-contain" />
-                  )
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-slate-300">
-                    {mediaType === 'video' ? (
-                      <VideoIcon className="w-7 h-7" />
-                    ) : (
-                      <ImageIcon className="w-7 h-7" />
-                    )}
-                    <span className="text-[9px] font-bold text-slate-400 mt-1">
-                      {mediaType === 'video' ? 'Sem vídeo' : 'Sem foto'}
-                    </span>
-                  </div>
-                )}
+            {/* PARTE 1: AS 5 FOTOS DO PRODUTO */}
+            <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <Camera className="w-4 h-4 text-slate-700" />
+                  <span>Fotos do Produto (Até 5 fotos)</span>
+                </div>
 
-                {isUploading && (
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              {/* Upload or Link Input */}
-              <div className="flex-1 space-y-2">
-                <input
-                  type="text"
-                  value={mediaType === 'video' ? (formData.video_url || formData.image) : formData.image}
-                  onChange={(e) => handleUrlChange(e.target.value)}
-                  placeholder={
-                    mediaType === 'video'
-                      ? 'Cole o link direto do vídeo (.mp4, .mov, etc.) ou faça upload...'
-                      : 'Cole o link direto da imagem (URL) ou faça upload...'
-                  }
-                  className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-black"
-                />
-
-                <label className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all shadow-xs ${
-                  isUploading 
-                    ? 'bg-slate-100 text-slate-600 cursor-wait border border-slate-300' 
-                    : 'bg-zinc-900 hover:bg-black text-white'
+                {/* Botão de Upload em Massa de Fotos */}
+                <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs ${
+                  isBulkUploading 
+                    ? 'bg-slate-200 text-slate-600 cursor-wait' 
+                    : 'bg-zinc-900 hover:bg-black text-white active:scale-95'
                 }`}>
-                  {isUploading ? (
+                  {isBulkUploading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Enviando mídia para o Supabase...</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-theme-primary" />
+                      <span>{bulkProgress || 'Enviando fotos...'}</span>
                     </>
                   ) : (
                     <>
-                      <Upload className="w-4 h-4 text-theme-primary" />
-                      <span>
-                        {mediaType === 'video' ? 'Fazer upload de Vídeo (MP4, MOV, WebM)' : 'Fazer upload de Foto (PNG, JPG, WebP)'}
-                      </span>
+                      <Upload className="w-3.5 h-3.5 text-theme-primary" />
+                      <span>+ Enviar Fotos (Selecione até 5)</span>
                     </>
                   )}
                   <input
                     type="file"
-                    disabled={isUploading}
-                    accept={
-                      mediaType === 'video'
-                        ? 'video/mp4,video/webm,video/quicktime,video/mov'
-                        : 'image/png,image/jpeg,image/jpg,image/webp,image/gif'
-                    }
-                    onChange={handleFileUpload}
+                    multiple
+                    disabled={isBulkUploading}
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleBulkPhotosUpload(e.target.files);
+                        e.target.value = '';
+                      }
+                    }}
                     className="hidden"
                   />
                 </label>
               </div>
+
+              {/* Grid dos 5 Slots de Foto */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {photos.map((photoUrl, slotIdx) => {
+                  const isCover = slotIdx === 0;
+                  const isSlotUploading = uploadingSlot === slotIdx;
+                  const isEditingThisUrl = editingSlotUrl === slotIdx;
+
+                  return (
+                    <div
+                      key={slotIdx}
+                      className={`relative bg-white rounded-2xl border-2 p-2 flex flex-col justify-between transition-all group ${
+                        isCover 
+                          ? 'border-amber-400/80 shadow-xs ring-2 ring-amber-400/20' 
+                          : photoUrl 
+                            ? 'border-slate-200 hover:border-slate-300' 
+                            : 'border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50'
+                      }`}
+                    >
+                      {/* Badge Superior do Slot */}
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        {isCover ? (
+                          <span className="inline-flex items-center gap-1 bg-amber-500 text-white font-extrabold text-[9px] px-2 py-0.5 rounded-md shadow-2xs tracking-wider">
+                            <Star size={10} className="fill-white" />
+                            CAPA
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            Foto #{slotIdx + 1}
+                          </span>
+                        )}
+
+                        {photoUrl && !isCover && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetMainPhoto(slotIdx)}
+                            className="text-[10px] text-amber-600 hover:text-amber-700 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                            title="Tornar esta a foto principal de capa"
+                          >
+                            <Star size={10} />
+                            <span>Capa</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Conteúdo Central: Preview ou Placeholder */}
+                      <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center relative border border-slate-100">
+                        {isSlotUploading ? (
+                          <div className="flex flex-col items-center justify-center p-2 text-center">
+                            <Loader2 className="w-6 h-6 animate-spin text-theme-primary mb-1" />
+                            <span className="text-[10px] font-bold text-slate-600">Enviando...</span>
+                          </div>
+                        ) : photoUrl ? (
+                          <>
+                            <img
+                              src={photoUrl}
+                              alt={`Foto ${slotIdx + 1}`}
+                              className="w-full h-full object-contain p-1"
+                            />
+                            {/* Overlay de Ações Rápidas */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                              <label
+                                className="p-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-lg cursor-pointer shadow-xs transition-all hover:scale-110"
+                                title="Trocar foto"
+                              >
+                                <Upload size={13} className="text-theme-primary" />
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                      handleSinglePhotoUpload(e.target.files[0], slotIdx);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePhoto(slotIdx)}
+                                className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer shadow-xs transition-all hover:scale-110"
+                                title="Remover esta foto"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer p-2 text-center group-hover:bg-slate-100/60 transition-colors">
+                            <Camera size={22} className="mb-1 text-slate-300 group-hover:text-theme-primary transition-colors" />
+                            <span className="text-[10px] font-bold">
+                              {isCover ? '+ Foto Capa' : `+ Foto ${slotIdx + 1}`}
+                            </span>
+                            <span className="text-[8px] text-slate-400">PNG, JPG, WebP</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  handleSinglePhotoUpload(e.target.files[0], slotIdx);
+                                  e.target.value = '';
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Rodapé do Slot: Link manual opcional */}
+                      <div className="mt-1.5 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                        {isEditingThisUrl ? (
+                          <div className="w-full space-y-1">
+                            <input
+                              type="text"
+                              value={tempSlotUrl}
+                              onChange={(e) => setTempSlotUrl(e.target.value)}
+                              placeholder="Cole o link da foto..."
+                              className="w-full text-[10px] px-1.5 py-1 bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-black"
+                              autoFocus
+                            />
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setEditingSlotUrl(null)}
+                                className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px]"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveSlotUrl(slotIdx, tempSlotUrl)}
+                                className="px-1.5 py-0.5 bg-black text-white rounded font-bold text-[9px]"
+                              >
+                                Salvar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSlotUrl(slotIdx);
+                                setTempSlotUrl(photoUrl);
+                              }}
+                              className="text-[9px] text-slate-400 hover:text-slate-700 flex items-center gap-0.5 cursor-pointer"
+                              title="Inserir ou editar link direto da imagem"
+                            >
+                              <Link2 size={10} />
+                              <span>{photoUrl ? 'Editar Link' : 'Colar Link'}</span>
+                            </button>
+                            {photoUrl && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePhoto(slotIdx)}
+                                className="text-[9px] text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title="Excluir foto"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {uploadError && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-200">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>{uploadError}</span>
+            {/* PARTE 2: VÍDEO DO PRODUTO (1 VÍDEO) */}
+            <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <Film className="w-4 h-4 text-purple-600" />
+                  <span>Vídeo do Produto (1 Vídeo)</span>
+                  <span className="text-[10px] font-normal text-slate-500">(Opcional)</span>
+                </div>
+
+                {videoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveVideo}
+                    className="text-[11px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 size={12} />
+                    <span>Remover Vídeo</span>
+                  </button>
+                )}
               </div>
-            )}
+
+              {videoUrl ? (
+                /* Vídeo Carregado */
+                <div className="flex flex-col sm:flex-row gap-4 items-start bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
+                  {/* Player de Vídeo */}
+                  <div className="w-full sm:w-48 h-32 rounded-xl overflow-hidden bg-black shrink-0 relative flex items-center justify-center">
+                    <video
+                      src={videoUrl}
+                      controls
+                      playsInline
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+
+                  {/* Informações e Ações do Vídeo */}
+                  <div className="flex-1 space-y-2 w-full">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <VideoIcon className="w-4 h-4 text-purple-600" />
+                        <span>Vídeo Ativo do Produto</span>
+                      </span>
+                      <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">
+                        Exibido na Galeria
+                      </span>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value.trim())}
+                      placeholder="URL do vídeo (.mp4)..."
+                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-black font-mono text-[11px]"
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs">
+                        <Upload size={13} className="text-theme-primary" />
+                        <span>Trocar Vídeo</span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime,video/mov"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              handleVideoUpload(e.target.files[0]);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveVideo}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        <Trash2 size={13} />
+                        <span>Excluir Vídeo</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Vídeo Não Carregado (Formulário de Upload e URL) */
+                <div className="bg-white p-4 rounded-2xl border border-dashed border-slate-300 space-y-3">
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-200">
+                      <VideoIcon className="w-6 h-6" />
+                    </div>
+
+                    <div className="flex-1 text-center sm:text-left">
+                      <h5 className="text-xs font-bold text-slate-900">
+                        Adicione 1 vídeo demonstrando o produto
+                      </h5>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        O vídeo é exibido junto com as fotos na galeria para aumentar a conversão.
+                      </p>
+                    </div>
+
+                    {/* Botão de Upload de Vídeo */}
+                    <label className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-xs shrink-0 ${
+                      isUploadingVideo 
+                        ? 'bg-purple-100 text-purple-700 cursor-wait border border-purple-300' 
+                        : 'bg-zinc-900 hover:bg-black text-white active:scale-95'
+                    }`}>
+                      {isUploadingVideo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                          <span>Enviando vídeo para o Supabase...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 text-theme-primary" />
+                          <span>Fazer upload de Vídeo (MP4, MOV, WebM)</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        disabled={isUploadingVideo}
+                        accept="video/mp4,video/webm,video/quicktime,video/mov"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleVideoUpload(e.target.files[0]);
+                            e.target.value = '';
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Ou Colar Link do Vídeo */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ou cole o link direto de um vídeo (.mp4, .mov, etc.)..."
+                      value={tempVideoUrl}
+                      onChange={(e) => setTempVideoUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (tempVideoUrl.trim()) handleSaveVideoUrl(tempVideoUrl);
+                        }
+                      }}
+                      className="flex-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-1 focus:ring-black"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (tempVideoUrl.trim()) handleSaveVideoUrl(tempVideoUrl);
+                      }}
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                    >
+                      Adicionar Link
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Seletor de Tipo de Produto: Físico vs Digital */}
@@ -1339,26 +1748,45 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             )}
           </div>
 
-          {/* 1. Galeria de Fotos Extras */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+          {/* 1. Galeria de Fotos Extras & Mídias da Página */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <ImageIcon className="w-4 h-4 text-theme-primary" />
-                Galeria de Fotos Extras (Miniaturas da Página)
+                <span>Galeria de Mídias da Página de Vendas</span>
               </label>
-              <span className="text-[10px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
-                {formData.gallery_images.split('\n').filter((s) => s.trim().length > 5).length} foto(s) configurada(s)
-              </span>
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded-md">
+                  {photos.filter(Boolean).length} foto(s)
+                </span>
+                {videoUrl && (
+                  <span className="bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-md">
+                    1 vídeo
+                  </span>
+                )}
+              </div>
             </div>
-            <textarea
-              rows={3}
-              value={formData.gallery_images}
-              onChange={(e) => setFormData({ ...formData, gallery_images: e.target.value })}
-              placeholder="https://exemplo.com/foto2.jpg&#10;https://exemplo.com/foto3.jpg"
-              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black placeholder:text-slate-400 text-slate-800 font-mono text-[11px] resize-none"
-            />
+
+            {/* Miniaturas das Fotos e Vídeo Configurados */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+              {photos.map((p, idx) => p ? (
+                <div key={idx} className="relative w-14 h-14 rounded-xl border border-slate-300 bg-white p-1 overflow-hidden shrink-0 shadow-2xs">
+                  <img src={p} alt={`Foto ${idx + 1}`} className="w-full h-full object-contain" />
+                  <span className={`absolute bottom-0 inset-x-0 text-[8px] font-black text-center text-white ${idx === 0 ? 'bg-amber-500' : 'bg-black/70'}`}>
+                    {idx === 0 ? 'CAPA' : `#${idx + 1}`}
+                  </span>
+                </div>
+              ) : null)}
+              {videoUrl && (
+                <div className="relative w-14 h-14 rounded-xl border border-purple-300 bg-slate-900 flex flex-col items-center justify-center text-white shrink-0 shadow-2xs">
+                  <VideoIcon size={16} className="text-purple-400 mb-0.5" />
+                  <span className="text-[8px] font-bold text-purple-300">VÍDEO</span>
+                </div>
+              )}
+            </div>
+
             <p className="text-[11px] text-slate-500">
-              Cole uma URL por linha. Essas fotos formarão as miniaturas clicáveis na galeria da Landing Page.
+              💡 As até 5 fotos e o vídeo do produto são gerenciados visualmente na <strong>Aba 1 (Informações Gerais)</strong> com upload instantâneo e suporte a múltiplos arquivos.
             </p>
           </div>
 

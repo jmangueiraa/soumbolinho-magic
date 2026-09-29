@@ -179,13 +179,12 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
     const mainImg = product.imageUrl || product.image_url || product.image || product.photo_url || '';
     const mainVideo = product.videoUrl || product.video_url || '';
 
+    // 1. Foto Principal / Capa
     if (mainImg) {
       items.push({ url: mainImg, isVideo: isVideoUrl(mainImg) });
     }
-    if (mainVideo) {
-      items.push({ url: mainVideo, isVideo: true });
-    }
 
+    // 2. Fotos adicionais da galeria (até 4 fotos extras)
     const extraGallery = product.galleryImages || product.gallery_images || [];
     extraGallery.forEach((url) => {
       const cleanUrl = String(url || '').trim();
@@ -193,6 +192,11 @@ export const ProductStandardPage: React.FC<ProductStandardPageProps> = ({
         items.push({ url: cleanUrl, isVideo: isVideoUrl(cleanUrl) });
       }
     });
+
+    // 3. Vídeo do produto na galeria
+    if (mainVideo && !items.some((it) => it.url === mainVideo)) {
+      items.push({ url: mainVideo, isVideo: true });
+    }
 
     return items;
   }, [product]);
