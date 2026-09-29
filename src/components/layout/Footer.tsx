@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Gift,
   Award
+} from 'lucide-react';
 import { useStoreData } from '../../context/StoreDataContext';
 import { 
   useTenant, 
@@ -436,7 +437,6 @@ export const Footer: React.FC = () => {
               )}
             </div>
           </div>
-
 
           {/* Informações */}
           <div>
