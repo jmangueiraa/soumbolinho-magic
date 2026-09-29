@@ -14,8 +14,6 @@ import {
   CheckCircle2,
   Gift,
   Award
-} from 'lucide-react';
-import { useFilter } from '../../context/FilterContext';
 import { useStoreData } from '../../context/StoreDataContext';
 import { 
   useTenant, 
@@ -90,9 +88,8 @@ const getBenefitColorClass = (iconName: string, index: number) => {
 };
 
 export const Footer: React.FC = () => {
-  const { storeConfig, categories } = useStoreData();
+  const { storeConfig } = useStoreData();
   const { currentStore } = useTenant();
-  const { setSelectedCategory } = useFilter();
 
   const currentStoreId = currentStore?.id || '';
   const isBase = currentStoreId === 'suamarcaaqui' || currentStoreId === 'store_default' || !currentStoreId;
@@ -320,7 +317,7 @@ export const Footer: React.FC = () => {
 
       {/* Main Footer Links */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
           {/* Brand Info */}
           <div className="space-y-4">
@@ -440,25 +437,6 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Categorias */}
-          <div>
-            <h4 className="text-sm font-bold text-white mb-4">Categorias</h4>
-            <ul className="space-y-2 text-xs text-zinc-400">
-              {categories.slice(0, 5).map((category) => (
-                <li key={category.id}>
-                  <button
-                    onClick={() => {
-                      setSelectedCategory(category.id);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="hover:text-theme-primary transition-colors cursor-pointer"
-                  >
-                    {category.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
 
           {/* Informações */}
           <div>
